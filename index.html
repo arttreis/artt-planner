@@ -4,331 +4,332 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="dark">
-<meta name="theme-color" content="#0A0908">
+<meta name="theme-color" content="#0d0d0d">
 <title>artt · planner</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect x='13' y='4' width='6' height='24' rx='3' fill='%23F0A63C'/></svg>">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect x='13' y='4' width='6' height='24' rx='3' fill='%232EE86B'/></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@400;500;600&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
+/* ---------------------------------------------------------------
+   design system arttreis.com.br — lado escuro dos tokens.
+   copiado do :root do site; a unica adicao e --br3 (12px), um passo
+   intermediario entre --br2 e --br para os ladrilhos de 44px.
+   --------------------------------------------------------------- */
 :root{
-  --breu:#0A0908;
-  --lastro:#151310;
-  --lastro-alto:#1D1916;
-  --costura:#3B352C;
+  --pd:16px; --pd2:8px; --pd3:4px;
+  --br:16px; --br2:8px; --br3:12px; --br-pill:100px;
 
-  --gasto:#231F19;
-  --comprometido:#4A4238;
-  --lane:rgba(240,166,60,.09);
+  --bg:#0d0d0d;
+  --surface:#141414;
+  --surface-2:#1b1b1b;
 
-  --osso:#EDE7DD;
-  --fumaca:#938C81;
+  --ink:#f2f2f2;
+  --ink-70:rgba(242,242,242,.7);
+  --ink-50:rgba(242,242,242,.5);
+  --ink-30:rgba(242,242,242,.32);
 
-  --sodio:#F0A63C;
-  --brasa:#D2634A;
-  --vidro:#8FB0DA;
-  --vidro-tinta:#0B1620;
+  --line:rgba(242,242,242,.13);
+  --line-soft:rgba(242,242,242,.07);
+  --fill:rgba(242,242,242,.05);
+  --fill-hover:rgba(242,242,242,.1);
+  --scrim:rgba(13,13,13,.62);
 
-  --alta:#DF6A5C;
-  --media:#E0A03C;
-  --baixa:#6FBF8B;
+  --green:#2EE86B;
+  --green-glow:rgba(46,232,107,.3);
+  --on-green:#0d0d0d;
 
-  --sans:"Familjen Grotesk","Segoe UI",system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;
-  --mono:"DM Mono",ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,monospace;
-
-  --raio:12px;
-  --margem:clamp(18px,3.5vw,64px);
-  --t:160ms cubic-bezier(.2,.7,.3,1);
+  --sans:"Sora",system-ui,-apple-system,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,monospace;
+  --ease:cubic-bezier(.16,1,.3,1);
+  --t:220ms var(--ease);
 }
 
 *{box-sizing:border-box}
-/* as classes abaixo usam display:flex, que venceria o display:none do atributo hidden */
+/* varias classes usam display:flex, que venceria o display:none do atributo hidden */
 [hidden]{display:none !important}
 html,body{margin:0;padding:0}
 body{
-  background:var(--breu);color:var(--osso);
-  font-family:var(--sans);font-size:16px;line-height:1.5;
-  -webkit-font-smoothing:antialiased;min-height:100dvh;
+  background:var(--bg);color:var(--ink);
+  font-family:var(--sans);font-size:14px;line-height:1.35;
+  letter-spacing:-.01em;
+  -webkit-font-smoothing:antialiased;
+  min-height:100dvh;
+  display:grid;place-items:center;
+  padding:clamp(12px,3vh,40px) clamp(12px,3vw,40px);
 }
+
 button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
 input{font:inherit;color:inherit}
-:focus-visible{outline:2px solid var(--sodio);outline-offset:2px;border-radius:4px}
+:focus-visible{outline:2px solid var(--green);outline-offset:2px;border-radius:var(--br2)}
 
-/* largura total: a estrutura vai de borda a borda, so a prosa tem medida */
-.pagina{width:100%;padding:40px var(--margem) 120px}
-.prosa{max-width:62ch}
+/* rotulo mono, o .t-mono do sistema */
+.t-mono{
+  font-family:var(--mono);font-size:11px;font-weight:400;
+  letter-spacing:.08em;text-transform:uppercase;
+}
 
-/* ---------- cabecalho ---------- */
+/* ---------- o aparelho ---------- */
+.fone{
+  position:relative;
+  width:100%;max-width:432px;
+  height:min(880px,calc(100dvh - clamp(24px,6vh,80px)));
+  display:flex;flex-direction:column;
+  background:var(--surface);
+  border:1px solid var(--line);
+  border-radius:calc(var(--br) * 1.75);
+  overflow:hidden;
+}
+
 .topo{
-  display:flex;justify-content:space-between;align-items:baseline;gap:16px;
-  font-family:var(--mono);font-size:12px;letter-spacing:.12em;text-transform:uppercase;
-  color:var(--fumaca);margin-bottom:22px;
+  flex:0 0 auto;
+  display:flex;justify-content:space-between;align-items:center;gap:var(--pd);
+  padding:calc(var(--pd) * 1.25) calc(var(--pd) * 1.5) var(--pd3);
+  color:var(--ink-30);
 }
 .janela{
-  font-family:var(--mono);font-size:12px;letter-spacing:.1em;color:var(--fumaca);
-  border-bottom:1px dashed var(--costura);padding-bottom:1px;text-transform:none;
+  font-family:var(--mono);font-size:11px;letter-spacing:.04em;color:var(--ink-30);
+  border-bottom:1px dashed var(--line);padding-bottom:1px;
+  transition:color var(--t);
 }
-.janela:hover{color:var(--osso);border-bottom-color:var(--fumaca)}
+.janela:hover{color:var(--ink-70)}
 
-/* se e medida, e mono. o maior elemento da tela e um numero, nao uma frase. */
-.medida{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
-.numero{
-  font-family:var(--mono);font-weight:500;
-  font-size:clamp(38px,5.5vw,64px);line-height:.95;letter-spacing:-.02em;color:var(--osso);
+/* a area que rola; a pilula fica parada no pe */
+.rolagem{
+  flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;
+  padding:var(--pd) calc(var(--pd) * 1.5) var(--pd2);
+  scrollbar-width:thin;scrollbar-color:var(--line) transparent;
 }
-.unidade{font-size:clamp(14px,1.2vw,17px);color:var(--fumaca)}
-.medida[data-tom="estouro"] .numero,
-.medida[data-tom="estouro"] .unidade{color:var(--brasa)}
-.contexto{margin:14px 0 22px;font-size:14.5px;color:var(--fumaca);min-height:22px}
+.rolagem::-webkit-scrollbar{width:6px}
+.rolagem::-webkit-scrollbar-thumb{background:var(--line);border-radius:3px}
 
-/* ---------- o trilho ---------- */
-/* a pista e exatamente a janela do dia e ocupa a mesma caixa que as linhas da lista,
-   para a faixa de uma tarefa no trilho cair na vertical exata da linha dela */
+.selo{
+  width:52px;height:52px;border-radius:var(--br3);
+  background:var(--fill);border:1px solid var(--line);
+  display:grid;place-items:center;margin-bottom:calc(var(--pd) * 1.5);
+}
+.selo svg{width:23px;height:23px;color:var(--green)}
+
+/* ---------- chamada ---------- */
+.chamada{
+  margin:0 0 var(--pd2);font-size:30px;font-weight:600;line-height:1.14;
+  letter-spacing:-.038em;
+}
+.chamada .c1{display:block;color:var(--ink)}
+.chamada .c2{display:block;color:var(--ink)}
+/* se e medida, e mono — o .n do sistema */
+.chamada .medida{
+  font-family:var(--mono);font-weight:500;letter-spacing:-.03em;
+  color:var(--green);
+}
+/* nao ha vermelho neste sistema: quando nao cabe, o verde simplesmente some */
+.chamada[data-tom="estouro"] .medida{color:var(--ink)}
+.contexto{margin:0 0 calc(var(--pd) * 1.25);font-size:13px;color:var(--ink-50);min-height:18px}
+
+/* ---------- trilho do dia ---------- */
 .trilho{
-  display:flex;height:38px;border-radius:9px;overflow:hidden;
-  background:var(--gasto);
+  display:flex;height:12px;border-radius:var(--br2);overflow:hidden;
+  background:var(--bg);border:1px solid var(--line-soft);
 }
 .faixa{min-width:0;transition:background var(--t)}
-.faixa+.faixa{box-shadow:inset 1px 0 0 var(--breu)}
-.gasto{background:var(--gasto)}
-.banda{background:var(--comprometido)}
-.banda.destaque{background:var(--osso)}
-.livre{background:var(--sodio);flex:1 1 auto}
-.livre.recibo{background:var(--osso)}
-
+.faixa+.faixa{box-shadow:inset 1px 0 0 var(--bg)}
+.gasto{background:var(--bg)}
+.banda{background:var(--fill-hover)}
+.banda.destaque{background:var(--ink)}
+.livre{background:var(--green);flex:1 1 auto}
+.livre.recibo{background:var(--ink)}
 .estouro{
-  height:9px;margin-top:4px;border-radius:5px;
-  background:repeating-linear-gradient(45deg,var(--brasa) 0 3px,var(--breu) 3px 6px);
+  height:6px;margin-top:var(--pd3);border-radius:3px;
+  background:repeating-linear-gradient(45deg,var(--ink-30) 0 3px,transparent 3px 6px);
 }
 .nota{
-  display:block;margin-top:9px;text-align:right;
-  font-family:var(--mono);font-size:11.5px;letter-spacing:.06em;color:var(--fumaca);
-  min-height:17px;
+  display:block;margin-top:var(--pd2);text-align:right;
+  color:var(--ink-30);min-height:15px;font-size:10px;
 }
 .editor-dia{
-  display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px;
-  font-family:var(--mono);font-size:12px;color:var(--fumaca);
+  display:flex;align-items:center;gap:var(--pd2);flex-wrap:wrap;margin-top:var(--pd2);
+  font-family:var(--mono);font-size:11px;color:var(--ink-50);
 }
 .editor-dia input{
-  background:var(--lastro);border:1px solid var(--costura);border-radius:6px;
-  padding:5px 8px;font-family:var(--mono);font-size:12px;color:var(--osso);
+  background:var(--fill);border:1px solid var(--line);border-radius:var(--br2);
+  padding:5px 8px;font-family:var(--mono);font-size:11px;color:var(--ink);
 }
-.editor-dia button{color:var(--sodio);text-decoration:underline;text-underline-offset:3px}
+.editor-dia button{color:var(--green);text-decoration:underline;text-underline-offset:3px}
 
-/* ---------- composer ---------- */
-/* a unica superficie clara do app, e so enquanto voce esta digitando dentro dela */
-.composer{
-  display:flex;align-items:center;gap:12px;
-  margin:30px 0 0;padding:0 18px;height:60px;
-  background:var(--lastro);border-radius:var(--raio);
-  border:1px solid transparent;
-  transition:background var(--t),border-color var(--t),color var(--t);
+.rotulo{
+  margin:calc(var(--pd) * 1.25) 0 var(--pd2);color:var(--ink-50);
+  display:flex;justify-content:space-between;align-items:center;gap:var(--pd);
 }
-.composer .marca{font-family:var(--mono);font-size:18px;color:var(--vidro);transition:color var(--t)}
-.composer input{
-  flex:1 1 auto;min-width:0;background:none;border:0;outline:0;font-size:16.5px;
-  caret-color:var(--vidro);
+/* .pill do sistema */
+.pill{
+  display:inline-flex;align-items:center;gap:7px;height:26px;padding:0 14px;
+  font-size:12.5px;color:var(--ink-70);
+  background:var(--fill);border:1px solid var(--line);border-radius:var(--br-pill);
+  transition:background var(--t),color var(--t);
 }
-.composer input::placeholder{color:var(--fumaca)}
-.composer:focus-within{background:var(--vidro);color:var(--vidro-tinta);border-color:var(--vidro)}
-.composer:focus-within .marca{color:var(--vidro-tinta)}
-.composer:focus-within input{caret-color:var(--vidro-tinta)}
-.composer:focus-within input::placeholder{color:rgba(11,22,32,.5)}
-.composer:focus-within :focus-visible{outline-color:var(--vidro-tinta)}
-
-/* previa fantasma: mostra o que o parser entendeu ANTES de criar */
-.fantasma{
-  display:flex;align-items:center;gap:14px;
-  margin-top:6px;padding:0 16px;min-height:58px;
-  border:1px dashed var(--costura);border-radius:var(--raio);color:var(--fumaca);
-}
-.fantasma .f-nome{flex:1 1 auto;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:16px}
-.fantasma .f-tempo{flex:0 0 auto;font-family:var(--mono);font-size:13px}
-.fantasma[data-cabe="nao"]{border-color:var(--brasa);color:var(--brasa)}
-
-.dica{font-size:12.5px;color:var(--fumaca);margin:12px 0 0;padding:0 18px}
-.dica code{font-family:var(--mono);font-size:11.5px;background:var(--lastro);padding:2px 6px;border-radius:5px}
+.pill:hover{background:var(--fill-hover);color:var(--ink)}
+.pill svg{width:11px;height:11px;transition:transform var(--t)}
 
 /* ---------- lista ---------- */
-.lista{list-style:none;margin:28px 0 0;padding:0;display:flex;flex-direction:column;gap:5px}
+.lista{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:var(--pd2)}
 .tarefa{
-  position:relative;overflow:hidden;
-  display:flex;align-items:center;gap:16px;
-  padding:0 18px;min-height:64px;
-  background:var(--lastro);border-radius:var(--raio);
-  box-shadow:inset 0 1px 0 rgba(237,231,221,.05);
-  transition:background var(--t),opacity var(--t),transform var(--t);
+  display:flex;align-items:center;gap:var(--pd);
+  padding:10px 12px;border-radius:var(--br);
+  background:var(--fill);border:1px solid var(--line-soft);
+  transition:background var(--t),border-color var(--t),opacity var(--t),transform var(--t);
 }
-/* a faixa de tempo da tarefa, no fundo da propria linha e no mesmo eixo do trilho:
-   e o que faz a largura da tela dizer alguma coisa em vez de so esticar */
-.lane{
-  position:absolute;top:0;bottom:0;
-  background:var(--lane);
-  border-left:1px solid rgba(240,166,60,.3);
-  pointer-events:none;
-}
-.tarefa > :not(.lane){position:relative;z-index:1}
-.tarefa:hover,.tarefa:focus-within{background:var(--lastro-alto)}
+.tarefa:hover,.tarefa:focus-within{background:var(--fill-hover);border-color:var(--line)}
 .tarefa.arrastando{opacity:.4}
-.tarefa.alvo{box-shadow:inset 0 2px 0 var(--sodio)}
+.tarefa.alvo{box-shadow:inset 0 2px 0 var(--green)}
 .tarefa.saindo{opacity:0;transform:translateX(12px)}
 
-.anel{
-  flex:0 0 auto;width:21px;height:21px;border-radius:50%;
-  border:2px solid var(--costura);display:grid;place-items:center;
-  transition:border-color var(--t),background var(--t);
+/* o ladrilho de icone e o proprio botao de concluir */
+.marca{
+  flex:0 0 auto;width:44px;height:44px;border-radius:var(--br3);
+  background:var(--fill);border:1px solid var(--line);
+  display:grid;place-items:center;color:var(--ink);
+  transition:background var(--t),color var(--t),border-color var(--t);
 }
-.tarefa[data-prio="1"] .anel{border-color:var(--alta)}
-.tarefa[data-prio="2"] .anel{border-color:var(--media)}
-.tarefa[data-prio="3"] .anel{border-color:var(--baixa)}
-.anel svg{width:11px;height:11px;opacity:0;transform:scale(.5);transition:opacity var(--t),transform var(--t)}
-.anel:hover{border-color:var(--osso)}
-.anel:hover svg{opacity:.5;transform:scale(1)}
+.marca svg{width:18px;height:18px;opacity:.18;transition:opacity var(--t)}
+.marca:hover{background:var(--green);border-color:var(--green);color:var(--on-green)}
+.marca:hover svg,.tarefa:focus-within .marca svg{opacity:1}
 
+.miolo{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:2px}
 .nome{
-  flex:1 1 auto;min-width:0;font-size:16.5px;
-  background:none;border:0;outline:0;padding:6px 0;
+  font-size:14.5px;font-weight:500;color:var(--ink);letter-spacing:-.015em;
+  background:none;border:0;outline:0;padding:0;width:100%;
   text-overflow:ellipsis;cursor:text;
 }
-.quando{
-  flex:0 0 auto;font-family:var(--mono);font-size:12px;color:var(--fumaca);
-  white-space:nowrap;
-  /* a faixa passa por baixo do horario: o halo garante que ele continue legivel */
-  text-shadow:0 0 6px var(--lastro),0 0 6px var(--lastro);
+.sub{
+  align-self:flex-start;display:flex;align-items:center;gap:6px;
+  font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;
+  color:var(--ink-30);padding:1px 0;text-align:left;transition:color var(--t);
 }
-.tempo{
-  flex:0 0 auto;display:flex;align-items:center;gap:7px;
-  font-family:var(--mono);font-size:13px;color:var(--fumaca);
-  padding:5px 6px;border-radius:6px;
-  transition:color var(--t),background var(--t);
-}
-.tempo:hover{color:var(--osso);background:var(--breu)}
-.tempo svg{width:14px;height:14px;flex:0 0 auto}
+.sub:hover{color:var(--ink-70)}
+.sub svg{width:11px;height:11px;flex:0 0 auto}
 
 .acoes{flex:0 0 auto;display:flex;align-items:center;gap:2px;opacity:0;transition:opacity var(--t)}
 .tarefa:hover .acoes,.tarefa:focus-within .acoes{opacity:1}
 .acao{
-  width:30px;height:30px;display:grid;place-items:center;border-radius:7px;
-  color:var(--fumaca);transition:color var(--t),background var(--t);
+  width:30px;height:30px;display:grid;place-items:center;border-radius:var(--br2);
+  color:var(--ink-30);transition:color var(--t),background var(--t);
 }
-.acao:hover{color:var(--osso);background:var(--breu)}
+.acao:hover{color:var(--ink);background:var(--fill-hover)}
 .acao svg{width:15px;height:15px}
-.ponto{width:11px;height:11px;border-radius:50%;border:2px solid currentColor}
-.tarefa[data-prio="1"] .ponto{border-color:var(--alta);background:var(--alta)}
-.tarefa[data-prio="2"] .ponto{border-color:var(--media);background:var(--media)}
-.tarefa[data-prio="3"] .ponto{border-color:var(--baixa);background:var(--baixa)}
+/* prioridade em escala de tinta: este sistema nao tem uma segunda cor */
+.ponto{width:10px;height:10px;border-radius:50%;border:1.5px solid var(--ink-30)}
+.tarefa[data-prio="1"] .ponto{border-color:var(--ink);background:var(--ink)}
+.tarefa[data-prio="2"] .ponto{border-color:var(--ink-70);background:var(--ink-70)}
+.tarefa[data-prio="3"] .ponto{border-color:var(--ink-30);background:var(--ink-30)}
+.tarefa[data-prio="1"] .marca{border-color:var(--ink-70)}
+.tarefa[data-prio="2"] .marca{border-color:var(--line)}
 
-/* ---------- a tela de dia vazio ---------- */
-.vazio{padding:44px 0 8px}
-.vazio-titulo{
-  margin:0 0 10px;font-size:clamp(26px,3.2vw,36px);font-weight:600;
-  letter-spacing:-.02em;color:var(--osso);
-}
-.vazio-sub{margin:0 0 30px;font-size:16px;color:var(--fumaca)}
-/* ensina a gramatica pelo exemplo, sem tour e sem modal */
-.exemplos{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:5px}
+/* ---------- dia vazio ---------- */
+.vazio{padding:var(--pd3) 0}
+.vazio-sub{margin:0 0 var(--pd);font-size:13.5px;color:var(--ink-50)}
+.exemplos{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:var(--pd2)}
 .exemplos li{
-  position:relative;overflow:hidden;
-  display:flex;align-items:center;gap:16px;
-  padding:0 18px;min-height:58px;
-  border:1px dashed var(--costura);border-radius:var(--raio);
-  color:var(--fumaca);
+  display:flex;align-items:center;gap:var(--pd);
+  padding:10px 12px;border-radius:var(--br);
+  border:1px dashed var(--line);color:var(--ink-30);
 }
-.exemplos li > :not(.lane){position:relative;z-index:1}
-.exemplos .e-anel{
-  flex:0 0 auto;width:21px;height:21px;border-radius:50%;
-  border:2px dashed var(--costura);
+.exemplos .e-marca{
+  flex:0 0 auto;width:44px;height:44px;border-radius:var(--br3);
+  border:1px dashed var(--line);
 }
-.exemplos .e-nome{flex:1 1 auto;min-width:0;font-size:16px}
-.exemplos .e-tempo{flex:0 0 auto;font-family:var(--mono);font-size:13px}
-.exemplos .e-tempo b{font-weight:400;color:var(--sodio)}
-.vazio-rodape{margin:22px 0 0;font-size:13px;color:var(--fumaca)}
+.exemplos .e-miolo{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:2px}
+.exemplos .e-nome{font-size:14.5px;font-weight:500;color:var(--ink-50)}
+.exemplos .e-sub{font-family:var(--mono);font-size:10.5px;letter-spacing:.06em}
+.exemplos .e-sub b{font-weight:400;color:var(--green)}
+.vazio-rodape{margin:var(--pd) 0 0;font-size:12.5px;color:var(--ink-30)}
 
 /* ---------- concluidas ---------- */
-.feitas{margin-top:36px}
-.feitas-topo{
-  display:flex;align-items:center;justify-content:space-between;gap:14px;
-  padding-bottom:12px;border-bottom:1px solid var(--costura);
-}
-.feitas-titulo{
-  font-family:var(--mono);font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;
-  color:var(--fumaca);display:flex;align-items:center;gap:9px;
-}
-.feitas-titulo svg{width:11px;height:11px;transition:transform var(--t)}
-.feitas[data-aberto="nao"] .feitas-titulo svg{transform:rotate(-90deg)}
+.lista-feitas{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:var(--pd3)}
 .feitas[data-aberto="nao"] .lista-feitas{display:none}
-.limpar{font-size:12.5px;color:var(--fumaca);transition:color var(--t)}
-.limpar:hover{color:var(--brasa)}
-.lista-feitas{list-style:none;margin:0;padding:12px 0 0;display:flex;flex-direction:column}
+.feitas[data-aberto="nao"] .pill svg{transform:rotate(-90deg)}
 .feita{
-  display:flex;align-items:center;gap:16px;padding:9px 18px;border-radius:10px;
-  color:var(--fumaca);transition:background var(--t);
+  display:flex;align-items:center;gap:var(--pd);padding:6px 12px;border-radius:var(--br2);
+  color:var(--ink-30);transition:background var(--t);
 }
-.feita:hover{background:var(--lastro)}
-.feita .anel{border-color:var(--fumaca);background:var(--fumaca)}
-.feita .anel svg{opacity:1;transform:scale(1);color:var(--breu)}
-.feita .nome{
+.feita:hover{background:var(--fill)}
+.feita .marca{width:30px;height:30px;border-radius:var(--br2);color:var(--green);background:var(--fill)}
+.feita .marca svg{width:13px;height:13px;opacity:1}
+.feita .f-nome{
   flex:1 1 auto;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;
-  text-decoration:line-through;text-decoration-color:var(--costura);cursor:default;
+  font-size:13.5px;text-decoration:line-through;text-decoration-color:var(--line);
 }
-.espaco-acoes{flex:0 0 62px}
+.feita .f-tempo{flex:0 0 auto;font-family:var(--mono);font-size:10.5px;letter-spacing:.06em}
 
-/* ---------- rodape ---------- */
-.rodape{
-  margin-top:44px;padding-top:18px;border-top:1px solid var(--costura);
-  display:flex;flex-wrap:wrap;gap:8px 20px;
-  font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;
-  color:var(--fumaca);
+/* ---------- pilula do composer ---------- */
+.pilula-area{flex:0 0 auto;padding:var(--pd2) calc(var(--pd) * 1.25) calc(var(--pd) * 1.25)}
+.fantasma{
+  display:flex;align-items:center;gap:var(--pd2);
+  margin:0 var(--pd3) var(--pd2);padding:9px 12px;
+  border:1px dashed var(--line);border-radius:var(--br);color:var(--ink-30);
 }
-.rodape kbd{
-  font-family:inherit;background:var(--lastro);border:1px solid var(--costura);
-  border-radius:4px;padding:1px 5px;color:var(--osso);
-}
+.fantasma .g-nome{flex:1 1 auto;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:13.5px}
+.fantasma .g-tempo{flex:0 0 auto;font-family:var(--mono);font-size:10.5px;letter-spacing:.06em}
+.fantasma[data-cabe="nao"]{border-style:solid;border-color:var(--line);color:var(--ink-70)}
 
-/* ---------- aviso com desfazer ---------- */
+.pilula{
+  display:flex;align-items:center;gap:var(--pd2);
+  height:56px;padding:0 var(--pd2);
+  background:var(--fill);border:1px solid var(--line);
+  border-radius:var(--br-pill);transition:border-color var(--t),background var(--t);
+}
+.pilula:focus-within{border-color:var(--green-glow);background:var(--fill-hover)}
+.mais{
+  flex:0 0 auto;width:38px;height:38px;border-radius:50%;
+  background:var(--fill-hover);border:1px solid var(--line);
+  display:grid;place-items:center;color:var(--ink-50);
+  transition:background var(--t),color var(--t),border-color var(--t);
+}
+.mais svg{width:16px;height:16px}
+.pilula:focus-within .mais{background:var(--green);border-color:var(--green);color:var(--on-green)}
+.pilula input{
+  flex:1 1 auto;min-width:0;background:none;border:0;outline:0;
+  font-size:14.5px;caret-color:var(--green);
+}
+.pilula input::placeholder{color:var(--ink-30)}
+.enviar{
+  flex:0 0 auto;width:38px;height:38px;border-radius:50%;
+  display:grid;place-items:center;color:var(--ink-30);
+  transition:color var(--t),background var(--t);
+}
+.enviar svg{width:16px;height:16px}
+.enviar:hover{color:var(--ink);background:var(--fill-hover)}
+.aviso-storage{margin:var(--pd2) 6px 0;font-size:11.5px;color:var(--ink-70)}
+
+/* ---------- desfazer ---------- */
 .aviso{
-  position:fixed;left:50%;bottom:22px;transform:translateX(-50%);
-  display:flex;align-items:center;gap:16px;
-  padding:12px 16px;border-radius:10px;
-  background:var(--lastro-alto);border:1px solid var(--costura);
-  font-size:14px;color:var(--osso);
-  box-shadow:0 8px 28px rgba(0,0,0,.5);
-  max-width:calc(100vw - 32px);z-index:10;
+  position:absolute;left:var(--pd);right:var(--pd);bottom:86px;z-index:5;
+  display:flex;align-items:center;justify-content:space-between;gap:var(--pd);
+  padding:11px 14px;border-radius:var(--br);
+  background:var(--surface-2);border:1px solid var(--line);
+  font-size:13px;color:var(--ink);
+  box-shadow:0 10px 30px rgba(0,0,0,.55);
 }
+.aviso span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .aviso button{
-  color:var(--sodio);font-size:13.5px;white-space:nowrap;
-  text-decoration:underline;text-underline-offset:3px;padding:6px 2px;
+  flex:0 0 auto;color:var(--green);font-size:12.5px;
+  text-decoration:underline;text-underline-offset:3px;padding:var(--pd3) 2px;
 }
 
-/* ---------- estreito ---------- */
-@media (max-width:820px){
-  .quando{display:none}
-}
-@media (max-width:720px){
-  .pagina{padding:24px var(--margem) 110px}
-  .topo{margin-bottom:14px}
-  .contexto{margin-bottom:18px}
-  .trilho{height:32px}
-  .dica .extra{display:none}
-  .rodape{display:none}
-  .vazio{padding:34px 0 4px}
-
-  /* o titulo ganha a linha inteira; a duracao desce */
-  .tarefa{
-    display:grid;grid-template-columns:auto minmax(0,1fr) auto;
-    grid-template-areas:"anel nome acoes" "anel tempo acoes";
-    align-items:center;column-gap:11px;padding:10px 12px;min-height:0;
-  }
-  .tarefa .anel{grid-area:anel}
-  .tarefa .nome{grid-area:nome;padding:2px 0;font-size:16px}
-  .tarefa .tempo{grid-area:tempo;justify-self:start;padding:2px 0;font-size:12px}
-  .tarefa .acoes{grid-area:acoes;opacity:1}
-  .acao{width:36px;height:36px}
-  .feita{padding:9px 12px}
-  .espaco-acoes{flex:0 0 74px}
-  .exemplos li{padding:0 12px;min-height:52px}
-  /* sem largura sobrando, a faixa vira ruido atras dos botoes — o trilho do topo ja diz isso */
-  .lane{display:none}
+/* no celular o aparelho vira a tela inteira */
+@media (max-width:480px){
+  body{padding:0}
+  .fone{max-width:none;height:100dvh;border-radius:0;border:0}
+  .topo{padding-top:max(18px,env(safe-area-inset-top))}
+  .pilula-area{padding-bottom:max(var(--pd),env(safe-area-inset-bottom))}
+  .chamada{font-size:27px}
+  /* sem hover no toque, as acoes ficam sempre visiveis — entao elas precisam
+     custar menos largura, senao comem o titulo */
+  .acoes{opacity:1}
+  .tarefa{gap:10px;padding:10px}
+  .marca{width:40px;height:40px}
+  .acao{width:28px;height:28px}
+  .exemplos li{gap:10px;padding:10px}
+  .exemplos .e-marca{width:40px;height:40px}
 }
 @media (prefers-reduced-motion:reduce){
   *{transition-duration:.01ms !important;animation-duration:.01ms !important}
@@ -336,88 +337,98 @@ input{font:inherit;color:inherit}
 </style>
 </head>
 <body>
-<main class="pagina">
 
-  <header>
-    <div class="topo">
-      <span id="data"></span>
-      <button class="janela" id="janela" title="Mudar o começo e o fim do seu dia"></button>
-    </div>
+<main class="fone">
 
-    <div class="medida" id="medida">
-      <span class="numero" id="numero">—</span>
-      <span class="unidade" id="unidade"></span>
-    </div>
-    <p class="contexto prosa" id="contexto"></p>
-
-    <div class="instrumento">
-      <div class="trilho" id="trilho" aria-hidden="true"></div>
-      <div class="estouro" id="estouro" hidden aria-hidden="true"></div>
-      <span class="nota" id="nota"></span>
-      <div class="editor-dia" id="editor-dia" hidden>
-        <label>meu dia vai de <input type="time" id="inicio" step="300"></label>
-        <label>até <input type="time" id="fim" step="300"></label>
-        <button type="button" id="salvar-dia">salvar</button>
-      </div>
-    </div>
-  </header>
-
-  <form class="composer" id="form" autocomplete="off">
-    <span class="marca" aria-hidden="true">&rsaquo;</span>
-    <input id="campo" placeholder="o que precisa caber?" aria-label="Nova tarefa">
-  </form>
-  <div class="fantasma" id="fantasma" hidden aria-hidden="true">
-    <span class="f-nome"></span>
-    <span class="f-tempo"></span>
-  </div>
-  <p class="dica" id="dica" hidden></p>
-
-  <ul class="lista" id="lista"></ul>
-
-  <div class="vazio" id="vazio" hidden>
-    <p class="vazio-titulo" id="vazio-titulo">Nada na fila.</p>
-    <p class="vazio-sub prosa" id="vazio-sub">O dia inteiro ainda é seu.</p>
-    <ul class="exemplos" id="exemplos" aria-hidden="true">
-      <li data-min="90">
-        <div class="lane"></div>
-        <span class="e-anel"></span>
-        <span class="e-nome">fechar o relatório da Vibra</span>
-        <span class="e-tempo"><b>1h30</b></span>
-      </li>
-      <li data-min="15">
-        <div class="lane"></div>
-        <span class="e-anel"></span>
-        <span class="e-nome">ligar pro contador</span>
-        <span class="e-tempo"><b>15m</b></span>
-      </li>
-    </ul>
-    <p class="vazio-rodape prosa" id="vazio-rodape">Escreve assim e a duração é lida sozinha — ela sai do título e entra na barra do dia.</p>
+  <div class="topo">
+    <span class="t-mono" id="data"></span>
+    <button class="janela" id="janela" title="Mudar o começo e o fim do seu dia"></button>
   </div>
 
-  <section class="feitas" id="feitas" data-aberto="nao" hidden>
-    <div class="feitas-topo">
-      <button class="feitas-titulo" id="alternar-feitas" aria-expanded="false">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
-        <span id="feitas-rotulo"></span>
+  <div class="rolagem">
+
+    <div class="selo" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <path d="M4 8h9M4 14h5M4 20h13"/><path d="M17 3.5v9"/>
+      </svg>
+    </div>
+
+    <h1 class="chamada" id="chamada">
+      <span class="c1" id="c1"></span>
+      <span class="c2"><span class="medida" id="medida"></span> <span id="resto"></span></span>
+    </h1>
+    <p class="contexto" id="contexto"></p>
+
+    <div class="trilho" id="trilho" aria-hidden="true"></div>
+    <div class="estouro" id="estouro" hidden aria-hidden="true"></div>
+    <span class="nota t-mono" id="nota"></span>
+    <div class="editor-dia" id="editor-dia" hidden>
+      <label>de <input type="time" id="inicio" step="300"></label>
+      <label>até <input type="time" id="fim" step="300"></label>
+      <button type="button" id="salvar-dia">salvar</button>
+    </div>
+
+    <p class="rotulo" id="rotulo-fila"><span class="t-mono" id="rotulo-texto"></span></p>
+
+    <ul class="lista" id="lista"></ul>
+
+    <div class="vazio" id="vazio" hidden>
+      <p class="vazio-sub" id="vazio-sub"></p>
+      <ul class="exemplos" id="exemplos" aria-hidden="true">
+        <li>
+          <span class="e-marca"></span>
+          <span class="e-miolo">
+            <span class="e-nome">fechar o relatório da Vibra</span>
+            <span class="e-sub"><b>1h30</b></span>
+          </span>
+        </li>
+        <li>
+          <span class="e-marca"></span>
+          <span class="e-miolo">
+            <span class="e-nome">ligar pro contador</span>
+            <span class="e-sub"><b>15m</b></span>
+          </span>
+        </li>
+      </ul>
+      <p class="vazio-rodape" id="vazio-rodape">Escreve assim, com a duração no fim: ela sai do título e entra na barra do dia.</p>
+    </div>
+
+    <section class="feitas" id="feitas" data-aberto="nao" hidden>
+      <p class="rotulo">
+        <button class="pill" id="alternar-feitas" aria-expanded="false">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+          <span id="feitas-rotulo"></span>
+        </button>
+        <button class="pill" id="limpar">limpar</button>
+      </p>
+      <ul class="lista-feitas" id="lista-feitas"></ul>
+    </section>
+
+  </div>
+
+  <div class="pilula-area">
+    <div class="fantasma" id="fantasma" hidden aria-hidden="true">
+      <span class="g-nome"></span>
+      <span class="g-tempo"></span>
+    </div>
+    <form class="pilula" id="form" autocomplete="off">
+      <span class="mais" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+      </span>
+      <input id="campo" placeholder="o que precisa caber?" aria-label="Nova tarefa">
+      <button class="enviar" type="submit" aria-label="Adicionar tarefa">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h13M12 5l7 7-7 7"/></svg>
       </button>
-      <button class="limpar" id="limpar">Limpar concluídas</button>
-    </div>
-    <ul class="lista-feitas" id="lista-feitas"></ul>
-  </section>
+    </form>
+    <p class="aviso-storage" id="aviso-storage" hidden></p>
+  </div>
 
-  <footer class="rodape">
-    <span><kbd>/</kbd> nova tarefa</span>
-    <span><kbd>Enter</kbd> concluir</span>
-    <span><kbd>Alt</kbd>+<kbd>↑↓</kbd> reordenar</span>
-    <span><kbd>Del</kbd> excluir</span>
-  </footer>
+  <div class="aviso" id="aviso" hidden role="status" aria-live="polite">
+    <span id="aviso-texto"></span>
+    <button type="button" id="aviso-desfazer">desfazer</button>
+  </div>
 
 </main>
-
-<div class="aviso" id="aviso" hidden role="status" aria-live="polite">
-  <span id="aviso-texto"></span>
-  <button type="button" id="aviso-desfazer">desfazer</button>
-</div>
 
 <script>
 (() => {
@@ -488,9 +499,8 @@ input{font:inherit;color:inherit}
     catch (e) {
       if (!storageQuebrado) {
         storageQuebrado = true;
-        elDica.hidden = false;
-        elDica.textContent = "não consegui salvar neste navegador — o que você fizer agora some ao fechar";
-        elDica.style.color = "var(--brasa)";
+        elAvisoStorage.hidden = false;
+        elAvisoStorage.textContent = "não consegui salvar neste navegador — o que você fizer agora some ao fechar";
       }
     }
   }
@@ -557,8 +567,7 @@ input{font:inherit;color:inherit}
     };
   }
 
-  /* onde cada tarefa cai dentro do dia. usado pelo trilho E pelas faixas das linhas,
-     que por isso ficam no mesmo eixo e alinham na vertical. */
+  /* onde cada tarefa cai dentro do dia */
   function distribuir() {
     const c = contas();
     const vagas = new Map();
@@ -571,7 +580,7 @@ input{font:inherit;color:inherit}
       vagas.set(t.id, { de: cursor, min: usar, cortada: usar < t.min });
       cursor += usar;
     });
-    return { c, vagas, ocupadoAte: cursor };
+    return { c, vagas };
   }
 
   /* ---------- referencias ---------- */
@@ -579,17 +588,17 @@ input{font:inherit;color:inherit}
   const $ = (id) => document.getElementById(id);
   const elLista = $("lista"), elFeitas = $("lista-feitas"), elVazio = $("vazio");
   const elTrilho = $("trilho"), elEstouro = $("estouro");
-  const elNumero = $("numero"), elUnidade = $("unidade"), elMedida = $("medida");
+  const elC1 = $("c1"), elMedidaTxt = $("medida"), elResto = $("resto"), elChamada = $("chamada");
   const elContexto = $("contexto"), elNota = $("nota"), elJanela = $("janela");
   const elSecaoFeitas = $("feitas"), elRotuloFeitas = $("feitas-rotulo");
-  const elCampo = $("campo"), elDica = $("dica"), elFantasma = $("fantasma");
+  const elRotuloFila = $("rotulo-fila"), elRotuloTexto = $("rotulo-texto");
+  const elCampo = $("campo"), elFantasma = $("fantasma"), elAvisoStorage = $("aviso-storage");
   const elAviso = $("aviso"), elAvisoTexto = $("aviso-texto");
   const elEditorDia = $("editor-dia"), elInicio = $("inicio"), elFim = $("fim");
-  const elVazioTitulo = $("vazio-titulo"), elVazioSub = $("vazio-sub");
-  const elExemplos = $("exemplos"), elVazioRodape = $("vazio-rodape");
+  const elVazioSub = $("vazio-sub"), elExemplos = $("exemplos"), elVazioRodape = $("vazio-rodape");
 
-  const CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12.5l5.5 5.5L20 6.5"/></svg>';
-  const RELOGIO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7.5V12l3 2"/></svg>';
+  const CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12.5l5.5 5.5L20 6.5"/></svg>';
+  const RELOGIO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7.5V12l3 2"/></svg>';
   const LIXO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9.5 7V5h5v2M6.5 7l1 12.5h9L17.5 7"/></svg>';
 
   const semMovimento = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -598,7 +607,7 @@ input{font:inherit;color:inherit}
 
   function render() {
     const d = distribuir();
-    renderMedida(d);
+    renderChamada(d);
     renderTrilho(d);
     renderPendentes(d);
     renderFeitas();
@@ -607,44 +616,48 @@ input{font:inherit;color:inherit}
   /* so o que depende do relogio, para o tick nao roubar o foco de quem digita */
   function renderTempo() {
     const d = distribuir();
-    renderMedida(d);
+    renderChamada(d);
     renderTrilho(d);
-    renderLanes(d);
+    renderHorarios(d);
   }
 
-  function renderMedida({ c }) {
+  function renderChamada({ c }) {
     $("data").textContent = new Intl.DateTimeFormat("pt-BR", { weekday: "short", day: "2-digit", month: "short" })
       .format(new Date()).replace(/\./g, "").replace(",", " ·").toUpperCase();
 
     elJanela.textContent = relogio(estado.inicio) + " → " + relogio(estado.fim);
-    elMedida.dataset.tom = "normal";
+    elChamada.dataset.tom = "normal";
 
-    /* o numero grande e uma leitura de instrumento: forma compacta, sempre em mono */
+    const prontas = feitas().length;
+
     if (!c.abertas.length) {
-      elNumero.textContent = formatar(Math.max(0, c.restante));
-      if (feitas().length) {
+      elC1.textContent = prontas ? "Tudo fechado." : "Dia limpo.";
+      elMedidaTxt.textContent = formatar(Math.max(0, c.restante));
+      elResto.textContent = c.horaExtra ? "— o dia já acabou" : (prontas ? "ainda de dia" : "pela frente");
+      if (prontas) {
         const total = feitas().reduce((s, t) => s + t.min, 0);
-        elUnidade.textContent = "e nada na fila";
-        elContexto.textContent = "acabou · " + feitas().length +
-          (feitas().length === 1 ? " fechada" : " fechadas") + (total ? " · " + longo(total) + " de trabalho" : "");
+        elContexto.textContent = prontas + (prontas === 1 ? " fechada" : " fechadas") +
+          (total ? " · " + longo(total) + " de trabalho" : "");
       } else {
-        elUnidade.textContent = c.horaExtra ? "— seu dia já acabou" : "de dia pela frente";
-        elContexto.textContent = c.horaExtra ? "nada na fila." : "o dia acaba às " + relogio(estado.fim) + ".";
+        elContexto.textContent = "o dia acaba às " + relogio(estado.fim) + ".";
       }
     } else if (c.horaExtra) {
-      /* o dia acabou e ainda ha fila: isso e um fato, nao uma acusacao. nada de vermelho. */
-      elNumero.textContent = formatar(c.agora - estado.fim);
-      elUnidade.textContent = "de hora extra";
-      elContexto.textContent = "seu dia acabou às " + relogio(estado.fim) + " · " +
-        c.abertas.length + (c.abertas.length === 1 ? " aberta" : " abertas");
+      /* o dia acabou e ainda ha fila: isso e um fato, nao uma acusacao */
+      elC1.textContent = "Seu dia acabou.";
+      elMedidaTxt.textContent = formatar(c.agora - estado.fim);
+      elResto.textContent = "de hora extra";
+      elContexto.textContent = "terminou às " + relogio(estado.fim) + " · " +
+        c.abertas.length + (c.abertas.length === 1 ? " ainda aberta" : " ainda abertas");
     } else if (c.sobra >= 0) {
-      elNumero.textContent = (c.semEstimativa ? "~" : "") + formatar(c.sobra);
-      elUnidade.textContent = "livres";
+      elC1.textContent = "Ainda cabem";
+      elMedidaTxt.textContent = (c.semEstimativa ? "~" : "") + formatar(c.sobra);
+      elResto.textContent = "no seu dia";
       elContexto.textContent = longo(c.comprometido) + " na fila · o dia acaba às " + relogio(estado.fim);
     } else {
-      elMedida.dataset.tom = "estouro";
-      elNumero.textContent = formatar(c.estouro);
-      elUnidade.textContent = "além do que resta do dia";
+      elChamada.dataset.tom = "estouro";
+      elC1.textContent = "Não cabe.";
+      elMedidaTxt.textContent = formatar(c.estouro);
+      elResto.textContent = "além do que resta";
       elContexto.textContent = longo(c.comprometido) + " na fila para " + longo(c.restante) + " de dia. Algo tem que sair.";
     }
 
@@ -685,29 +698,22 @@ input{font:inherit;color:inherit}
     if (!elEstouro.hidden) elEstouro.style.width = Math.min(100, (c.estouro / c.janela) * 100) + "%";
   }
 
-  /* posiciona a faixa de fundo de cada linha no mesmo eixo do trilho */
-  function renderLanes({ c, vagas }) {
+  /* o horario projetado nao cabe na linha: vive no title dela */
+  function renderHorarios({ vagas }) {
     elLista.querySelectorAll(".tarefa").forEach((li) => {
-      const lane = li.querySelector(".lane");
       const vaga = vagas.get(li.dataset.id);
-      if (!lane) return;
-      if (!vaga) { lane.hidden = true; return; }
-      lane.hidden = false;
-      lane.style.left = ((vaga.de / c.janela) * 100) + "%";
-      lane.style.width = ((vaga.min / c.janela) * 100) + "%";
-      const quando = li.querySelector(".quando");
-      if (quando) {
-        quando.textContent = relogio(estado.inicio + vaga.de) + "–" + relogio(estado.inicio + vaga.de + vaga.min);
-      }
+      if (!vaga) { li.removeAttribute("title"); return; }
+      li.title = relogio(estado.inicio + vaga.de) + "–" + relogio(estado.inicio + vaga.de + vaga.min);
     });
   }
 
   function renderPendentes(d) {
     const abertas = pendentes();
-    /* a tela vazia cobre tambem o "tudo concluido": nunca sobra um buraco entre o composer e as feitas */
+    /* a tela vazia cobre tambem o "tudo concluido": nunca sobra um buraco */
     elVazio.hidden = abertas.length > 0;
-    /* a dica so existe hoje como aviso de storage — a sintaxe quem ensina e a tela vazia */
-    elDica.hidden = !storageQuebrado;
+    elRotuloFila.hidden = abertas.length === 0;
+    elRotuloTexto.textContent = abertas.length +
+      (abertas.length === 1 ? " coisa na fila" : " coisas na fila");
     elLista.textContent = "";
 
     if (!abertas.length) {
@@ -723,15 +729,11 @@ input{font:inherit;color:inherit}
       li.draggable = true;
       li.tabIndex = 0;
 
-      const lane = document.createElement("div");
-      lane.className = "lane";
-      lane.hidden = true;
-
-      const anel = document.createElement("button");
-      anel.className = "anel";
-      anel.dataset.acao = "concluir";
-      anel.innerHTML = CHECK;
-      anel.setAttribute("aria-label", "Concluir: " + t.titulo);
+      const marca = document.createElement("button");
+      marca.className = "marca";
+      marca.dataset.acao = "concluir";
+      marca.innerHTML = CHECK;
+      marca.setAttribute("aria-label", "Concluir: " + t.titulo);
 
       const nome = document.createElement("input");
       nome.className = "nome";
@@ -739,14 +741,16 @@ input{font:inherit;color:inherit}
       nome.dataset.acao = "renomear";
       nome.setAttribute("aria-label", "Título da tarefa");
 
-      const quando = document.createElement("span");
-      quando.className = "quando";
+      const sub = document.createElement("button");
+      sub.className = "sub";
+      sub.type = "button";
+      sub.dataset.acao = "tempo";
+      sub.innerHTML = RELOGIO + "<span>" + (t.min ? formatar(t.min) : "sem duração") + "</span>";
+      sub.setAttribute("aria-label", "Duração: " + (t.min ? longo(t.min) : "não definida") + ". Alterar");
 
-      const tempo = document.createElement("button");
-      tempo.className = "tempo";
-      tempo.dataset.acao = "tempo";
-      tempo.innerHTML = "<span>" + formatar(t.min) + "</span>" + RELOGIO;
-      tempo.setAttribute("aria-label", "Duração: " + (t.min ? longo(t.min) : "não definida") + ". Alterar");
+      const miolo = document.createElement("div");
+      miolo.className = "miolo";
+      miolo.append(nome, sub);
 
       const prio = document.createElement("button");
       prio.className = "acao";
@@ -764,46 +768,25 @@ input{font:inherit;color:inherit}
       acoes.className = "acoes";
       acoes.append(prio, lixo);
 
-      li.append(lane, anel, nome, quando, tempo, acoes);
+      li.append(marca, miolo, acoes);
       elLista.appendChild(li);
     });
 
-    renderLanes(d);
+    renderHorarios(d);
   }
 
   function renderVazio({ c }) {
-    const prontas = feitas().length;
     const estreia = estado.tarefas.length === 0;
     /* os exemplos ensinam a sintaxe e se autodestroem depois da primeira tarefa */
     elExemplos.hidden = !estreia;
     elVazioRodape.hidden = !estreia;
 
-    /* cada exemplo carrega a propria faixa: ensina de uma vez a sintaxe E o que a duracao
-       faz com o dia, no mesmo eixo do trilho logo acima */
-    if (estreia) {
-      let cursor = c.decorrido;
-      elExemplos.querySelectorAll("li").forEach((li) => {
-        const min = Math.min(+li.dataset.min || 0, Math.max(0, c.janela - cursor));
-        const lane = li.querySelector(".lane");
-        if (!lane) return;
-        lane.hidden = min <= 0;
-        lane.style.left = ((cursor / c.janela) * 100) + "%";
-        lane.style.width = ((min / c.janela) * 100) + "%";
-        cursor += min;
-      });
-    }
-
     if (c.horaExtra) {
-      elVazioTitulo.textContent = "Dia encerrado.";
       elVazioSub.textContent = "Passou das " + relogio(estado.fim) + " e não sobrou nada na fila.";
-    } else if (prontas) {
-      elVazioTitulo.textContent = "Fila vazia.";
-      elVazioSub.textContent = "Ainda restam " + longo(Math.max(0, c.restante)) +
-        " de dia, se quiser puxar mais alguma coisa.";
+    } else if (!estreia) {
+      elVazioSub.textContent = "Nada na fila. Dá pra puxar mais alguma coisa, ou parar por aqui.";
     } else {
-      elVazioTitulo.textContent = "Nada na fila.";
-      elVazioSub.textContent = "As " + longo(Math.max(0, c.restante)) +
-        " que restam do dia são inteiramente suas.";
+      elVazioSub.textContent = "Escreve embaixo a primeira coisa que precisa caber hoje.";
     }
   }
 
@@ -820,26 +803,21 @@ input{font:inherit;color:inherit}
       li.className = "feita";
       li.dataset.id = t.id;
 
-      const anel = document.createElement("button");
-      anel.className = "anel";
-      anel.dataset.acao = "reabrir";
-      anel.innerHTML = CHECK;
-      anel.setAttribute("aria-label", "Reabrir: " + t.titulo);
+      const marca = document.createElement("button");
+      marca.className = "marca";
+      marca.dataset.acao = "reabrir";
+      marca.innerHTML = CHECK;
+      marca.setAttribute("aria-label", "Reabrir: " + t.titulo);
 
       const nome = document.createElement("span");
-      nome.className = "nome";
+      nome.className = "f-nome";
       nome.textContent = t.titulo;
 
       const tempo = document.createElement("span");
-      tempo.className = "tempo";
+      tempo.className = "f-tempo";
       tempo.textContent = formatar(t.min);
 
-      /* mesma largura das acoes das pendentes, para as duracoes alinharem entre as listas */
-      const espaco = document.createElement("span");
-      espaco.className = "espaco-acoes";
-      espaco.setAttribute("aria-hidden", "true");
-
-      li.append(anel, nome, tempo, espaco);
+      li.append(marca, nome, tempo);
       elFeitas.appendChild(li);
     });
   }
@@ -934,7 +912,7 @@ input{font:inherit;color:inherit}
     const i = acharIndice(id);
     if (i < 0) return;
     const titulo = estado.tarefas[i].titulo;
-    comDesfazer("apaguei “" + (titulo.length > 32 ? titulo.slice(0, 32) + "…" : titulo) + "”", () => {
+    comDesfazer("apaguei “" + (titulo.length > 28 ? titulo.slice(0, 28) + "…" : titulo) + "”", () => {
       estado.tarefas.splice(i, 1);
       salvar();
       render();
@@ -1020,8 +998,8 @@ input{font:inherit;color:inherit}
     const cabe = !min || min <= c.sobra;
     elFantasma.hidden = false;
     elFantasma.dataset.cabe = cabe ? "sim" : "nao";
-    elFantasma.querySelector(".f-nome").textContent = titulo || bruto;
-    elFantasma.querySelector(".f-tempo").textContent =
+    elFantasma.querySelector(".g-nome").textContent = titulo || bruto;
+    elFantasma.querySelector(".g-tempo").textContent =
       (min ? formatar(min) : "sem duração") + (cabe ? "" : " · não cabe hoje");
   }
   elCampo.addEventListener("input", atualizarFantasma);
@@ -1197,7 +1175,6 @@ input{font:inherit;color:inherit}
   setInterval(renderTempo, 30000);
   document.addEventListener("visibilitychange", () => { if (!document.hidden) renderTempo(); });
 
-  /* sem foco automatico: o composer aceso e a unica luz da tela e ela nao pode ser o repouso */
   render();
 })();
 </script>

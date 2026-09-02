@@ -12,11 +12,24 @@ Você define a janela do seu dia (padrão 09:00 → 19:00). A barra do topo é e
 real de minutos e **se gasta sozinha** conforme o relógio anda. O número grande é sempre a
 **sobra** — quanto ainda resta depois do que já está na fila — e ele desce ao longo do dia.
 
-Cada linha da lista carrega, no fundo, a faixa de quando aquela tarefa cai no dia, no mesmo eixo
-da barra. Dá para seguir uma tarefa da banda lá em cima até a linha dela.
+Cada tarefa vira uma banda na barra, na ordem da fila; passar o mouse numa linha acende a banda
+dela, e o horário projetado (`14:23–16:53`) fica no `title` da linha.
 
-Quando o dia acaba com coisa aberta, isso aparece como **hora extra**, em tom neutro. Vermelho
-só fala de aritmética do dia — nunca de comportamento.
+Quando o dia acaba com coisa aberta, isso aparece como **hora extra**, em tom neutro — é um fato,
+não uma acusação.
+
+## Design system
+
+Usa o design system do [arttreis.com.br](https://arttreis.com.br) — o lado escuro dos tokens,
+copiados do `:root` do site: `--bg #0d0d0d`, `--surface #141414`, escala de tinta `--ink`
+(70/50/32), `--line`/`--fill`, raios 16/8 e pílula 100, espaçamento 16/8/4, **Sora** para
+texto e **JetBrains Mono** para medida, e `#2EE86B` como único acento.
+
+A única adição é `--br3` (12px), um passo entre `--br2` e `--br` para os ladrilhos de 44px.
+
+Como o sistema é monocromático + um verde, duas coisas seguem essa disciplina: prioridade é
+expressa em opacidade de tinta (não em matiz), e quando o dia estoura **não existe vermelho**
+— o verde simplesmente some e sobra a barra hachurada.
 
 ## Como usar
 
