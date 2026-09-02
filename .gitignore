@@ -1,7 +1,46 @@
-node_modules/
+# o produto é o index.html. tudo que não for ele, o README ou a licença
+# é andaime local e não sobe.
+
+# segredos
+.env
+.env.local
+.env.*.local
+*.key
+*.pem
+
+# ferramentas de IA — configuração da minha máquina, não do produto
+.aiox/
+.aiox-core/
+.antigravity/
+.claude/
+.codex/
+.cursor/
+.gemini/
+.grok/
+.kimi/
+.github/agents/
+AGENTS.md
+# o planner nao tem backend nem chave de nada: este exemplo e do andaime
+.env.example
+
+# deploy e dependências
 .vercel
+node_modules/
+dist/
+build/
+
+# rascunho e captura
+_*.html
+*_test.html
+probe-*.json
+*-svg.json
+*.png
+*.log
+logs/
+.playwright-mcp/
+
+# sistema e editor
 .DS_Store
 Thumbs.db
-.playwright-mcp/
-*.log
-*.png
+.idea/
+*.swp
