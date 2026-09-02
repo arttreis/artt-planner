@@ -1112,9 +1112,15 @@ body::after{
 
   function renderVazio({ c }) {
     const estreia = estado.tarefas.length === 0;
-    /* os exemplos ensinam a sintaxe e se autodestroem depois da primeira tarefa */
+    /* os dois cartoes so na estreia — depois eles pareceriam fila de verdade.
+       o rodape, nao: ele e a unica explicacao de como a duracao e lida, e
+       sumir para sempre depois da primeira tarefa deixava quem esquecesse a
+       sintaxe alimentando a tela as cegas. volta toda vez que a fila esvazia. */
     elExemplos.hidden = !estreia;
-    elVazioRodape.hidden = !estreia;
+    elVazioRodape.hidden = false;
+    elVazioRodape.textContent = estreia
+      ? "Escreve assim, com a duração no fim: ela sai do título e entra na barra do dia."
+      : "Com a duração no fim — “revisar proposta 45m”, “gravar 1h30”, “almoço 1h”. Sem ela, eu pergunto.";
 
     if (c.horaExtra) {
       elVazioSub.textContent = "Passou das " + relogio(estado.fim) + " e não sobrou nada na fila.";
