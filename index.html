@@ -170,6 +170,10 @@ body::after{
 .gasto{background:var(--bg)}
 .banda{background:var(--fill-hover)}
 .banda.destaque{background:var(--ink)}
+/* banda de palpite: ocupa o mesmo espaco, mas nao finge ser medida */
+.banda.palpite{
+  background:repeating-linear-gradient(45deg,var(--fill-hover) 0 4px,transparent 4px 8px);
+}
 .livre{background:var(--green);flex:1 1 auto}
 .livre.recibo{background:var(--ink)}
 .estouro{
@@ -263,6 +267,15 @@ body::after{
 }
 .sub:hover{color:var(--ink-70)}
 .sub svg{width:11px;height:11px;flex:0 0 auto}
+/* a tarefa cuja duracao se perdeu no caminho: cobra, em vez de sumir da conta */
+.sub[data-falta="sim"]{color:var(--ink-70);text-decoration:underline;text-underline-offset:3px}
+/* editar duracao na propria linha, no lugar exato onde ela e lida */
+.sub-edit{
+  align-self:flex-start;width:104px;
+  background:var(--fill);border:1px solid var(--green-glow);border-radius:var(--br2);
+  padding:2px 7px;font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;
+  color:var(--ink);
+}
 
 .acoes{flex:0 0 auto;display:flex;align-items:center;gap:2px;opacity:0;transition:opacity var(--t)}
 .tarefa:hover .acoes,.tarefa:focus-within .acoes{opacity:1}
@@ -332,6 +345,29 @@ body::after{
 .fantasma .g-nome{flex:1 1 auto;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:13.5px}
 .fantasma .g-tempo{flex:0 0 auto;font-family:var(--mono);font-size:10.5px;letter-spacing:.06em}
 .fantasma[data-cabe="nao"]{border-style:solid;border-color:var(--line);color:var(--ink-70)}
+
+/* ---------- os chips de duracao ----------
+   toda tarefa tem duracao: quando o texto nao traz uma, ela e perguntada aqui
+   antes de a tarefa existir. e um passo, nao um erro — dai a tinta neutra. */
+.chips{
+  margin:0 var(--pd3) var(--pd2);padding:10px 12px;
+  background:var(--surface-2);border:1px solid var(--line);border-radius:var(--br);
+}
+.chips-txt{
+  margin:0 0 var(--pd2);font-size:12px;color:var(--ink-50);
+  overflow:hidden;white-space:nowrap;text-overflow:ellipsis;
+}
+.chips-txt b{color:var(--ink-70);font-weight:500}
+.chips-fila{display:flex;gap:6px;flex-wrap:wrap}
+.chip{
+  height:30px;padding:0 13px;border-radius:var(--br-pill);
+  background:var(--fill);border:1px solid var(--line);
+  font-family:var(--mono);font-size:11.5px;color:var(--ink-70);
+  transition:background var(--t),color var(--t),border-color var(--t);
+}
+.chip:hover{background:var(--fill-hover);color:var(--ink)}
+.chip[data-cabe="nao"]{color:var(--ink-30)}
+.chip.outro{font-family:var(--sans);font-size:12px;color:var(--ink-50)}
 
 .pilula{
   display:flex;align-items:center;gap:var(--pd2);
@@ -481,6 +517,10 @@ body::after{
       <span class="g-nome"></span>
       <span class="g-tempo"></span>
     </div>
+    <div class="chips" id="chips" hidden>
+      <p class="chips-txt" id="chips-txt"></p>
+      <div class="chips-fila" id="chips-fila" role="group" aria-label="Quanto tempo isso leva"></div>
+    </div>
     <form class="pilula" id="form" autocomplete="off">
       <span class="mais" aria-hidden="true">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
@@ -594,18 +634,50 @@ body::after{
 
   /* ---------- tempo ---------- */
 
+  /* escrito por extenso: so as formas que alguem realmente digita com pressa */
+  const POREXTENSO = [
+    [/(?:^|\s)meia\s*hora(?=\s|$)/i, 30],
+    [/(?:^|\s)uma\s*hora\s*e\s*meia(?=\s|$)/i, 90],
+    [/(?:^|\s)(?:uma|1)\s*hora(?=\s|$)/i, 60],
+    [/(?:^|\s)duas\s*horas(?=\s|$)/i, 120],
+    [/(?:^|\s)tr[eê]s\s*horas(?=\s|$)/i, 180]
+  ];
+
   function lerDuracao(texto) {
+    /* por extenso primeiro: "meia hora" nao tem digito para os padroes abaixo pegarem */
+    for (const [re, valor] of POREXTENSO) {
+      const m = texto.match(re);
+      if (m) return fatiar(texto, m, valor);
+    }
+
+    /* decimal com virgula ou ponto: "1,5h" e "1.5h" sao a mesma coisa aqui */
+    const decimal = texto.match(/(?:^|\s)(\d{1,2})[.,](\d{1,2})\s*h(?:oras?)?(?=\s|$)/i);
+    if (decimal) {
+      const fracao = +("0." + decimal[2]);
+      return fatiar(texto, decimal, Math.round(((+decimal[1]) + fracao) * 60));
+    }
+
     /* minutos so contam colados na hora ("1h30") ou com unidade ("1h 30m"):
-       senao "revisar 1h 20 slides" viraria 1h20 e comeria o "20" do titulo */
-    const comHora = texto.match(/(?:^|\s)(\d{1,2})\s*h(?:(\d{1,2})|\s*(\d{1,2})\s*(?:m|min|mins))?(?=\s|$)/i);
-    const m = comHora || texto.match(/(?:^|\s)(\d{1,3})\s*(?:m|min|mins)(?=\s|$)/i);
+       senao "revisar 1h 20 slides" viraria 1h20 e comeria o "20" do titulo.
+       "1h 30" tambem nao conta, pela mesma razao — o 30 pode ser do titulo. */
+    const comHora = texto.match(/(?:^|\s)(\d{1,2})\s*h(?:oras?)?(?:(\d{1,2})|\s*(\d{1,2})\s*(?:m|min|mins|minutos?))?(?=\s|$)/i);
+    const m = comHora || texto.match(/(?:^|\s)(\d{1,3})\s*(?:m|min|mins|minutos?)(?=\s|$)/i);
     if (!m) return { min: 0, titulo: texto.replace(/\s+/g, " ").trim() };
     const min = comHora ? (+m[1]) * 60 + (+(m[2] || m[3] || 0)) : +m[1];
-    /* fatia pela posicao real do match: replace(string) apagaria a primeira
-       ocorrencia literal, que pode nao ser a que casou */
+    return fatiar(texto, m, min);
+  }
+
+  /* fatia pela posicao real do match: replace(string) apagaria a primeira
+     ocorrencia literal, que pode nao ser a que casou */
+  function fatiar(texto, m, min) {
     const limpo = texto.slice(0, m.index) + " " + texto.slice(m.index + m[0].length);
     return { min: Math.min(min, DIA), titulo: limpo.replace(/\s+/g, " ").trim() };
   }
+
+  /* o texto tem numero mas nada casou: provavelmente e tempo mal escrito.
+     serve so para a previa avisar em vez de criar uma tarefa muda. */
+  const pareceTempoQuebrado = (texto, min) =>
+    !min && /\d/.test(texto) && !/^\s*\d+\s*$/.test(texto);
 
   function formatar(min) {
     if (!min) return "—";
@@ -648,13 +720,19 @@ body::after{
   const feitas = () => estado.tarefas.filter((t) => t.feito);
 
   /* a conta inteira do produto, em minutos. nenhum pixel entra aqui. */
+  /* toda tarefa ocupa espaco. o composer nao deixa nascer nenhuma sem duracao,
+     mas fila antiga (e importada) pode ter — e essas custam um palpite visivel
+     em vez de zero: valer zero e o que fazia 20 tarefas reais exibirem folga. */
+  const PALPITE = 30;
+  const custoDe = (t) => t.min || PALPITE;
+
   function contas() {
     const janela = estado.fim - estado.inicio;
     const agora = agoraMin();
     const decorrido = limitar(agora - estado.inicio, 0, janela);
     const restante = janela - decorrido;
     const abertas = pendentes();
-    const comprometido = abertas.reduce((s, t) => s + t.min, 0);
+    const comprometido = abertas.reduce((s, t) => s + custoDe(t), 0);
     return {
       janela, agora, decorrido, restante, abertas, comprometido,
       semEstimativa: abertas.filter((t) => !t.min).length,
@@ -665,20 +743,21 @@ body::after{
   }
 
   /* onde cada tarefa cai dentro do dia, e a partir de qual delas nao da mais tempo.
-     tarefa sem estimativa nao consome nem corta: ela so nao e mensuravel. */
+     tarefa sem estimativa entra pelo palpite: ela desloca o cursor e pode
+     disparar o corte como qualquer outra — so aparece marcada como palpite. */
   function distribuir() {
     const c = contas();
     const vagas = new Map();
     let cursor = c.decorrido;
     let corte = -1;
     c.abertas.forEach((t, i) => {
-      if (!t.min) return;
+      const custo = custoDe(t);
       const disponivel = c.janela - cursor;
       if (disponivel <= 0) { if (corte < 0) corte = i; return; }
-      const usar = Math.min(t.min, disponivel);
-      const cortada = usar < t.min;
+      const usar = Math.min(custo, disponivel);
+      const cortada = usar < custo;
       if (cortada && corte < 0) corte = i;
-      vagas.set(t.id, { de: cursor, min: usar, cortada });
+      vagas.set(t.id, { de: cursor, min: usar, cortada, palpite: !t.min });
       cursor += usar;
     });
     return { c, vagas, corte };
@@ -698,6 +777,11 @@ body::after{
   const elEditorDia = $("editor-dia"), elInicio = $("inicio"), elFim = $("fim");
   const elVazioSub = $("vazio-sub"), elExemplos = $("exemplos"), elVazioRodape = $("vazio-rodape");
   const elFaixaOntem = $("faixa-ontem"), elFoTexto = $("fo-texto"), elFoQuando = $("fo-quando");
+  const elChips = $("chips");
+
+  /* titulo do usuario indo para innerHTML: escapa antes, sempre */
+  const escapar = (s) => String(s).replace(/[&<>"]/g, (c) =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
   const CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12.5l5.5 5.5L20 6.5"/></svg>';
   const RELOGIO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7.5V12l3 2"/></svg>';
@@ -768,27 +852,30 @@ body::after{
       } else {
         elContexto.textContent = "o dia acaba às " + relogio(estado.fim) + ".";
       }
-    } else if (c.horaExtra) {
-      /* o dia acabou e ainda ha fila: isso e um fato, nao uma acusacao */
-      elC1.textContent = "Seu dia acabou.";
-      elMedidaTxt.textContent = formatar(c.agora - estado.fim);
-      elResto.textContent = "de hora extra";
-      elContexto.textContent = "terminou às " + relogio(estado.fim) + " · " +
-        c.abertas.length + (c.abertas.length === 1 ? " ainda aberta" : " ainda abertas");
     } else if (c.sobra >= 0) {
       elC1.textContent = "Ainda cabem";
+      /* "~" so aqui: a sobra e o unico numero que o palpite pode INFLAR.
+         no estouro ele e piso — palpite so pode aumentar o debito, nunca reduzi-lo. */
       elMedidaTxt.textContent = (c.semEstimativa ? "~" : "") + formatar(c.sobra);
       elResto.textContent = "no seu dia";
       elContexto.textContent = longo(c.comprometido) + " na fila · o dia acaba às " + relogio(estado.fim);
     } else {
+      /* passar das 19:00 qualifica o estouro, nao substitui a pergunta.
+         antes, as 19:01 a tela trocava "não cabe 2h48" por "1m de hora extra"
+         — o numero encolhia justamente quando cortar algo era mais urgente. */
       elChamada.dataset.tom = "estouro";
       elC1.textContent = "Não cabe.";
       elMedidaTxt.textContent = formatar(c.estouro);
       elResto.textContent = "além do que resta";
-      elContexto.textContent = longo(c.comprometido) + " na fila para " + longo(c.restante) + " de dia. Algo tem que sair.";
+      elContexto.textContent = c.horaExtra
+        ? "passou das " + relogio(estado.fim) + " · " + longo(c.comprometido) + " ainda na fila. Algo tem que sair."
+        : longo(c.comprometido) + " na fila para " + longo(c.restante) + " de dia. Algo tem que sair.";
     }
 
-    elNota.textContent = c.semEstimativa ? c.semEstimativa + " sem estimativa" : "";
+    elNota.textContent = c.semEstimativa
+      ? c.semEstimativa + (c.semEstimativa === 1 ? " sem duração · conta " : " sem duração · contam ") +
+        formatar(PALPITE) + (c.semEstimativa === 1 ? "" : " cada")
+      : "";
   }
 
   function renderTrilho({ c, vagas }) {
@@ -809,9 +896,9 @@ body::after{
     c.abertas.forEach((t) => {
       const vaga = vagas.get(t.id);
       if (!vaga) return;
-      const el = faixa("banda", vaga.min);
+      const el = faixa("banda" + (vaga.palpite ? " palpite" : ""), vaga.min);
       el.dataset.id = t.id;
-      el.title = t.titulo + " · " + formatar(t.min);
+      el.title = t.titulo + " · " + (vaga.palpite ? "palpite de " + formatar(PALPITE) : formatar(t.min));
       elTrilho.appendChild(el);
     });
 
@@ -821,7 +908,9 @@ body::after{
       elTrilho.appendChild(livre);
     }
 
-    elEstouro.hidden = c.estouro <= 0 || c.horaExtra;
+    /* a hachura acompanha o estouro, inclusive depois do fim do dia: sumir ali
+       era o produto abandonar a propria pergunta quando a resposta e mais dura */
+    elEstouro.hidden = c.estouro <= 0;
     if (!elEstouro.hidden) elEstouro.style.width = Math.min(100, (c.estouro / c.janela) * 100) + "%";
   }
 
@@ -882,8 +971,15 @@ body::after{
       sub.dataset.acao = "tempo";
       const vaga = d.vagas.get(t.id);
       const parcial = vaga && vaga.cortada ? " · só " + formatar(vaga.min) + " hoje" : "";
-      sub.innerHTML = RELOGIO + "<span>" + (t.min ? formatar(t.min) : "sem duração") + parcial + "</span>";
-      sub.setAttribute("aria-label", "Duração: " + (t.min ? longo(t.min) : "não definida") + ". Alterar");
+      /* sem duracao nao e um estado neutro: e uma pergunta em aberto que ja
+         esta custando PALPITE na conta. a linha diz isso e pede o numero. */
+      if (!t.min) sub.dataset.falta = "sim";
+      sub.innerHTML = RELOGIO + "<span>" +
+        (t.min ? formatar(t.min) : "definir duração · contando " + formatar(PALPITE)) +
+        parcial + "</span>";
+      sub.setAttribute("aria-label", t.min
+        ? "Duração: " + longo(t.min) + ". Alterar"
+        : "Sem duração, contando " + longo(PALPITE) + " como palpite. Definir");
 
       const miolo = document.createElement("div");
       miolo.className = "miolo";
@@ -996,18 +1092,18 @@ body::after{
   const acharIndice = (id) => estado.tarefas.findIndex((t) => t.id === id);
   const seletor = (id) => '[data-id="' + (window.CSS && CSS.escape ? CSS.escape(id) : id) + '"]';
 
-  function criar(texto) {
-    const bruto = texto.replace(/\s+/g, " ").trim();
-    if (!bruto) return;
-    const { min, titulo } = lerDuracao(texto);
+  /* titulo e duracao chegam ja resolvidos: quem decide o tempo e o composer,
+     que nao deixa nascer tarefa sem ele */
+  function criar(titulo, min) {
+    const limpo = String(titulo).replace(/\s+/g, " ").trim();
+    if (!limpo || !min) return;
     /* escrever numa fila de ontem ja e a decisao de comecar hoje: carimba o dia
        e leva junto o que estava aberto, em vez de misturar em silencio */
     if (atrasada()) {
       estado.tarefas = pendentes();
       estado.dia = hoje();
     }
-    /* "90m" sozinho nao sobra titulo: guarda o que foi digitado em vez de sumir em silencio */
-    estado.tarefas.unshift({ id: proximoId(), titulo: (titulo || bruto).slice(0, 300), min, feito: false });
+    estado.tarefas.unshift({ id: proximoId(), titulo: limpo.slice(0, 300), min, feito: false });
     salvar();
     render();
   }
@@ -1058,21 +1154,64 @@ body::after{
     const i = acharIndice(id);
     if (i < 0) return;
     const titulo = estado.tarefas[i].titulo;
-    comDesfazer("apaguei “" + (titulo.length > 28 ? titulo.slice(0, 28) + "…" : titulo) + "”", () => {
+    comDesfazer("apaguei “" + curto(titulo) + "”", () => {
       estado.tarefas.splice(i, 1);
       salvar();
       render();
     });
   }
 
+  /* editar duracao acontece na propria linha. prompt() era bloqueante, feio,
+     nao existe em PWA no iOS — e o gesto mais frequente depois de criar. */
   function editarTempo(id) {
     const t = estado.tarefas[acharIndice(id)];
     if (!t) return;
-    const r = prompt("Quanto tempo isso leva? (ex: 45m, 1h30 — vazio remove)", t.min ? formatar(t.min) : "");
-    if (r === null) return;
-    t.min = lerDuracao(" " + r.trim() + " ").min;
-    salvar();
-    render();
+    const li = elLista.querySelector(seletor(id));
+    const botao = li && li.querySelector('[data-acao="tempo"]');
+    if (!botao) return;
+
+    const campo = document.createElement("input");
+    campo.className = "sub-edit";
+    campo.value = t.min ? formatar(t.min) : "";
+    campo.setAttribute("aria-label", "Duração de " + t.titulo);
+    campo.placeholder = "45m, 1h30";
+    botao.replaceWith(campo);
+    campo.focus();
+    campo.select();
+
+    let encerrado = false;
+    const encerrar = (aplicar) => {
+      if (encerrado) return;
+      encerrado = true;
+      const min = aplicar ? lerDuracao(" " + campo.value.trim() + " ").min : 0;
+      /* so grava o que foi entendido: "45" sem unidade nao apaga a estimativa
+         que ja existia, ao contrario do prompt() que ela substituia em silencio */
+      if (aplicar && min && min !== t.min) {
+        comDesfazer("duração de “" + curto(t.titulo) + "” era " + formatar(t.min), () => {
+          const atual = estado.tarefas[acharIndice(id)];
+          if (atual) atual.min = min;
+          salvar();
+          render();
+        });
+      } else {
+        render();
+      }
+    };
+
+    campo.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") { e.preventDefault(); encerrar(true); }
+      else if (e.key === "Escape") { e.preventDefault(); encerrar(false); }
+    });
+    campo.addEventListener("blur", () => encerrar(true));
+  }
+
+  const curto = (s) => (s.length > 28 ? s.slice(0, 28) + "…" : s);
+
+  /* usado pelo chip "outro": pergunta um tempo livre sem sair do fluxo */
+  function pedirTempo(titulo, atual, aoResponder) {
+    const r = prompt("Quanto tempo leva “" + titulo + "”? (ex: 45m, 1h30)", atual ? formatar(atual) : "");
+    if (r === null) { aoResponder(0); return; }
+    aoResponder(lerDuracao(" " + r.trim() + " ").min);
   }
 
   function renomear(id, valor) {
@@ -1117,16 +1256,92 @@ body::after{
 
   /* ---------- composer ---------- */
 
+  /* toda tarefa tem duracao. quando o texto nao traz uma, o Enter nao cria:
+     ele pergunta. a tarefa so existe depois que o tempo dela existe. */
+  const CHIPS = [15, 30, 60, 120];
+  let pendenteDeTempo = null;
+
   $("form").addEventListener("submit", (e) => {
     e.preventDefault();
-    criar(elCampo.value);
+    const bruto = elCampo.value.replace(/\s+/g, " ").trim();
+    if (!bruto) return;
+    const { min, titulo } = lerDuracao(elCampo.value);
+    if (min) { criarEfechar(titulo || bruto, min); return; }
+    abrirChips(titulo || bruto);
+  });
+
+  function criarEfechar(titulo, min) {
+    criar(titulo, min);
     elCampo.value = "";
     elFantasma.hidden = true;
+    fecharChips();
     elCampo.focus();
+  }
+
+  function abrirChips(titulo) {
+    pendenteDeTempo = titulo;
+    elFantasma.hidden = true;
+    $("chips-txt").innerHTML = "<b>" + escapar(titulo) + "</b> — quanto tempo isso leva?";
+
+    const fila = $("chips-fila");
+    fila.textContent = "";
+    const c = contas();
+    CHIPS.forEach((min) => {
+      const b = document.createElement("button");
+      b.className = "chip";
+      b.type = "button";
+      b.textContent = formatar(min);
+      /* o chip que nao cabe hoje continua clicavel: a tela informa, nao proibe */
+      b.dataset.cabe = min <= c.sobra ? "sim" : "nao";
+      b.dataset.min = min;
+      fila.appendChild(b);
+    });
+    const outro = document.createElement("button");
+    outro.className = "chip outro";
+    outro.type = "button";
+    outro.dataset.min = "livre";
+    outro.textContent = "outro";
+    fila.appendChild(outro);
+
+    elChips.hidden = false;
+    const primeiro = fila.querySelector(".chip");
+    if (primeiro) primeiro.focus();
+  }
+
+  function fecharChips() {
+    elChips.hidden = true;
+    pendenteDeTempo = null;
+  }
+
+  $("chips-fila").addEventListener("click", (e) => {
+    const b = e.target.closest(".chip");
+    if (!b || !pendenteDeTempo) return;
+    if (b.dataset.min === "livre") {
+      elChips.hidden = true;
+      pedirTempo(pendenteDeTempo, 0, (min) => {
+        if (min) criarEfechar(pendenteDeTempo, min);
+        else { elChips.hidden = false; }
+      });
+      return;
+    }
+    criarEfechar(pendenteDeTempo, +b.dataset.min);
+  });
+
+  /* setas andam entre os chips; Esc volta pro campo sem criar nada */
+  $("chips-fila").addEventListener("keydown", (e) => {
+    if (e.key === "Escape") { e.preventDefault(); fecharChips(); elCampo.focus(); return; }
+    if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+    e.preventDefault();
+    const todos = [...$("chips-fila").querySelectorAll(".chip")];
+    const i = todos.indexOf(e.target.closest(".chip"));
+    if (i < 0) return;
+    const proximo = todos[(i + (e.key === "ArrowRight" ? 1 : todos.length - 1)) % todos.length];
+    if (proximo) proximo.focus();
   });
 
   /* previa fantasma: voce ve o que o parser entendeu antes de confirmar */
   function atualizarFantasma() {
+    if (!elChips.hidden) return;
     const bruto = elCampo.value.replace(/\s+/g, " ").trim();
     if (!bruto) { elFantasma.hidden = true; return; }
     const { min, titulo } = lerDuracao(elCampo.value);
@@ -1135,8 +1350,11 @@ body::after{
     elFantasma.hidden = false;
     elFantasma.dataset.cabe = cabe ? "sim" : "nao";
     elFantasma.querySelector(".g-nome").textContent = titulo || bruto;
-    elFantasma.querySelector(".g-tempo").textContent =
-      (min ? formatar(min) : "sem duração") + (cabe ? "" : " · não cabe hoje");
+    /* numero no texto que o parser nao entendeu quase sempre e tempo mal escrito:
+       dizer isso agora evita a tarefa muda que some da conta depois */
+    elFantasma.querySelector(".g-tempo").textContent = min
+      ? formatar(min) + (cabe ? "" : " · não cabe hoje")
+      : (pareceTempoQuebrado(bruto, min) ? "não entendi o tempo · 45m, 1h30" : "o tempo vem a seguir");
   }
   elCampo.addEventListener("input", atualizarFantasma);
   elCampo.addEventListener("focus", atualizarFantasma);
