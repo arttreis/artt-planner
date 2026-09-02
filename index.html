@@ -69,9 +69,32 @@ input{font:inherit;color:inherit}
   letter-spacing:.08em;text-transform:uppercase;
 }
 
+/* ---------- a luz ----------
+   o mesmo movimento do .funil do arttreis.com.br: um radial largo de
+   --green-glow ancorado fora da tela, em opacidade baixa. a luz entra pela
+   esquerda e morre antes de chegar do outro lado — o preto para de ser
+   chapado sem virar cenario. */
+body::before{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:radial-gradient(104% 78% at 22% 6%,var(--green-glow),transparent 64%);
+  opacity:.28;
+}
+/* a grade de 28px do sistema, mascarada onde a luz bate: da textura ao fundo
+   e some sozinha no escuro. e a mesma de .work__media no site. */
+body::after{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+  background-image:
+    linear-gradient(var(--line-soft) 1px,transparent 1px),
+    linear-gradient(90deg,var(--line-soft) 1px,transparent 1px);
+  background-size:28px 28px;
+  -webkit-mask-image:radial-gradient(84% 68% at 22% 6%,#000,transparent 76%);
+  mask-image:radial-gradient(84% 68% at 22% 6%,#000,transparent 76%);
+  opacity:.42;
+}
+
 /* ---------- o aparelho ---------- */
 .fone{
-  position:relative;
+  position:relative;z-index:1;
   width:100%;max-width:496px;
   height:min(880px,calc(100dvh - clamp(48px,14vh,176px)));
   display:flex;flex-direction:column;
@@ -79,7 +102,18 @@ input{font:inherit;color:inherit}
   border:1px solid var(--line);
   border-radius:calc(var(--br) * 1.75);
   overflow:hidden;
+  box-shadow:
+    inset 0 1px 0 rgba(242,242,242,.05),
+    0 40px 110px -44px rgba(0,0,0,.95);
 }
+/* a mesma luz atravessa o aparelho — e por isso que ele parece aceso, e nao
+   recortado. fica atras do conteudo, que sobe pro z-index 1. */
+.fone::before{
+  content:"";position:absolute;inset:0;pointer-events:none;z-index:0;
+  background:radial-gradient(128% 56% at -4% 16%,var(--green-glow),transparent 58%);
+  opacity:.3;
+}
+.topo,.rolagem,.pilula-area{position:relative;z-index:1}
 
 .topo{
   flex:0 0 auto;
@@ -238,13 +272,19 @@ input{font:inherit;color:inherit}
 }
 .acao:hover{color:var(--ink);background:var(--fill-hover)}
 .acao svg{width:15px;height:15px}
-/* prioridade em escala de tinta: este sistema nao tem uma segunda cor */
-.ponto{width:10px;height:10px;border-radius:50%;border:1.5px solid var(--ink-30)}
-.tarefa[data-prio="1"] .ponto{border-color:var(--ink);background:var(--ink)}
-.tarefa[data-prio="2"] .ponto{border-color:var(--ink-70);background:var(--ink-70)}
-.tarefa[data-prio="3"] .ponto{border-color:var(--ink-30);background:var(--ink-30)}
-.tarefa[data-prio="1"] .marca{border-color:var(--ink-70)}
-.tarefa[data-prio="2"] .marca{border-color:var(--line)}
+/* ---------- a fila e de outro dia ----------
+   nao e erro nem alarme: e um fato com duas saidas. por isso tinta neutra e
+   nenhum vermelho — o sistema nao tem um, e isso aqui nao pediria. */
+.faixa-ontem{
+  margin:calc(var(--pd) * 1.25) 0 0;
+  padding:var(--pd);
+  background:var(--fill);
+  border:1px solid var(--line);
+  border-radius:var(--br3);
+}
+.fo-texto{margin:0 0 var(--pd2);font-size:13px;color:var(--ink-70)}
+.fo-texto b{color:var(--ink);font-weight:600}
+.fo-acoes{display:flex;gap:var(--pd2);flex-wrap:wrap}
 
 /* ---------- dia vazio ---------- */
 .vazio{padding:var(--pd3) 0}
@@ -340,7 +380,7 @@ input{font:inherit;color:inherit}
 /* no celular o aparelho vira a tela inteira */
 @media (max-width:480px){
   body{padding:0}
-  .fone{max-width:none;height:100dvh;border-radius:0;border:0}
+  .fone{max-width:none;height:100dvh;border-radius:0;border:0;box-shadow:none}
   .topo{padding-top:max(18px,env(safe-area-inset-top))}
   .pilula-area{padding-bottom:max(var(--pd),env(safe-area-inset-bottom))}
   .chamada{font-size:27px}
@@ -388,6 +428,14 @@ input{font:inherit;color:inherit}
       <label>de <input type="time" id="inicio" step="300"></label>
       <label>até <input type="time" id="fim" step="300"></label>
       <button type="button" id="salvar-dia">salvar</button>
+    </div>
+
+    <div class="faixa-ontem" id="faixa-ontem" hidden>
+      <p class="fo-texto" id="fo-texto"></p>
+      <div class="fo-acoes">
+        <button class="pill" type="button" id="fo-trazer">trazer pra hoje</button>
+        <button class="pill" type="button" id="fo-fechar"><span id="fo-quando"></span></button>
+      </div>
     </div>
 
     <p class="rotulo" id="rotulo-fila"><span class="t-mono" id="rotulo-texto"></span></p>
@@ -458,9 +506,17 @@ input{font:inherit;color:inherit}
 
   const CHAVE = "artt-planner:v2";
   const CHAVE_ANTIGA = "artt-planner:v1";
-  const PRIOS = [0, 1, 2, 3];
-  const NOME_PRIO = { 0: "sem prioridade", 1: "alta", 2: "média", 3: "baixa" };
   const DIA = 1440;
+
+  /* a data como o estado a guarda: YYYY-MM-DD no fuso local, nunca ISO/UTC —
+     toISOString() em Sao Paulo joga tudo depois das 21h para o dia seguinte. */
+  function diaDe(d) {
+    return d.getFullYear() + "-" +
+      String(d.getMonth() + 1).padStart(2, "0") + "-" +
+      String(d.getDate()).padStart(2, "0");
+  }
+  const hoje = () => diaDe(new Date());
+  const ehDia = (v) => typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v);
 
   /* prefixo por aba: duas abas abertas no mesmo milissegundo nao podem gerar o mesmo id */
   const SESSAO = Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
@@ -474,7 +530,6 @@ input{font:inherit;color:inherit}
       id: t && t.id ? String(t.id) : proximoId(),
       titulo: String((t && t.titulo) || "").slice(0, 300),
       min: Number.isFinite(+(t && t.min)) && +t.min > 0 ? Math.min(Math.round(+t.min), DIA) : 0,
-      prio: PRIOS.includes(+(t && t.prio)) ? +t.prio : 0,
       feito: !!(t && t.feito)
     };
   }
@@ -483,7 +538,7 @@ input{font:inherit;color:inherit}
     Number.isFinite(+v) && +v >= 0 && +v <= DIA ? Math.round(+v) : padrao;
 
   function carregar() {
-    const vazio = { tarefas: [], inicio: 540, fim: 1140, feitasAbertas: false };
+    const vazio = { tarefas: [], inicio: 540, fim: 1140, feitasAbertas: false, dia: hoje() };
     let bruto = null;
     try {
       bruto = JSON.parse(localStorage.getItem(CHAVE));
@@ -509,7 +564,10 @@ input{font:inherit;color:inherit}
       tarefas: bruto.tarefas.map(normalizar).filter((t) => t.titulo),
       inicio,
       fim,
-      feitasAbertas: !!bruto.feitasAbertas
+      feitasAbertas: !!bruto.feitasAbertas,
+      /* estado gravado antes do campo existir e a fila viva de quem ja usava:
+         tratar como hoje na primeira carga, em vez de acusar um atraso inventado */
+      dia: ehDia(bruto.dia) ? bruto.dia : hoje()
     };
   }
 
@@ -569,6 +627,23 @@ input{font:inherit;color:inherit}
   const agoraMin = () => { const d = new Date(); return d.getHours() * 60 + d.getMinutes(); };
   const limitar = (v, a, b) => Math.max(a, Math.min(b, v));
 
+  /* "2026-09-01" -> Date local ao meio-dia: sem hora, o parse de "YYYY-MM-DD"
+     e tratado como UTC e volta um dia em fusos negativos */
+  const dataDe = (dia) => {
+    const [a, m, d] = dia.split("-").map(Number);
+    return new Date(a, m - 1, d, 12);
+  };
+
+  const rotuloData = (dia) =>
+    new Intl.DateTimeFormat("pt-BR", { weekday: "short", day: "2-digit", month: "short" })
+      .format(dataDe(dia)).replace(/\./g, "").replace(",", " ·").toUpperCase();
+
+  /* so o dia da semana, para a faixa: "esta fila e de segunda" */
+  const diaDaSemana = (dia) =>
+    new Intl.DateTimeFormat("pt-BR", { weekday: "long" }).format(dataDe(dia));
+
+  const atrasada = () => estado.dia !== hoje();
+
   const pendentes = () => estado.tarefas.filter((t) => !t.feito);
   const feitas = () => estado.tarefas.filter((t) => t.feito);
 
@@ -622,6 +697,7 @@ input{font:inherit;color:inherit}
   const elAviso = $("aviso"), elAvisoTexto = $("aviso-texto");
   const elEditorDia = $("editor-dia"), elInicio = $("inicio"), elFim = $("fim");
   const elVazioSub = $("vazio-sub"), elExemplos = $("exemplos"), elVazioRodape = $("vazio-rodape");
+  const elFaixaOntem = $("faixa-ontem"), elFoTexto = $("fo-texto"), elFoQuando = $("fo-quando");
 
   const CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12.5l5.5 5.5L20 6.5"/></svg>';
   const RELOGIO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7.5V12l3 2"/></svg>';
@@ -636,8 +712,28 @@ input{font:inherit;color:inherit}
     const d = distribuir();
     renderChamada(d);
     renderTrilho(d);
+    renderFaixaOntem();
     renderPendentes(d);
     renderFeitas();
+  }
+
+  /* nada acontece sozinho: a fila velha continua exatamente como ficou, e a
+     unica coisa que muda e a tela parar de chamar aquilo de hoje. */
+  function renderFaixaOntem() {
+    const velha = atrasada();
+    elFaixaOntem.hidden = !velha;
+    if (!velha) return;
+
+    const abertas = pendentes();
+    const total = abertas.reduce((s, t) => s + t.min, 0);
+    const quando = diaDaSemana(estado.dia);
+
+    elFoTexto.innerHTML = "Esta fila é de <b>" + quando + "</b>" +
+      (abertas.length
+        ? " · " + abertas.length + (abertas.length === 1 ? " aberta" : " abertas") +
+          (total ? " · " + longo(total) : "")
+        : " e não sobrou nada aberto");
+    elFoQuando.textContent = "fechar " + quando;
   }
 
   /* so o que depende do relogio, para o tick nao roubar o foco de quem digita */
@@ -649,8 +745,9 @@ input{font:inherit;color:inherit}
   }
 
   function renderChamada({ c }) {
-    $("data").textContent = new Intl.DateTimeFormat("pt-BR", { weekday: "short", day: "2-digit", month: "short" })
-      .format(new Date()).replace(/\./g, "").replace(",", " ·").toUpperCase();
+    /* o carimbo e a data DA FILA, nao a de hoje: enquanto o estado for de ontem,
+       dizer "hoje" aqui seria afirmar algo falso sobre o que esta na tela */
+    $("data").textContent = rotuloData(estado.dia);
 
     elJanela.textContent = relogio(estado.inicio) + " → " + relogio(estado.fim);
     elChamada.dataset.tom = "normal";
@@ -663,8 +760,11 @@ input{font:inherit;color:inherit}
       elResto.textContent = c.horaExtra ? "— o dia já acabou" : (prontas ? "ainda de dia" : "pela frente");
       if (prontas) {
         const total = feitas().reduce((s, t) => s + t.min, 0);
+        /* enquanto a fila for de ontem, "N fechadas" e trabalho de ontem:
+           dizer de quando sem tirar o credito do que foi feito */
         elContexto.textContent = prontas + (prontas === 1 ? " fechada" : " fechadas") +
-          (total ? " · " + longo(total) + " de trabalho" : "");
+          (total ? " · " + longo(total) + " de trabalho" : "") +
+          (atrasada() ? " — de " + diaDaSemana(estado.dia) : "");
       } else {
         elContexto.textContent = "o dia acaba às " + relogio(estado.fim) + ".";
       }
@@ -761,7 +861,6 @@ input{font:inherit;color:inherit}
       const li = document.createElement("li");
       li.className = "tarefa";
       li.dataset.id = t.id;
-      li.dataset.prio = t.prio;
       if (corte >= 0 && i >= corte) li.dataset.cabe = "nao";
       li.tabIndex = 0;
 
@@ -790,12 +889,6 @@ input{font:inherit;color:inherit}
       miolo.className = "miolo";
       miolo.append(nome, sub);
 
-      const prio = document.createElement("button");
-      prio.className = "acao";
-      prio.dataset.acao = "prio";
-      prio.innerHTML = '<span class="ponto"></span>';
-      prio.setAttribute("aria-label", "Prioridade " + NOME_PRIO[t.prio] + ". Alternar");
-
       const lixo = document.createElement("button");
       lixo.className = "acao";
       lixo.dataset.acao = "excluir";
@@ -804,7 +897,7 @@ input{font:inherit;color:inherit}
 
       const acoes = document.createElement("div");
       acoes.className = "acoes";
-      acoes.append(prio, lixo);
+      acoes.append(lixo);
 
       const pega = document.createElement("button");
       pega.className = "pega";
@@ -872,7 +965,9 @@ input{font:inherit;color:inherit}
   let timerAviso = null;
 
   function comDesfazer(texto, acao) {
-    const antes = estado.tarefas.map((t) => ({ ...t }));
+    /* o snapshot guarda o dia junto: as acoes da faixa mexem nos dois, e
+       desfazer so as tarefas deixaria a fila de ontem carimbada como hoje */
+    const antes = { tarefas: estado.tarefas.map((t) => ({ ...t })), dia: estado.dia };
     acao();
     paraDesfazer = antes;
     elAvisoTexto.textContent = texto;
@@ -889,7 +984,8 @@ input{font:inherit;color:inherit}
 
   $("aviso-desfazer").addEventListener("click", () => {
     if (!paraDesfazer) return;
-    estado.tarefas = paraDesfazer;
+    estado.tarefas = paraDesfazer.tarefas;
+    estado.dia = paraDesfazer.dia;
     fecharAviso();
     salvar();
     render();
@@ -904,8 +1000,14 @@ input{font:inherit;color:inherit}
     const bruto = texto.replace(/\s+/g, " ").trim();
     if (!bruto) return;
     const { min, titulo } = lerDuracao(texto);
+    /* escrever numa fila de ontem ja e a decisao de comecar hoje: carimba o dia
+       e leva junto o que estava aberto, em vez de misturar em silencio */
+    if (atrasada()) {
+      estado.tarefas = pendentes();
+      estado.dia = hoje();
+    }
     /* "90m" sozinho nao sobra titulo: guarda o que foi digitado em vez de sumir em silencio */
-    estado.tarefas.unshift({ id: proximoId(), titulo: (titulo || bruto).slice(0, 300), min, prio: 0, feito: false });
+    estado.tarefas.unshift({ id: proximoId(), titulo: (titulo || bruto).slice(0, 300), min, feito: false });
     salvar();
     render();
   }
@@ -961,16 +1063,6 @@ input{font:inherit;color:inherit}
       salvar();
       render();
     });
-  }
-
-  function ciclarPrioridade(id) {
-    const t = estado.tarefas[acharIndice(id)];
-    if (!t) return;
-    t.prio = (t.prio + 1) % 4;
-    salvar();
-    render();
-    const botao = elLista.querySelector(seletor(id) + ' [data-acao="prio"]');
-    if (botao) botao.focus();
   }
 
   function editarTempo(id) {
@@ -1059,7 +1151,6 @@ input{font:inherit;color:inherit}
     const id = li.dataset.id;
     if (botao.dataset.acao === "concluir") concluir(id);
     else if (botao.dataset.acao === "excluir") excluir(id);
-    else if (botao.dataset.acao === "prio") ciclarPrioridade(id);
     else if (botao.dataset.acao === "tempo") editarTempo(id);
   });
 
@@ -1182,6 +1273,39 @@ input{font:inherit;color:inherit}
     });
   });
 
+  /* ---------- a fila de outro dia ---------- */
+
+  /* trazer: as abertas passam a ser a fila de hoje, na mesma ordem. as
+     concluidas de ontem saem — elas sao registro daquele dia, nao deste. */
+  $("fo-trazer").addEventListener("click", () => {
+    if (!atrasada()) return;
+    const n = pendentes().length;
+    comDesfazer(
+      n ? "trouxe " + n + (n === 1 ? " tarefa" : " tarefas") + " pra hoje" : "dia começado",
+      () => {
+        estado.tarefas = pendentes();
+        estado.dia = hoje();
+        salvar();
+        render();
+      }
+    );
+  });
+
+  /* fechar: o dia anterior acaba como ficou, aberto e tudo. comeca um dia limpo. */
+  $("fo-fechar").addEventListener("click", () => {
+    if (!atrasada()) return;
+    const n = pendentes().length;
+    comDesfazer(
+      n ? "fechei o dia com " + n + (n === 1 ? " aberta" : " abertas") : "dia fechado",
+      () => {
+        estado.tarefas = [];
+        estado.dia = hoje();
+        salvar();
+        render();
+      }
+    );
+  });
+
   /* ---------- editor do dia ---------- */
 
   elJanela.addEventListener("click", () => {
@@ -1224,9 +1348,16 @@ input{font:inherit;color:inherit}
   });
 
   /* ---------- o dia encolhendo ---------- */
-  /* o tick nao tem transicao: tempo passando e um fato seco, nao um efeito */
-  setInterval(renderTempo, 30000);
-  document.addEventListener("visibilitychange", () => { if (!document.hidden) renderTempo(); });
+  /* o tick nao tem transicao: tempo passando e um fato seco, nao um efeito.
+     virar a meia-noite com a aba aberta muda a fila de categoria, e ai o
+     redesenho tem que ser inteiro — a faixa e o corte dependem disso. */
+  let diaDoUltimoTick = estado.dia;
+  function tick() {
+    if (atrasada() && diaDoUltimoTick !== hoje()) { diaDoUltimoTick = hoje(); render(); return; }
+    renderTempo();
+  }
+  setInterval(tick, 30000);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) tick(); });
 
   render();
 })();
