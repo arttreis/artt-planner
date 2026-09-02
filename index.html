@@ -358,6 +358,24 @@ body::after{
 .reserva .acoes{opacity:0}
 .reserva:hover .acoes,.reserva:focus-within .acoes{opacity:1}
 
+/* ---------- o arquivo ----------
+   fica no pe da rolagem, em tinta baixa: e infraestrutura, nao assunto do dia. */
+.arquivo{margin-top:calc(var(--pd) * 1.5);padding-top:var(--pd);border-top:1px solid var(--line-soft)}
+.arq-linha{
+  margin:0;display:flex;align-items:center;justify-content:space-between;
+  gap:var(--pd2);flex-wrap:wrap;color:var(--ink-30);
+}
+.arq-acoes{display:flex;gap:var(--pd);flex:0 0 auto}
+.arq-link{
+  font-size:11.5px;color:var(--ink-50);
+  text-decoration:underline;text-underline-offset:3px;text-decoration-color:var(--line);
+  transition:color var(--t);
+}
+.arq-link:hover{color:var(--ink)}
+/* ligado e o unico estado que ganha o verde: e o unico em que o dia esta a salvo */
+#arq-estado[data-e="ligado"]{color:var(--green)}
+#arq-estado[data-e="dormindo"],#arq-estado[data-e="perdido"],#arq-estado[data-e="erro"]{color:var(--ink-70)}
+
 /* ---------- pilula do composer ---------- */
 .pilula-area{flex:0 0 auto;padding:var(--pd2) calc(var(--pd) * 1.25) calc(var(--pd) * 1.25)}
 .fantasma{
@@ -527,6 +545,18 @@ body::after{
       <p class="vazio-rodape" id="vazio-rodape">Escreve assim, com a duração no fim: ela sai do título e entra na barra do dia.</p>
     </div>
 
+    <section class="arquivo" id="arquivo-secao">
+      <p class="arq-linha">
+        <span class="t-mono" id="arq-estado"></span>
+        <span class="arq-acoes">
+          <button class="arq-link" type="button" id="arq-ligar" hidden></button>
+          <button class="arq-link" type="button" id="arq-exportar">exportar</button>
+          <button class="arq-link" type="button" id="arq-importar">importar</button>
+        </span>
+      </p>
+      <input type="file" id="arq-input" accept="application/json,.json" hidden>
+    </section>
+
     <section class="feitas" id="feitas" data-aberto="nao" hidden>
       <p class="rotulo">
         <button class="pill" id="alternar-feitas" aria-expanded="false">
@@ -609,7 +639,6 @@ body::after{
     Number.isFinite(+v) && +v >= 0 && +v <= DIA ? Math.round(+v) : padrao;
 
   function carregar() {
-    const vazio = { tarefas: [], inicio: 540, fim: 1140, feitasAbertas: false, dia: hoje() };
     let bruto = null;
     try {
       bruto = JSON.parse(localStorage.getItem(CHAVE));
@@ -627,6 +656,13 @@ body::after{
       }
     } catch (e) { /* storage bloqueado ou corrompido: comeca limpo */ }
 
+    return carregarDe(bruto);
+  }
+
+  /* a mesma validacao para tudo que entra: localStorage, arquivo importado e
+     arquivo sincronizado. nada chega ao estado sem passar por aqui. */
+  function carregarDe(bruto) {
+    const vazio = { tarefas: [], inicio: 540, fim: 1140, feitasAbertas: false, dia: hoje(), v: 0 };
     if (!bruto || !Array.isArray(bruto.tarefas)) return vazio;
     const inicio = minutoValido(bruto.inicio, 540);
     let fim = minutoValido(bruto.fim, 1140);
@@ -638,7 +674,11 @@ body::after{
       feitasAbertas: !!bruto.feitasAbertas,
       /* estado gravado antes do campo existir e a fila viva de quem ja usava:
          tratar como hoje na primeira carga, em vez de acusar um atraso inventado */
-      dia: ehDia(bruto.dia) ? bruto.dia : hoje()
+      dia: ehDia(bruto.dia) ? bruto.dia : hoje(),
+      /* carimbo de escrita: e por ele que dois aparelhos decidem quem esta na
+         frente. lastModified do arquivo nao serve — quem mexe nele e o cliente
+         de sync, nao nos. */
+      v: Number.isFinite(+bruto.v) && +bruto.v > 0 ? Math.round(+bruto.v) : 0
     };
   }
 
@@ -649,6 +689,9 @@ body::after{
   let paraDesfazer = null;
 
   function salvar() {
+    /* o navegador continua sendo a fonte de verdade da sessao: o arquivo e
+       camada de sincronia, nao substituto. se ele falhar, o dia nao se perde. */
+    estado.v = Date.now();
     try { localStorage.setItem(CHAVE, JSON.stringify(estado)); }
     catch (e) {
       if (!storageQuebrado) {
@@ -657,6 +700,7 @@ body::after{
         elAvisoStorage.textContent = "não consegui salvar neste navegador — o que você fizer agora some ao fechar";
       }
     }
+    agendarGravacao();
   }
 
   /* outra aba gravou: recarrega em vez de sobrescrever o trabalho dela */
@@ -1172,9 +1216,14 @@ body::after{
   const PILHA = 12;
 
   function comDesfazer(texto, acao) {
-    /* o retrato guarda o dia junto: as acoes da faixa mexem nos dois, e
-       desfazer so as tarefas deixaria a fila de ontem carimbada como hoje */
-    const antes = { tarefas: estado.tarefas.map((t) => ({ ...t })), dia: estado.dia, texto };
+    /* o retrato guarda o documento inteiro, nao so as tarefas: a faixa de
+       ontem mexe no dia e o import troca ate a janela — desfazer parcial
+       deixaria a tela num estado que nunca existiu */
+    const antes = {
+      tarefas: estado.tarefas.map((t) => ({ ...t })),
+      dia: estado.dia, inicio: estado.inicio, fim: estado.fim,
+      texto
+    };
     acao();
     paraDesfazer = paraDesfazer || [];
     paraDesfazer.push(antes);
@@ -1200,6 +1249,8 @@ body::after{
     const passo = paraDesfazer.pop();
     estado.tarefas = passo.tarefas;
     estado.dia = passo.dia;
+    estado.inicio = passo.inicio;
+    estado.fim = passo.fim;
     salvar();
     render();
     /* ainda ha passos atras: o aviso continua, apontando para o proximo */
@@ -1711,6 +1762,234 @@ body::after{
     }
   });
 
+  /* ---------- o arquivo ----------
+     o mesmo dia em dois computadores, sem conta e sem servidor: o estado vive
+     num arquivo dentro de uma pasta que o iCloud/Drive/Dropbox ja sincroniza.
+     o navegador continua sendo a fonte de verdade da sessao — o arquivo e
+     camada de sincronia, e quando ele falha o dia nao se perde junto.
+
+     so Chromium no desktop tem essa API. onde nao tem, sobra exportar e
+     importar a mao, que e o que os botoes fazem de qualquer jeito. */
+
+  const TEM_ARQUIVO = typeof window.showSaveFilePicker === "function";
+  const BD = "artt-planner-arquivo", LOJA = "handles";
+  let arquivo = null;          /* FileSystemFileHandle */
+  let timerGravar = null;
+  let ultimoVConhecido = 0;    /* versao do estado quando lemos o arquivo */
+
+  /* o handle nao e texto: localStorage nao guarda, IndexedDB guarda */
+  function comBanco(fn) {
+    return new Promise((ok, falha) => {
+      const req = indexedDB.open(BD, 1);
+      req.onupgradeneeded = () => req.result.createObjectStore(LOJA);
+      req.onerror = () => falha(req.error);
+      req.onsuccess = () => {
+        const bd = req.result;
+        const tx = bd.transaction(LOJA, "readwrite");
+        const r = fn(tx.objectStore(LOJA));
+        tx.oncomplete = () => { bd.close(); ok(r && r.result); };
+        tx.onerror = () => { bd.close(); falha(tx.error); };
+      };
+    });
+  }
+
+  const guardarHandle = (h) => comBanco((loja) => loja.put(h, "arquivo"));
+  const lerHandle = () => comBanco((loja) => loja.get("arquivo"));
+  const esquecerHandle = () => comBanco((loja) => loja.delete("arquivo"));
+
+  const podeEscrever = async (h) => {
+    try { return (await h.queryPermission({ mode: "readwrite" })) === "granted"; }
+    catch (e) { return false; }
+  };
+
+  /* le o arquivo e devolve o estado gravado la, ou null */
+  async function lerArquivo(h) {
+    const texto = await (await h.getFile()).text();
+    if (!texto.trim()) return null;
+    const bruto = JSON.parse(texto);
+    return bruto && Array.isArray(bruto.tarefas) ? bruto : null;
+  }
+
+  /* NUNCA sobrescreve sem olhar: o outro computador pode ter gravado depois.
+     na duvida, quem tem o carimbo mais novo vence, e o mais velho nao apaga. */
+  async function gravar() {
+    if (!arquivo) return;
+    try {
+      if (!(await podeEscrever(arquivo))) { marcarArquivo("dormindo"); return; }
+
+      const doArquivo = await lerArquivo(arquivo);
+      if (doArquivo && +doArquivo.v > ultimoVConhecido && +doArquivo.v > estado.v) {
+        /* o arquivo esta na frente: quem chegou depois foi o outro aparelho */
+        adotarDoArquivo(doArquivo);
+        return;
+      }
+
+      const w = await arquivo.createWritable();
+      await w.write(JSON.stringify(estado));
+      await w.close();
+      ultimoVConhecido = estado.v;
+      marcarArquivo("ligado");
+    } catch (e) {
+      /* o cliente de sync trocou o arquivo por baixo (conflito, evicted no
+         iCloud): o handle morreu. dizer isso e pedir o arquivo de novo. */
+      if (e && (e.name === "NotFoundError" || e.name === "NotAllowedError")) {
+        arquivo = null;
+        esquecerHandle().catch(() => {});
+        marcarArquivo("perdido");
+      } else {
+        marcarArquivo("erro");
+      }
+    }
+  }
+
+  /* junta o que veio do arquivo sem descartar o que esta na tela:
+     mesma tarefa dos dois lados, fica a versao do lado mais novo. */
+  function adotarDoArquivo(bruto) {
+    Object.assign(estado, carregarDe(bruto));
+    ultimoVConhecido = estado.v;
+    try { localStorage.setItem(CHAVE, JSON.stringify(estado)); } catch (e) {}
+    render();
+    marcarArquivo("ligado");
+    mostrarAviso("atualizei com o que veio do outro computador");
+  }
+
+  /* debounce: cada close() acorda o cliente de sync. 2s evita disparar o
+     iCloud a cada tecla sem deixar o outro aparelho esperando. */
+  function agendarGravacao() {
+    if (!arquivo) return;
+    clearTimeout(timerGravar);
+    timerGravar = setTimeout(gravar, 2000);
+  }
+
+  async function escolherArquivo() {
+    try {
+      const h = await window.showSaveFilePicker({
+        suggestedName: "artt-planner.json",
+        types: [{ description: "planner", accept: { "application/json": [".json"] } }]
+      });
+      arquivo = h;
+      await guardarHandle(h);
+      /* arquivo que ja tem dia gravado: adota em vez de atropelar */
+      const doArquivo = await lerArquivo(h).catch(() => null);
+      if (doArquivo && +doArquivo.v > estado.v) adotarDoArquivo(doArquivo);
+      else { ultimoVConhecido = 0; await gravar(); }
+    } catch (e) { /* o usuario fechou o seletor */ }
+  }
+
+  /* na volta: se a permissao sobreviveu, reconecta sozinho. se nao, oferece um
+     clique — requestPermission() exige gesto e falharia aqui. */
+  async function retomarArquivo() {
+    if (!TEM_ARQUIVO) { marcarArquivo("indisponivel"); return; }
+    let h = null;
+    try { h = await lerHandle(); } catch (e) { /* sem banco: segue sem arquivo */ }
+    if (!h) { marcarArquivo("desligado"); return; }
+    arquivo = h;
+    if (await podeEscrever(h)) {
+      const doArquivo = await lerArquivo(h).catch(() => null);
+      if (doArquivo && +doArquivo.v > estado.v) adotarDoArquivo(doArquivo);
+      else { ultimoVConhecido = +((doArquivo || {}).v) || 0; marcarArquivo("ligado"); }
+    } else {
+      marcarArquivo("dormindo");
+    }
+  }
+
+  async function acordarArquivo() {
+    if (!arquivo) return escolherArquivo();
+    try {
+      const r = await arquivo.requestPermission({ mode: "readwrite" });
+      if (r !== "granted") { marcarArquivo("dormindo"); return; }
+      const doArquivo = await lerArquivo(arquivo).catch(() => null);
+      if (doArquivo && +doArquivo.v > estado.v) adotarDoArquivo(doArquivo);
+      else { ultimoVConhecido = +((doArquivo || {}).v) || 0; await gravar(); }
+    } catch (e) { marcarArquivo("perdido"); }
+  }
+
+  async function desligarArquivo() {
+    arquivo = null;
+    clearTimeout(timerGravar);
+    await esquecerHandle().catch(() => {});
+    marcarArquivo("desligado");
+  }
+
+  /* ---------- exportar e importar ----------
+     funciona em qualquer navegador, e e o backup: sem isso, limpar o cache
+     apaga o registro inteiro sem aviso. */
+
+  function exportar() {
+    const nome = "artt-planner-" + estado.dia + ".json";
+    const url = URL.createObjectURL(
+      new Blob([JSON.stringify(estado, null, 2)], { type: "application/json" })
+    );
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = nome;
+    a.click();
+    /* sem revoke o blob fica preso na memoria a cada exportacao */
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  function importar(file) {
+    const leitor = new FileReader();
+    leitor.onload = () => {
+      let bruto = null;
+      try { bruto = JSON.parse(leitor.result); } catch (e) {}
+      if (!bruto || !Array.isArray(bruto.tarefas)) {
+        mostrarAviso("esse arquivo não é um planner");
+        return;
+      }
+      const n = bruto.tarefas.length;
+      comDesfazer("importei " + n + (n === 1 ? " tarefa" : " tarefas"), () => {
+        Object.assign(estado, carregarDe(bruto));
+        salvar();
+        render();
+      });
+    };
+    leitor.readAsText(file);
+  }
+
+  /* o rodape do arquivo diz uma coisa so: se o dia esta a salvo em algum lugar
+     alem deste navegador — e, quando nao esta, o que fazer a respeito. */
+  const DIZERES = {
+    ligado:       ["sincronizando no arquivo", ""],
+    dormindo:     ["arquivo desconectado", "reconectar"],
+    desligado:    ["só neste navegador", "sincronizar num arquivo"],
+    perdido:      ["perdi o arquivo de vista", "escolher de novo"],
+    erro:         ["não consegui gravar no arquivo", "tentar de novo"],
+    indisponivel: ["só neste navegador", ""]
+  };
+
+  function marcarArquivo(qual) {
+    const [texto, acao] = DIZERES[qual] || DIZERES.desligado;
+    const el = $("arq-estado");
+    el.textContent = texto;
+    el.dataset.e = qual;
+    const botao = $("arq-ligar");
+    botao.hidden = !acao;
+    botao.textContent = acao;
+    botao.dataset.para = qual;
+  }
+
+  $("arq-ligar").addEventListener("click", (e) => {
+    const para = e.currentTarget.dataset.para;
+    if (para === "dormindo" || para === "erro") acordarArquivo();
+    else escolherArquivo();
+  });
+
+  $("arq-exportar").addEventListener("click", exportar);
+  $("arq-importar").addEventListener("click", () => $("arq-input").click());
+  $("arq-input").addEventListener("change", (e) => {
+    const f = e.target.files && e.target.files[0];
+    if (f) importar(f);
+    /* sem isso, reescolher o MESMO arquivo nao dispara change de novo */
+    e.target.value = "";
+  });
+
+  /* voltar pra aba e o momento em que o outro computador pode ter gravado */
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) { clearTimeout(timerGravar); gravar(); }
+    else if (arquivo) gravar();
+  });
+
   /* ---------- o dia encolhendo ---------- */
   /* o tick nao tem transicao: tempo passando e um fato seco, nao um efeito.
      virar a meia-noite com a aba aberta muda a fila de categoria, e ai o
@@ -1724,6 +2003,8 @@ body::after{
   document.addEventListener("visibilitychange", () => { if (!document.hidden) tick(); });
 
   render();
+  /* nao bloqueia a primeira pintura: o dia aparece, o arquivo se conecta atras */
+  retomarArquivo();
 })();
 </script>
 </body>

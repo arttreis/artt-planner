@@ -89,14 +89,41 @@ desfazer — e ele empilha: desfazer duas vezes volta duas ações, na ordem inv
 
 ## Onde ficam os dados
 
-Em `localStorage`, na chave `artt-planner:v2`, no seu próprio navegador. Nada sai da máquina:
-não há servidor, conta nem sincronização. Duas abas abertas se conversam pelo evento `storage`
-em vez de uma sobrescrever a outra.
+Em `localStorage`, na chave `artt-planner:v2`, no seu próprio navegador. Não há servidor nem
+conta. Duas abas abertas se conversam pelo evento `storage` em vez de uma sobrescrever a outra.
+
+### Levar o mesmo dia para outro computador
+
+**Exportar / importar** funciona em qualquer navegador. Exportar baixa um `.json` com o dia
+inteiro — é também o único backup que existe, já que limpar o cache apaga tudo sem aviso.
+
+**Sincronizar num arquivo** é o caminho sem ato manual: você aponta um arquivo dentro de uma
+pasta que o iCloud, o Drive ou o Dropbox já sincroniza, e os dois computadores passam a ler e
+escrever nele. Não há servidor no meio — quem sincroniza é a sua nuvem.
+
+O rodapé diz em que modo você está. `sincronizando no arquivo` é o único estado em que o dia
+existe fora deste navegador.
+
+Como isso não perde trabalho: cada gravação carimba um `v` no estado, e antes de escrever o app
+lê o arquivo. Se o carimbo de lá for mais novo, ele adota em vez de sobrescrever — quem chegou
+depois foi o outro computador. A escrita tem 2s de espera para não acordar o cliente de sync a
+cada tecla, e é atômica: se a aba fechar no meio, o arquivo mantém o conteúdo anterior inteiro.
+
+Se o cliente de sync trocar o arquivo por baixo (conflito, ou *evicted* no iCloud), o app diz
+que perdeu o arquivo de vista e pede outro — em vez de falhar calado.
+
+**Só funciona em Chrome e Edge no desktop.** Safari, Firefox e qualquer navegador de celular
+não têm a API; lá sobra exportar e importar. O navegador continua sendo a fonte de verdade da
+sessão: se o arquivo falhar, o dia não vai junto.
 
 ## Fora de escopo, por decisão
 
 Recorrência, tags, múltiplos dias, colaboração. Todos criariam um segundo eixo de ordenação
 numa fila cuja única ordem é a prioridade.
+
+Conta e servidor também — por enquanto. A sincronização por arquivo cobre dois computadores
+sem nenhum dos dois; o dia em que ela não bastar (celular, ou duas pessoas na mesma fila) é o
+dia de reabrir essa decisão.
 
 Rollover automático também: tarefa aberta não rola para amanhã sozinha — é assim que lista
 vira cemitério. Mas *não rolar* e *não saber que dia é* são decisões diferentes, e só a
