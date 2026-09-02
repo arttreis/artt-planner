@@ -56,7 +56,7 @@ body{
   -webkit-font-smoothing:antialiased;
   min-height:100dvh;
   display:grid;place-items:center;
-  padding:clamp(12px,3vh,40px) clamp(12px,3vw,40px);
+  padding:clamp(24px,7vh,88px) clamp(12px,3vw,40px);
 }
 
 button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
@@ -72,8 +72,8 @@ input{font:inherit;color:inherit}
 /* ---------- o aparelho ---------- */
 .fone{
   position:relative;
-  width:100%;max-width:432px;
-  height:min(880px,calc(100dvh - clamp(24px,6vh,80px)));
+  width:100%;max-width:496px;
+  height:min(880px,calc(100dvh - clamp(48px,14vh,176px)));
   display:flex;flex-direction:column;
   background:var(--surface);
   border:1px solid var(--line);
@@ -139,7 +139,8 @@ input{font:inherit;color:inherit}
 .livre{background:var(--green);flex:1 1 auto}
 .livre.recibo{background:var(--ink)}
 .estouro{
-  height:6px;margin-top:var(--pd3);border-radius:3px;
+  /* com estouro pequeno a barra vira um respingo de 3px e parece sujeira */
+  height:6px;min-width:18px;margin-top:var(--pd3);border-radius:3px;
   background:repeating-linear-gradient(45deg,var(--ink-30) 0 3px,transparent 3px 6px);
 }
 .nota{
@@ -179,9 +180,30 @@ input{font:inherit;color:inherit}
   transition:background var(--t),border-color var(--t),opacity var(--t),transform var(--t);
 }
 .tarefa:hover,.tarefa:focus-within{background:var(--fill-hover);border-color:var(--line)}
-.tarefa.arrastando{opacity:.4}
-.tarefa.alvo{box-shadow:inset 0 2px 0 var(--green)}
 .tarefa.saindo{opacity:0;transform:translateX(12px)}
+.tarefa.arrastando{
+  position:relative;z-index:2;cursor:grabbing;
+  background:var(--surface-2);border-color:var(--line);
+  box-shadow:0 14px 30px rgba(0,0,0,.55);transition:none;
+}
+
+/* alca de arrastar: fica sempre visivel, senao ninguem descobre que da pra reordenar */
+.pega{
+  flex:0 0 auto;width:30px;height:30px;display:grid;place-items:center;
+  border-radius:var(--br2);color:var(--ink-30);cursor:grab;
+  touch-action:none;transition:color var(--t),background var(--t);
+}
+.pega:hover{color:var(--ink-70);background:var(--fill-hover)}
+.pega svg{width:15px;height:15px}
+
+/* o corte: daqui pra baixo nao da tempo hoje */
+.corte{
+  display:flex;align-items:center;gap:var(--pd2);
+  margin:var(--pd2) 2px var(--pd3);color:var(--ink-30);
+}
+.corte::after{content:"";flex:1 1 auto;height:1px;background:var(--line)}
+.tarefa[data-cabe="nao"]{opacity:.45}
+.tarefa[data-cabe="nao"] .marca{border-style:dashed}
 
 /* o ladrilho de icone e o proprio botao de concluir */
 .marca{
@@ -567,20 +589,24 @@ input{font:inherit;color:inherit}
     };
   }
 
-  /* onde cada tarefa cai dentro do dia */
+  /* onde cada tarefa cai dentro do dia, e a partir de qual delas nao da mais tempo.
+     tarefa sem estimativa nao consome nem corta: ela so nao e mensuravel. */
   function distribuir() {
     const c = contas();
     const vagas = new Map();
     let cursor = c.decorrido;
-    c.abertas.forEach((t) => {
+    let corte = -1;
+    c.abertas.forEach((t, i) => {
       if (!t.min) return;
       const disponivel = c.janela - cursor;
-      if (disponivel <= 0) return;
+      if (disponivel <= 0) { if (corte < 0) corte = i; return; }
       const usar = Math.min(t.min, disponivel);
-      vagas.set(t.id, { de: cursor, min: usar, cortada: usar < t.min });
+      const cortada = usar < t.min;
+      if (cortada && corte < 0) corte = i;
+      vagas.set(t.id, { de: cursor, min: usar, cortada });
       cursor += usar;
     });
-    return { c, vagas };
+    return { c, vagas, corte };
   }
 
   /* ---------- referencias ---------- */
@@ -599,6 +625,7 @@ input{font:inherit;color:inherit}
 
   const CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12.5l5.5 5.5L20 6.5"/></svg>';
   const RELOGIO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7.5V12l3 2"/></svg>';
+  const PEGA = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>';
   const LIXO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9.5 7V5h5v2M6.5 7l1 12.5h9L17.5 7"/></svg>';
 
   const semMovimento = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -708,6 +735,7 @@ input{font:inherit;color:inherit}
   }
 
   function renderPendentes(d) {
+    const corte = d.corte;
     const abertas = pendentes();
     /* a tela vazia cobre tambem o "tudo concluido": nunca sobra um buraco */
     elVazio.hidden = abertas.length > 0;
@@ -721,12 +749,20 @@ input{font:inherit;color:inherit}
       return;
     }
 
-    abertas.forEach((t) => {
+    abertas.forEach((t, i) => {
+      /* a régua: daqui pra baixo o dia nao alcanca */
+      if (corte >= 0 && i === corte) {
+        const regua = document.createElement("li");
+        regua.className = "corte";
+        regua.innerHTML = '<span class="t-mono">daqui não dá tempo hoje</span>';
+        elLista.appendChild(regua);
+      }
+
       const li = document.createElement("li");
       li.className = "tarefa";
       li.dataset.id = t.id;
       li.dataset.prio = t.prio;
-      li.draggable = true;
+      if (corte >= 0 && i >= corte) li.dataset.cabe = "nao";
       li.tabIndex = 0;
 
       const marca = document.createElement("button");
@@ -745,7 +781,9 @@ input{font:inherit;color:inherit}
       sub.className = "sub";
       sub.type = "button";
       sub.dataset.acao = "tempo";
-      sub.innerHTML = RELOGIO + "<span>" + (t.min ? formatar(t.min) : "sem duração") + "</span>";
+      const vaga = d.vagas.get(t.id);
+      const parcial = vaga && vaga.cortada ? " · só " + formatar(vaga.min) + " hoje" : "";
+      sub.innerHTML = RELOGIO + "<span>" + (t.min ? formatar(t.min) : "sem duração") + parcial + "</span>";
       sub.setAttribute("aria-label", "Duração: " + (t.min ? longo(t.min) : "não definida") + ". Alterar");
 
       const miolo = document.createElement("div");
@@ -768,7 +806,13 @@ input{font:inherit;color:inherit}
       acoes.className = "acoes";
       acoes.append(prio, lixo);
 
-      li.append(marca, miolo, acoes);
+      const pega = document.createElement("button");
+      pega.className = "pega";
+      pega.type = "button";
+      pega.innerHTML = PEGA;
+      pega.setAttribute("aria-label", "Arrastar para reordenar: " + t.titulo);
+
+      li.append(marca, miolo, acoes, pega);
       elLista.appendChild(li);
     });
 
@@ -1057,56 +1101,65 @@ input{font:inherit;color:inherit}
     else if (e.key === "Delete" || e.key === "Backspace") { e.preventDefault(); excluir(id); }
   });
 
-  /* o input de titulo nao recebe clique dentro de um li draggable */
+  /* arrastar para reordenar com pointer events: o drag do HTML5 nao dispara em toque,
+     e este app abre no celular. a alca captura o ponteiro e a ordem do DOM vira a ordem do estado. */
+  let arrasto = null;
+
   elLista.addEventListener("pointerdown", (e) => {
-    const li = e.target.closest(".tarefa");
-    if (li) li.draggable = !e.target.classList.contains("nome");
-  });
-  elLista.addEventListener("focusout", (e) => {
-    const li = e.target.closest(".tarefa");
-    if (li) li.draggable = true;
-  });
-
-  /* realce cruzado entre lista e trilho */
-  elLista.addEventListener("pointerover", (e) => {
-    const li = e.target.closest(".tarefa");
+    const pega = e.target.closest(".pega");
+    if (!pega || e.button > 0) return;
+    const li = pega.closest(".tarefa");
     if (!li) return;
-    const banda = elTrilho.querySelector(seletor(li.dataset.id));
-    if (banda) banda.classList.add("destaque");
-  });
-  elLista.addEventListener("pointerout", () => {
-    elTrilho.querySelectorAll(".destaque").forEach((b) => b.classList.remove("destaque"));
-  });
-
-  /* arrastar para reordenar */
-  let arrastando = null;
-  const limparDrag = () => {
-    arrastando = null;
-    elLista.querySelectorAll(".alvo,.arrastando").forEach((n) => n.classList.remove("alvo", "arrastando"));
-  };
-  elLista.addEventListener("dragstart", (e) => {
-    const li = e.target.closest(".tarefa");
-    if (!li) return;
-    arrastando = li.dataset.id;
+    e.preventDefault();
+    arrasto = { li, y: e.clientY };
     li.classList.add("arrastando");
-    e.dataTransfer.effectAllowed = "move";
-    try { e.dataTransfer.setData("text/plain", arrastando); } catch (err) { /* navegador antigo */ }
+    pega.setPointerCapture(e.pointerId);
   });
-  elLista.addEventListener("dragover", (e) => {
-    if (!arrastando) return;
+
+  elLista.addEventListener("pointermove", (e) => {
+    if (!arrasto) return;
+    const li = arrasto.li;
+    li.style.transform = "translateY(" + (e.clientY - arrasto.y) + "px)";
+    const alvo = [...elLista.querySelectorAll(".tarefa")].find((n) => {
+      if (n === li) return false;
+      const r = n.getBoundingClientRect();
+      return e.clientY >= r.top && e.clientY <= r.bottom;
+    });
+    if (!alvo) return;
+    const r = alvo.getBoundingClientRect();
+    elLista.insertBefore(li, e.clientY > r.top + r.height / 2 ? alvo.nextSibling : alvo);
+    arrasto.y = e.clientY;
+    li.style.transform = "translateY(0px)";
+  });
+
+  function soltarArrasto() {
+    if (!arrasto) return;
+    const li = arrasto.li;
+    li.classList.remove("arrastando");
+    li.style.transform = "";
+    arrasto = null;
+    const ordem = [...elLista.querySelectorAll(".tarefa")].map((n) => n.dataset.id);
+    const mapa = new Map(estado.tarefas.map((t) => [t.id, t]));
+    const vistos = new Set(ordem);
+    estado.tarefas = ordem.map((id) => mapa.get(id)).filter(Boolean)
+      .concat(estado.tarefas.filter((t) => !vistos.has(t.id)));
+    salvar();
+    render();
+  }
+  elLista.addEventListener("pointerup", soltarArrasto);
+  elLista.addEventListener("pointercancel", soltarArrasto);
+
+  /* com o foco na alca, as setas sozinhas ja reordenam (Alt+setas segue valendo na linha) */
+  elLista.addEventListener("keydown", (e) => {
+    if (e.altKey) return;
+    const pega = e.target.closest(".pega");
+    if (!pega || (e.key !== "ArrowUp" && e.key !== "ArrowDown")) return;
     e.preventDefault();
-    e.dataTransfer.dropEffect = "move";
-    const li = e.target.closest(".tarefa");
-    elLista.querySelectorAll(".alvo").forEach((n) => n.classList.remove("alvo"));
-    if (li && li.dataset.id !== arrastando) li.classList.add("alvo");
+    const id = pega.closest(".tarefa").dataset.id;
+    mover(id, e.key === "ArrowUp" ? -1 : 1);
+    const volta = elLista.querySelector(seletor(id) + " .pega");
+    if (volta) volta.focus();
   });
-  elLista.addEventListener("drop", (e) => {
-    e.preventDefault();
-    const li = e.target.closest(".tarefa");
-    if (arrastando && li && li.dataset.id !== arrastando) reordenar(arrastando, li.dataset.id);
-    limparDrag();
-  });
-  elLista.addEventListener("dragend", limparDrag);
 
   elFeitas.addEventListener("click", (e) => {
     const b = e.target.closest('[data-acao="reabrir"]');
