@@ -1,0 +1,1205 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#0A0908">
+<title>artt · planner</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect x='13' y='4' width='6' height='24' rx='3' fill='%23F0A63C'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@400;500;600&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --breu:#0A0908;
+  --lastro:#151310;
+  --lastro-alto:#1D1916;
+  --costura:#3B352C;
+
+  --gasto:#231F19;
+  --comprometido:#4A4238;
+  --lane:rgba(240,166,60,.09);
+
+  --osso:#EDE7DD;
+  --fumaca:#938C81;
+
+  --sodio:#F0A63C;
+  --brasa:#D2634A;
+  --vidro:#8FB0DA;
+  --vidro-tinta:#0B1620;
+
+  --alta:#DF6A5C;
+  --media:#E0A03C;
+  --baixa:#6FBF8B;
+
+  --sans:"Familjen Grotesk","Segoe UI",system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;
+  --mono:"DM Mono",ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,monospace;
+
+  --raio:12px;
+  --margem:clamp(18px,3.5vw,64px);
+  --t:160ms cubic-bezier(.2,.7,.3,1);
+}
+
+*{box-sizing:border-box}
+/* as classes abaixo usam display:flex, que venceria o display:none do atributo hidden */
+[hidden]{display:none !important}
+html,body{margin:0;padding:0}
+body{
+  background:var(--breu);color:var(--osso);
+  font-family:var(--sans);font-size:16px;line-height:1.5;
+  -webkit-font-smoothing:antialiased;min-height:100dvh;
+}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+input{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--sodio);outline-offset:2px;border-radius:4px}
+
+/* largura total: a estrutura vai de borda a borda, so a prosa tem medida */
+.pagina{width:100%;padding:40px var(--margem) 120px}
+.prosa{max-width:62ch}
+
+/* ---------- cabecalho ---------- */
+.topo{
+  display:flex;justify-content:space-between;align-items:baseline;gap:16px;
+  font-family:var(--mono);font-size:12px;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--fumaca);margin-bottom:22px;
+}
+.janela{
+  font-family:var(--mono);font-size:12px;letter-spacing:.1em;color:var(--fumaca);
+  border-bottom:1px dashed var(--costura);padding-bottom:1px;text-transform:none;
+}
+.janela:hover{color:var(--osso);border-bottom-color:var(--fumaca)}
+
+/* se e medida, e mono. o maior elemento da tela e um numero, nao uma frase. */
+.medida{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.numero{
+  font-family:var(--mono);font-weight:500;
+  font-size:clamp(38px,5.5vw,64px);line-height:.95;letter-spacing:-.02em;color:var(--osso);
+}
+.unidade{font-size:clamp(14px,1.2vw,17px);color:var(--fumaca)}
+.medida[data-tom="estouro"] .numero,
+.medida[data-tom="estouro"] .unidade{color:var(--brasa)}
+.contexto{margin:14px 0 22px;font-size:14.5px;color:var(--fumaca);min-height:22px}
+
+/* ---------- o trilho ---------- */
+/* a pista e exatamente a janela do dia e ocupa a mesma caixa que as linhas da lista,
+   para a faixa de uma tarefa no trilho cair na vertical exata da linha dela */
+.trilho{
+  display:flex;height:38px;border-radius:9px;overflow:hidden;
+  background:var(--gasto);
+}
+.faixa{min-width:0;transition:background var(--t)}
+.faixa+.faixa{box-shadow:inset 1px 0 0 var(--breu)}
+.gasto{background:var(--gasto)}
+.banda{background:var(--comprometido)}
+.banda.destaque{background:var(--osso)}
+.livre{background:var(--sodio);flex:1 1 auto}
+.livre.recibo{background:var(--osso)}
+
+.estouro{
+  height:9px;margin-top:4px;border-radius:5px;
+  background:repeating-linear-gradient(45deg,var(--brasa) 0 3px,var(--breu) 3px 6px);
+}
+.nota{
+  display:block;margin-top:9px;text-align:right;
+  font-family:var(--mono);font-size:11.5px;letter-spacing:.06em;color:var(--fumaca);
+  min-height:17px;
+}
+.editor-dia{
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px;
+  font-family:var(--mono);font-size:12px;color:var(--fumaca);
+}
+.editor-dia input{
+  background:var(--lastro);border:1px solid var(--costura);border-radius:6px;
+  padding:5px 8px;font-family:var(--mono);font-size:12px;color:var(--osso);
+}
+.editor-dia button{color:var(--sodio);text-decoration:underline;text-underline-offset:3px}
+
+/* ---------- composer ---------- */
+/* a unica superficie clara do app, e so enquanto voce esta digitando dentro dela */
+.composer{
+  display:flex;align-items:center;gap:12px;
+  margin:30px 0 0;padding:0 18px;height:60px;
+  background:var(--lastro);border-radius:var(--raio);
+  border:1px solid transparent;
+  transition:background var(--t),border-color var(--t),color var(--t);
+}
+.composer .marca{font-family:var(--mono);font-size:18px;color:var(--vidro);transition:color var(--t)}
+.composer input{
+  flex:1 1 auto;min-width:0;background:none;border:0;outline:0;font-size:16.5px;
+  caret-color:var(--vidro);
+}
+.composer input::placeholder{color:var(--fumaca)}
+.composer:focus-within{background:var(--vidro);color:var(--vidro-tinta);border-color:var(--vidro)}
+.composer:focus-within .marca{color:var(--vidro-tinta)}
+.composer:focus-within input{caret-color:var(--vidro-tinta)}
+.composer:focus-within input::placeholder{color:rgba(11,22,32,.5)}
+.composer:focus-within :focus-visible{outline-color:var(--vidro-tinta)}
+
+/* previa fantasma: mostra o que o parser entendeu ANTES de criar */
+.fantasma{
+  display:flex;align-items:center;gap:14px;
+  margin-top:6px;padding:0 16px;min-height:58px;
+  border:1px dashed var(--costura);border-radius:var(--raio);color:var(--fumaca);
+}
+.fantasma .f-nome{flex:1 1 auto;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:16px}
+.fantasma .f-tempo{flex:0 0 auto;font-family:var(--mono);font-size:13px}
+.fantasma[data-cabe="nao"]{border-color:var(--brasa);color:var(--brasa)}
+
+.dica{font-size:12.5px;color:var(--fumaca);margin:12px 0 0;padding:0 18px}
+.dica code{font-family:var(--mono);font-size:11.5px;background:var(--lastro);padding:2px 6px;border-radius:5px}
+
+/* ---------- lista ---------- */
+.lista{list-style:none;margin:28px 0 0;padding:0;display:flex;flex-direction:column;gap:5px}
+.tarefa{
+  position:relative;overflow:hidden;
+  display:flex;align-items:center;gap:16px;
+  padding:0 18px;min-height:64px;
+  background:var(--lastro);border-radius:var(--raio);
+  box-shadow:inset 0 1px 0 rgba(237,231,221,.05);
+  transition:background var(--t),opacity var(--t),transform var(--t);
+}
+/* a faixa de tempo da tarefa, no fundo da propria linha e no mesmo eixo do trilho:
+   e o que faz a largura da tela dizer alguma coisa em vez de so esticar */
+.lane{
+  position:absolute;top:0;bottom:0;
+  background:var(--lane);
+  border-left:1px solid rgba(240,166,60,.3);
+  pointer-events:none;
+}
+.tarefa > :not(.lane){position:relative;z-index:1}
+.tarefa:hover,.tarefa:focus-within{background:var(--lastro-alto)}
+.tarefa.arrastando{opacity:.4}
+.tarefa.alvo{box-shadow:inset 0 2px 0 var(--sodio)}
+.tarefa.saindo{opacity:0;transform:translateX(12px)}
+
+.anel{
+  flex:0 0 auto;width:21px;height:21px;border-radius:50%;
+  border:2px solid var(--costura);display:grid;place-items:center;
+  transition:border-color var(--t),background var(--t);
+}
+.tarefa[data-prio="1"] .anel{border-color:var(--alta)}
+.tarefa[data-prio="2"] .anel{border-color:var(--media)}
+.tarefa[data-prio="3"] .anel{border-color:var(--baixa)}
+.anel svg{width:11px;height:11px;opacity:0;transform:scale(.5);transition:opacity var(--t),transform var(--t)}
+.anel:hover{border-color:var(--osso)}
+.anel:hover svg{opacity:.5;transform:scale(1)}
+
+.nome{
+  flex:1 1 auto;min-width:0;font-size:16.5px;
+  background:none;border:0;outline:0;padding:6px 0;
+  text-overflow:ellipsis;cursor:text;
+}
+.quando{
+  flex:0 0 auto;font-family:var(--mono);font-size:12px;color:var(--fumaca);
+  white-space:nowrap;
+  /* a faixa passa por baixo do horario: o halo garante que ele continue legivel */
+  text-shadow:0 0 6px var(--lastro),0 0 6px var(--lastro);
+}
+.tempo{
+  flex:0 0 auto;display:flex;align-items:center;gap:7px;
+  font-family:var(--mono);font-size:13px;color:var(--fumaca);
+  padding:5px 6px;border-radius:6px;
+  transition:color var(--t),background var(--t);
+}
+.tempo:hover{color:var(--osso);background:var(--breu)}
+.tempo svg{width:14px;height:14px;flex:0 0 auto}
+
+.acoes{flex:0 0 auto;display:flex;align-items:center;gap:2px;opacity:0;transition:opacity var(--t)}
+.tarefa:hover .acoes,.tarefa:focus-within .acoes{opacity:1}
+.acao{
+  width:30px;height:30px;display:grid;place-items:center;border-radius:7px;
+  color:var(--fumaca);transition:color var(--t),background var(--t);
+}
+.acao:hover{color:var(--osso);background:var(--breu)}
+.acao svg{width:15px;height:15px}
+.ponto{width:11px;height:11px;border-radius:50%;border:2px solid currentColor}
+.tarefa[data-prio="1"] .ponto{border-color:var(--alta);background:var(--alta)}
+.tarefa[data-prio="2"] .ponto{border-color:var(--media);background:var(--media)}
+.tarefa[data-prio="3"] .ponto{border-color:var(--baixa);background:var(--baixa)}
+
+/* ---------- a tela de dia vazio ---------- */
+.vazio{padding:44px 0 8px}
+.vazio-titulo{
+  margin:0 0 10px;font-size:clamp(26px,3.2vw,36px);font-weight:600;
+  letter-spacing:-.02em;color:var(--osso);
+}
+.vazio-sub{margin:0 0 30px;font-size:16px;color:var(--fumaca)}
+/* ensina a gramatica pelo exemplo, sem tour e sem modal */
+.exemplos{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:5px}
+.exemplos li{
+  position:relative;overflow:hidden;
+  display:flex;align-items:center;gap:16px;
+  padding:0 18px;min-height:58px;
+  border:1px dashed var(--costura);border-radius:var(--raio);
+  color:var(--fumaca);
+}
+.exemplos li > :not(.lane){position:relative;z-index:1}
+.exemplos .e-anel{
+  flex:0 0 auto;width:21px;height:21px;border-radius:50%;
+  border:2px dashed var(--costura);
+}
+.exemplos .e-nome{flex:1 1 auto;min-width:0;font-size:16px}
+.exemplos .e-tempo{flex:0 0 auto;font-family:var(--mono);font-size:13px}
+.exemplos .e-tempo b{font-weight:400;color:var(--sodio)}
+.vazio-rodape{margin:22px 0 0;font-size:13px;color:var(--fumaca)}
+
+/* ---------- concluidas ---------- */
+.feitas{margin-top:36px}
+.feitas-topo{
+  display:flex;align-items:center;justify-content:space-between;gap:14px;
+  padding-bottom:12px;border-bottom:1px solid var(--costura);
+}
+.feitas-titulo{
+  font-family:var(--mono);font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--fumaca);display:flex;align-items:center;gap:9px;
+}
+.feitas-titulo svg{width:11px;height:11px;transition:transform var(--t)}
+.feitas[data-aberto="nao"] .feitas-titulo svg{transform:rotate(-90deg)}
+.feitas[data-aberto="nao"] .lista-feitas{display:none}
+.limpar{font-size:12.5px;color:var(--fumaca);transition:color var(--t)}
+.limpar:hover{color:var(--brasa)}
+.lista-feitas{list-style:none;margin:0;padding:12px 0 0;display:flex;flex-direction:column}
+.feita{
+  display:flex;align-items:center;gap:16px;padding:9px 18px;border-radius:10px;
+  color:var(--fumaca);transition:background var(--t);
+}
+.feita:hover{background:var(--lastro)}
+.feita .anel{border-color:var(--fumaca);background:var(--fumaca)}
+.feita .anel svg{opacity:1;transform:scale(1);color:var(--breu)}
+.feita .nome{
+  flex:1 1 auto;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;
+  text-decoration:line-through;text-decoration-color:var(--costura);cursor:default;
+}
+.espaco-acoes{flex:0 0 62px}
+
+/* ---------- rodape ---------- */
+.rodape{
+  margin-top:44px;padding-top:18px;border-top:1px solid var(--costura);
+  display:flex;flex-wrap:wrap;gap:8px 20px;
+  font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--fumaca);
+}
+.rodape kbd{
+  font-family:inherit;background:var(--lastro);border:1px solid var(--costura);
+  border-radius:4px;padding:1px 5px;color:var(--osso);
+}
+
+/* ---------- aviso com desfazer ---------- */
+.aviso{
+  position:fixed;left:50%;bottom:22px;transform:translateX(-50%);
+  display:flex;align-items:center;gap:16px;
+  padding:12px 16px;border-radius:10px;
+  background:var(--lastro-alto);border:1px solid var(--costura);
+  font-size:14px;color:var(--osso);
+  box-shadow:0 8px 28px rgba(0,0,0,.5);
+  max-width:calc(100vw - 32px);z-index:10;
+}
+.aviso button{
+  color:var(--sodio);font-size:13.5px;white-space:nowrap;
+  text-decoration:underline;text-underline-offset:3px;padding:6px 2px;
+}
+
+/* ---------- estreito ---------- */
+@media (max-width:820px){
+  .quando{display:none}
+}
+@media (max-width:720px){
+  .pagina{padding:24px var(--margem) 110px}
+  .topo{margin-bottom:14px}
+  .contexto{margin-bottom:18px}
+  .trilho{height:32px}
+  .dica .extra{display:none}
+  .rodape{display:none}
+  .vazio{padding:34px 0 4px}
+
+  /* o titulo ganha a linha inteira; a duracao desce */
+  .tarefa{
+    display:grid;grid-template-columns:auto minmax(0,1fr) auto;
+    grid-template-areas:"anel nome acoes" "anel tempo acoes";
+    align-items:center;column-gap:11px;padding:10px 12px;min-height:0;
+  }
+  .tarefa .anel{grid-area:anel}
+  .tarefa .nome{grid-area:nome;padding:2px 0;font-size:16px}
+  .tarefa .tempo{grid-area:tempo;justify-self:start;padding:2px 0;font-size:12px}
+  .tarefa .acoes{grid-area:acoes;opacity:1}
+  .acao{width:36px;height:36px}
+  .feita{padding:9px 12px}
+  .espaco-acoes{flex:0 0 74px}
+  .exemplos li{padding:0 12px;min-height:52px}
+  /* sem largura sobrando, a faixa vira ruido atras dos botoes — o trilho do topo ja diz isso */
+  .lane{display:none}
+}
+@media (prefers-reduced-motion:reduce){
+  *{transition-duration:.01ms !important;animation-duration:.01ms !important}
+}
+</style>
+</head>
+<body>
+<main class="pagina">
+
+  <header>
+    <div class="topo">
+      <span id="data"></span>
+      <button class="janela" id="janela" title="Mudar o começo e o fim do seu dia"></button>
+    </div>
+
+    <div class="medida" id="medida">
+      <span class="numero" id="numero">—</span>
+      <span class="unidade" id="unidade"></span>
+    </div>
+    <p class="contexto prosa" id="contexto"></p>
+
+    <div class="instrumento">
+      <div class="trilho" id="trilho" aria-hidden="true"></div>
+      <div class="estouro" id="estouro" hidden aria-hidden="true"></div>
+      <span class="nota" id="nota"></span>
+      <div class="editor-dia" id="editor-dia" hidden>
+        <label>meu dia vai de <input type="time" id="inicio" step="300"></label>
+        <label>até <input type="time" id="fim" step="300"></label>
+        <button type="button" id="salvar-dia">salvar</button>
+      </div>
+    </div>
+  </header>
+
+  <form class="composer" id="form" autocomplete="off">
+    <span class="marca" aria-hidden="true">&rsaquo;</span>
+    <input id="campo" placeholder="o que precisa caber?" aria-label="Nova tarefa">
+  </form>
+  <div class="fantasma" id="fantasma" hidden aria-hidden="true">
+    <span class="f-nome"></span>
+    <span class="f-tempo"></span>
+  </div>
+  <p class="dica" id="dica" hidden></p>
+
+  <ul class="lista" id="lista"></ul>
+
+  <div class="vazio" id="vazio" hidden>
+    <p class="vazio-titulo" id="vazio-titulo">Nada na fila.</p>
+    <p class="vazio-sub prosa" id="vazio-sub">O dia inteiro ainda é seu.</p>
+    <ul class="exemplos" id="exemplos" aria-hidden="true">
+      <li data-min="90">
+        <div class="lane"></div>
+        <span class="e-anel"></span>
+        <span class="e-nome">fechar o relatório da Vibra</span>
+        <span class="e-tempo"><b>1h30</b></span>
+      </li>
+      <li data-min="15">
+        <div class="lane"></div>
+        <span class="e-anel"></span>
+        <span class="e-nome">ligar pro contador</span>
+        <span class="e-tempo"><b>15m</b></span>
+      </li>
+    </ul>
+    <p class="vazio-rodape prosa" id="vazio-rodape">Escreve assim e a duração é lida sozinha — ela sai do título e entra na barra do dia.</p>
+  </div>
+
+  <section class="feitas" id="feitas" data-aberto="nao" hidden>
+    <div class="feitas-topo">
+      <button class="feitas-titulo" id="alternar-feitas" aria-expanded="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+        <span id="feitas-rotulo"></span>
+      </button>
+      <button class="limpar" id="limpar">Limpar concluídas</button>
+    </div>
+    <ul class="lista-feitas" id="lista-feitas"></ul>
+  </section>
+
+  <footer class="rodape">
+    <span><kbd>/</kbd> nova tarefa</span>
+    <span><kbd>Enter</kbd> concluir</span>
+    <span><kbd>Alt</kbd>+<kbd>↑↓</kbd> reordenar</span>
+    <span><kbd>Del</kbd> excluir</span>
+  </footer>
+
+</main>
+
+<div class="aviso" id="aviso" hidden role="status" aria-live="polite">
+  <span id="aviso-texto"></span>
+  <button type="button" id="aviso-desfazer">desfazer</button>
+</div>
+
+<script>
+(() => {
+  "use strict";
+
+  const CHAVE = "artt-planner:v2";
+  const CHAVE_ANTIGA = "artt-planner:v1";
+  const PRIOS = [0, 1, 2, 3];
+  const NOME_PRIO = { 0: "sem prioridade", 1: "alta", 2: "média", 3: "baixa" };
+  const DIA = 1440;
+
+  /* prefixo por aba: duas abas abertas no mesmo milissegundo nao podem gerar o mesmo id */
+  const SESSAO = Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+  let contador = 0;
+  const proximoId = () => SESSAO + "-" + (++contador);
+
+  /* ---------- estado ---------- */
+
+  function normalizar(t) {
+    return {
+      id: t && t.id ? String(t.id) : proximoId(),
+      titulo: String((t && t.titulo) || "").slice(0, 300),
+      min: Number.isFinite(+(t && t.min)) && +t.min > 0 ? Math.min(Math.round(+t.min), DIA) : 0,
+      prio: PRIOS.includes(+(t && t.prio)) ? +t.prio : 0,
+      feito: !!(t && t.feito)
+    };
+  }
+
+  const minutoValido = (v, padrao) =>
+    Number.isFinite(+v) && +v >= 0 && +v <= DIA ? Math.round(+v) : padrao;
+
+  function carregar() {
+    const vazio = { tarefas: [], inicio: 540, fim: 1140, feitasAbertas: false };
+    let bruto = null;
+    try {
+      bruto = JSON.parse(localStorage.getItem(CHAVE));
+      if (!bruto) {
+        /* migra do formato antigo, que guardava capacidade em vez de janela */
+        const velho = JSON.parse(localStorage.getItem(CHAVE_ANTIGA));
+        if (velho && Array.isArray(velho.tarefas)) {
+          bruto = {
+            tarefas: velho.tarefas,
+            inicio: 540,
+            fim: 540 + minutoValido(velho.capacidade, 600),
+            feitasAbertas: !!velho.feitasAbertas
+          };
+        }
+      }
+    } catch (e) { /* storage bloqueado ou corrompido: comeca limpo */ }
+
+    if (!bruto || !Array.isArray(bruto.tarefas)) return vazio;
+    const inicio = minutoValido(bruto.inicio, 540);
+    let fim = minutoValido(bruto.fim, 1140);
+    if (fim <= inicio) fim = Math.min(inicio + 600, DIA);
+    return {
+      tarefas: bruto.tarefas.map(normalizar).filter((t) => t.titulo),
+      inicio,
+      fim,
+      feitasAbertas: !!bruto.feitasAbertas
+    };
+  }
+
+  const estado = carregar();
+  let storageQuebrado = false;
+
+  function salvar() {
+    try { localStorage.setItem(CHAVE, JSON.stringify(estado)); }
+    catch (e) {
+      if (!storageQuebrado) {
+        storageQuebrado = true;
+        elDica.hidden = false;
+        elDica.textContent = "não consegui salvar neste navegador — o que você fizer agora some ao fechar";
+        elDica.style.color = "var(--brasa)";
+      }
+    }
+  }
+
+  /* outra aba gravou: recarrega em vez de sobrescrever o trabalho dela */
+  window.addEventListener("storage", (e) => {
+    if (e.key !== CHAVE) return;
+    Object.assign(estado, carregar());
+    render();
+  });
+
+  /* ---------- tempo ---------- */
+
+  function lerDuracao(texto) {
+    /* minutos so contam colados na hora ("1h30") ou com unidade ("1h 30m"):
+       senao "revisar 1h 20 slides" viraria 1h20 e comeria o "20" do titulo */
+    const comHora = texto.match(/(?:^|\s)(\d{1,2})\s*h(?:(\d{1,2})|\s*(\d{1,2})\s*(?:m|min|mins))?(?=\s|$)/i);
+    const m = comHora || texto.match(/(?:^|\s)(\d{1,3})\s*(?:m|min|mins)(?=\s|$)/i);
+    if (!m) return { min: 0, titulo: texto.replace(/\s+/g, " ").trim() };
+    const min = comHora ? (+m[1]) * 60 + (+(m[2] || m[3] || 0)) : +m[1];
+    /* fatia pela posicao real do match: replace(string) apagaria a primeira
+       ocorrencia literal, que pode nao ser a que casou */
+    const limpo = texto.slice(0, m.index) + " " + texto.slice(m.index + m[0].length);
+    return { min: Math.min(min, DIA), titulo: limpo.replace(/\s+/g, " ").trim() };
+  }
+
+  function formatar(min) {
+    if (!min) return "—";
+    const h = Math.floor(min / 60), m = min % 60;
+    if (!h) return m + "m";
+    if (!m) return h + "h";
+    return h + "h" + String(m).padStart(2, "0");
+  }
+
+  function longo(min) {
+    if (!min) return "0m";
+    const h = Math.floor(min / 60), m = min % 60;
+    return (h ? h + "h" : "") + (h && m ? " " : "") + (m ? m + "m" : "");
+  }
+
+  const relogio = (min) =>
+    String(Math.floor(min / 60) % 24).padStart(2, "0") + ":" + String(Math.round(min) % 60).padStart(2, "0");
+
+  const agoraMin = () => { const d = new Date(); return d.getHours() * 60 + d.getMinutes(); };
+  const limitar = (v, a, b) => Math.max(a, Math.min(b, v));
+
+  const pendentes = () => estado.tarefas.filter((t) => !t.feito);
+  const feitas = () => estado.tarefas.filter((t) => t.feito);
+
+  /* a conta inteira do produto, em minutos. nenhum pixel entra aqui. */
+  function contas() {
+    const janela = estado.fim - estado.inicio;
+    const agora = agoraMin();
+    const decorrido = limitar(agora - estado.inicio, 0, janela);
+    const restante = janela - decorrido;
+    const abertas = pendentes();
+    const comprometido = abertas.reduce((s, t) => s + t.min, 0);
+    return {
+      janela, agora, decorrido, restante, abertas, comprometido,
+      semEstimativa: abertas.filter((t) => !t.min).length,
+      sobra: restante - comprometido,
+      estouro: Math.max(0, comprometido - restante),
+      horaExtra: agora > estado.fim
+    };
+  }
+
+  /* onde cada tarefa cai dentro do dia. usado pelo trilho E pelas faixas das linhas,
+     que por isso ficam no mesmo eixo e alinham na vertical. */
+  function distribuir() {
+    const c = contas();
+    const vagas = new Map();
+    let cursor = c.decorrido;
+    c.abertas.forEach((t) => {
+      if (!t.min) return;
+      const disponivel = c.janela - cursor;
+      if (disponivel <= 0) return;
+      const usar = Math.min(t.min, disponivel);
+      vagas.set(t.id, { de: cursor, min: usar, cortada: usar < t.min });
+      cursor += usar;
+    });
+    return { c, vagas, ocupadoAte: cursor };
+  }
+
+  /* ---------- referencias ---------- */
+
+  const $ = (id) => document.getElementById(id);
+  const elLista = $("lista"), elFeitas = $("lista-feitas"), elVazio = $("vazio");
+  const elTrilho = $("trilho"), elEstouro = $("estouro");
+  const elNumero = $("numero"), elUnidade = $("unidade"), elMedida = $("medida");
+  const elContexto = $("contexto"), elNota = $("nota"), elJanela = $("janela");
+  const elSecaoFeitas = $("feitas"), elRotuloFeitas = $("feitas-rotulo");
+  const elCampo = $("campo"), elDica = $("dica"), elFantasma = $("fantasma");
+  const elAviso = $("aviso"), elAvisoTexto = $("aviso-texto");
+  const elEditorDia = $("editor-dia"), elInicio = $("inicio"), elFim = $("fim");
+  const elVazioTitulo = $("vazio-titulo"), elVazioSub = $("vazio-sub");
+  const elExemplos = $("exemplos"), elVazioRodape = $("vazio-rodape");
+
+  const CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12.5l5.5 5.5L20 6.5"/></svg>';
+  const RELOGIO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7.5V12l3 2"/></svg>';
+  const LIXO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9.5 7V5h5v2M6.5 7l1 12.5h9L17.5 7"/></svg>';
+
+  const semMovimento = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  /* ---------- render ---------- */
+
+  function render() {
+    const d = distribuir();
+    renderMedida(d);
+    renderTrilho(d);
+    renderPendentes(d);
+    renderFeitas();
+  }
+
+  /* so o que depende do relogio, para o tick nao roubar o foco de quem digita */
+  function renderTempo() {
+    const d = distribuir();
+    renderMedida(d);
+    renderTrilho(d);
+    renderLanes(d);
+  }
+
+  function renderMedida({ c }) {
+    $("data").textContent = new Intl.DateTimeFormat("pt-BR", { weekday: "short", day: "2-digit", month: "short" })
+      .format(new Date()).replace(/\./g, "").replace(",", " ·").toUpperCase();
+
+    elJanela.textContent = relogio(estado.inicio) + " → " + relogio(estado.fim);
+    elMedida.dataset.tom = "normal";
+
+    /* o numero grande e uma leitura de instrumento: forma compacta, sempre em mono */
+    if (!c.abertas.length) {
+      elNumero.textContent = formatar(Math.max(0, c.restante));
+      if (feitas().length) {
+        const total = feitas().reduce((s, t) => s + t.min, 0);
+        elUnidade.textContent = "e nada na fila";
+        elContexto.textContent = "acabou · " + feitas().length +
+          (feitas().length === 1 ? " fechada" : " fechadas") + (total ? " · " + longo(total) + " de trabalho" : "");
+      } else {
+        elUnidade.textContent = c.horaExtra ? "— seu dia já acabou" : "de dia pela frente";
+        elContexto.textContent = c.horaExtra ? "nada na fila." : "o dia acaba às " + relogio(estado.fim) + ".";
+      }
+    } else if (c.horaExtra) {
+      /* o dia acabou e ainda ha fila: isso e um fato, nao uma acusacao. nada de vermelho. */
+      elNumero.textContent = formatar(c.agora - estado.fim);
+      elUnidade.textContent = "de hora extra";
+      elContexto.textContent = "seu dia acabou às " + relogio(estado.fim) + " · " +
+        c.abertas.length + (c.abertas.length === 1 ? " aberta" : " abertas");
+    } else if (c.sobra >= 0) {
+      elNumero.textContent = (c.semEstimativa ? "~" : "") + formatar(c.sobra);
+      elUnidade.textContent = "livres";
+      elContexto.textContent = longo(c.comprometido) + " na fila · o dia acaba às " + relogio(estado.fim);
+    } else {
+      elMedida.dataset.tom = "estouro";
+      elNumero.textContent = formatar(c.estouro);
+      elUnidade.textContent = "além do que resta do dia";
+      elContexto.textContent = longo(c.comprometido) + " na fila para " + longo(c.restante) + " de dia. Algo tem que sair.";
+    }
+
+    elNota.textContent = c.semEstimativa ? c.semEstimativa + " sem estimativa" : "";
+  }
+
+  function renderTrilho({ c, vagas }) {
+    elTrilho.textContent = "";
+
+    const faixa = (classe, min) => {
+      const el = document.createElement("div");
+      el.className = "faixa " + classe;
+      /* tudo e % da mesma janela: sem px fixo, sem gap, sem min-width — e por isso
+         que o desenho nao pode divergir da conta */
+      el.style.flex = "0 0 " + ((min / c.janela) * 100) + "%";
+      el.style.minWidth = "0";
+      return el;
+    };
+
+    if (c.decorrido > 0) elTrilho.appendChild(faixa("gasto", c.decorrido));
+
+    c.abertas.forEach((t) => {
+      const vaga = vagas.get(t.id);
+      if (!vaga) return;
+      const el = faixa("banda", vaga.min);
+      el.dataset.id = t.id;
+      el.title = t.titulo + " · " + formatar(t.min);
+      elTrilho.appendChild(el);
+    });
+
+    if (c.comprometido < c.restante) {
+      const livre = document.createElement("div");
+      livre.className = "faixa livre";
+      elTrilho.appendChild(livre);
+    }
+
+    elEstouro.hidden = c.estouro <= 0 || c.horaExtra;
+    if (!elEstouro.hidden) elEstouro.style.width = Math.min(100, (c.estouro / c.janela) * 100) + "%";
+  }
+
+  /* posiciona a faixa de fundo de cada linha no mesmo eixo do trilho */
+  function renderLanes({ c, vagas }) {
+    elLista.querySelectorAll(".tarefa").forEach((li) => {
+      const lane = li.querySelector(".lane");
+      const vaga = vagas.get(li.dataset.id);
+      if (!lane) return;
+      if (!vaga) { lane.hidden = true; return; }
+      lane.hidden = false;
+      lane.style.left = ((vaga.de / c.janela) * 100) + "%";
+      lane.style.width = ((vaga.min / c.janela) * 100) + "%";
+      const quando = li.querySelector(".quando");
+      if (quando) {
+        quando.textContent = relogio(estado.inicio + vaga.de) + "–" + relogio(estado.inicio + vaga.de + vaga.min);
+      }
+    });
+  }
+
+  function renderPendentes(d) {
+    const abertas = pendentes();
+    /* a tela vazia cobre tambem o "tudo concluido": nunca sobra um buraco entre o composer e as feitas */
+    elVazio.hidden = abertas.length > 0;
+    /* a dica so existe hoje como aviso de storage — a sintaxe quem ensina e a tela vazia */
+    elDica.hidden = !storageQuebrado;
+    elLista.textContent = "";
+
+    if (!abertas.length) {
+      renderVazio(d);
+      return;
+    }
+
+    abertas.forEach((t) => {
+      const li = document.createElement("li");
+      li.className = "tarefa";
+      li.dataset.id = t.id;
+      li.dataset.prio = t.prio;
+      li.draggable = true;
+      li.tabIndex = 0;
+
+      const lane = document.createElement("div");
+      lane.className = "lane";
+      lane.hidden = true;
+
+      const anel = document.createElement("button");
+      anel.className = "anel";
+      anel.dataset.acao = "concluir";
+      anel.innerHTML = CHECK;
+      anel.setAttribute("aria-label", "Concluir: " + t.titulo);
+
+      const nome = document.createElement("input");
+      nome.className = "nome";
+      nome.value = t.titulo;
+      nome.dataset.acao = "renomear";
+      nome.setAttribute("aria-label", "Título da tarefa");
+
+      const quando = document.createElement("span");
+      quando.className = "quando";
+
+      const tempo = document.createElement("button");
+      tempo.className = "tempo";
+      tempo.dataset.acao = "tempo";
+      tempo.innerHTML = "<span>" + formatar(t.min) + "</span>" + RELOGIO;
+      tempo.setAttribute("aria-label", "Duração: " + (t.min ? longo(t.min) : "não definida") + ". Alterar");
+
+      const prio = document.createElement("button");
+      prio.className = "acao";
+      prio.dataset.acao = "prio";
+      prio.innerHTML = '<span class="ponto"></span>';
+      prio.setAttribute("aria-label", "Prioridade " + NOME_PRIO[t.prio] + ". Alternar");
+
+      const lixo = document.createElement("button");
+      lixo.className = "acao";
+      lixo.dataset.acao = "excluir";
+      lixo.innerHTML = LIXO;
+      lixo.setAttribute("aria-label", "Excluir: " + t.titulo);
+
+      const acoes = document.createElement("div");
+      acoes.className = "acoes";
+      acoes.append(prio, lixo);
+
+      li.append(lane, anel, nome, quando, tempo, acoes);
+      elLista.appendChild(li);
+    });
+
+    renderLanes(d);
+  }
+
+  function renderVazio({ c }) {
+    const prontas = feitas().length;
+    const estreia = estado.tarefas.length === 0;
+    /* os exemplos ensinam a sintaxe e se autodestroem depois da primeira tarefa */
+    elExemplos.hidden = !estreia;
+    elVazioRodape.hidden = !estreia;
+
+    /* cada exemplo carrega a propria faixa: ensina de uma vez a sintaxe E o que a duracao
+       faz com o dia, no mesmo eixo do trilho logo acima */
+    if (estreia) {
+      let cursor = c.decorrido;
+      elExemplos.querySelectorAll("li").forEach((li) => {
+        const min = Math.min(+li.dataset.min || 0, Math.max(0, c.janela - cursor));
+        const lane = li.querySelector(".lane");
+        if (!lane) return;
+        lane.hidden = min <= 0;
+        lane.style.left = ((cursor / c.janela) * 100) + "%";
+        lane.style.width = ((min / c.janela) * 100) + "%";
+        cursor += min;
+      });
+    }
+
+    if (c.horaExtra) {
+      elVazioTitulo.textContent = "Dia encerrado.";
+      elVazioSub.textContent = "Passou das " + relogio(estado.fim) + " e não sobrou nada na fila.";
+    } else if (prontas) {
+      elVazioTitulo.textContent = "Fila vazia.";
+      elVazioSub.textContent = "Ainda restam " + longo(Math.max(0, c.restante)) +
+        " de dia, se quiser puxar mais alguma coisa.";
+    } else {
+      elVazioTitulo.textContent = "Nada na fila.";
+      elVazioSub.textContent = "As " + longo(Math.max(0, c.restante)) +
+        " que restam do dia são inteiramente suas.";
+    }
+  }
+
+  function renderFeitas() {
+    const prontas = feitas();
+    elSecaoFeitas.hidden = prontas.length === 0;
+    elSecaoFeitas.dataset.aberto = estado.feitasAbertas ? "sim" : "nao";
+    $("alternar-feitas").setAttribute("aria-expanded", String(!!estado.feitasAbertas));
+    elRotuloFeitas.textContent = prontas.length + (prontas.length === 1 ? " concluída" : " concluídas");
+    elFeitas.textContent = "";
+
+    prontas.forEach((t) => {
+      const li = document.createElement("li");
+      li.className = "feita";
+      li.dataset.id = t.id;
+
+      const anel = document.createElement("button");
+      anel.className = "anel";
+      anel.dataset.acao = "reabrir";
+      anel.innerHTML = CHECK;
+      anel.setAttribute("aria-label", "Reabrir: " + t.titulo);
+
+      const nome = document.createElement("span");
+      nome.className = "nome";
+      nome.textContent = t.titulo;
+
+      const tempo = document.createElement("span");
+      tempo.className = "tempo";
+      tempo.textContent = formatar(t.min);
+
+      /* mesma largura das acoes das pendentes, para as duracoes alinharem entre as listas */
+      const espaco = document.createElement("span");
+      espaco.className = "espaco-acoes";
+      espaco.setAttribute("aria-hidden", "true");
+
+      li.append(anel, nome, tempo, espaco);
+      elFeitas.appendChild(li);
+    });
+  }
+
+  /* ---------- desfazer ---------- */
+
+  let paraDesfazer = null;
+  let timerAviso = null;
+
+  function comDesfazer(texto, acao) {
+    const antes = estado.tarefas.map((t) => ({ ...t }));
+    acao();
+    paraDesfazer = antes;
+    elAvisoTexto.textContent = texto;
+    elAviso.hidden = false;
+    clearTimeout(timerAviso);
+    timerAviso = setTimeout(fecharAviso, semMovimento() ? 9000 : 6000);
+  }
+
+  function fecharAviso() {
+    elAviso.hidden = true;
+    paraDesfazer = null;
+    clearTimeout(timerAviso);
+  }
+
+  $("aviso-desfazer").addEventListener("click", () => {
+    if (!paraDesfazer) return;
+    estado.tarefas = paraDesfazer;
+    fecharAviso();
+    salvar();
+    render();
+  });
+
+  /* ---------- acoes ---------- */
+
+  const acharIndice = (id) => estado.tarefas.findIndex((t) => t.id === id);
+  const seletor = (id) => '[data-id="' + (window.CSS && CSS.escape ? CSS.escape(id) : id) + '"]';
+
+  function criar(texto) {
+    const bruto = texto.replace(/\s+/g, " ").trim();
+    if (!bruto) return;
+    const { min, titulo } = lerDuracao(texto);
+    /* "90m" sozinho nao sobra titulo: guarda o que foi digitado em vez de sumir em silencio */
+    estado.tarefas.unshift({ id: proximoId(), titulo: (titulo || bruto).slice(0, 300), min, prio: 0, feito: false });
+    salvar();
+    render();
+  }
+
+  function concluir(id) {
+    const i = acharIndice(id);
+    if (i < 0 || estado.tarefas[i].feito) return;
+    const t = estado.tarefas[i];
+    const aplicar = () => {
+      const j = acharIndice(id);
+      if (j < 0) return;
+      estado.tarefas[j].feito = true;
+      const [x] = estado.tarefas.splice(j, 1);
+      estado.tarefas.push(x);
+      salvar();
+      render();
+      piscarRecibo();
+    };
+    const texto = t.min ? "+" + longo(t.min) + " de volta pro dia" : "feita.";
+    const li = elLista.querySelector(seletor(id));
+    if (li && !semMovimento()) {
+      li.classList.add("saindo");
+      setTimeout(() => comDesfazer(texto, aplicar), 140);
+    } else {
+      comDesfazer(texto, aplicar);
+    }
+  }
+
+  /* voce ve o dia devolvendo o tempo: e o unico recibo que importa */
+  function piscarRecibo() {
+    const livre = elTrilho.querySelector(".livre");
+    if (!livre || semMovimento()) return;
+    livre.classList.add("recibo");
+    setTimeout(() => livre.classList.remove("recibo"), 180);
+  }
+
+  function reabrir(id) {
+    const i = acharIndice(id);
+    if (i < 0) return;
+    estado.tarefas[i].feito = false;
+    const [t] = estado.tarefas.splice(i, 1);
+    estado.tarefas.unshift(t);
+    salvar();
+    render();
+  }
+
+  function excluir(id) {
+    const i = acharIndice(id);
+    if (i < 0) return;
+    const titulo = estado.tarefas[i].titulo;
+    comDesfazer("apaguei “" + (titulo.length > 32 ? titulo.slice(0, 32) + "…" : titulo) + "”", () => {
+      estado.tarefas.splice(i, 1);
+      salvar();
+      render();
+    });
+  }
+
+  function ciclarPrioridade(id) {
+    const t = estado.tarefas[acharIndice(id)];
+    if (!t) return;
+    t.prio = (t.prio + 1) % 4;
+    salvar();
+    render();
+    const botao = elLista.querySelector(seletor(id) + ' [data-acao="prio"]');
+    if (botao) botao.focus();
+  }
+
+  function editarTempo(id) {
+    const t = estado.tarefas[acharIndice(id)];
+    if (!t) return;
+    const r = prompt("Quanto tempo isso leva? (ex: 45m, 1h30 — vazio remove)", t.min ? formatar(t.min) : "");
+    if (r === null) return;
+    t.min = lerDuracao(" " + r.trim() + " ").min;
+    salvar();
+    render();
+  }
+
+  function renomear(id, valor) {
+    const t = estado.tarefas[acharIndice(id)];
+    if (!t) return;
+    const limpo = valor.replace(/\s+/g, " ").trim();
+    if (!limpo) { excluir(id); return; }
+    if (limpo === t.titulo) return;
+    t.titulo = limpo.slice(0, 300);
+    salvar();
+    /* redesenhar a lista roubaria o foco de quem digita: atualiza so o que depende do titulo */
+    const li = elLista.querySelector(seletor(id));
+    if (li) {
+      const rotular = (acao, texto) => {
+        const b = li.querySelector('[data-acao="' + acao + '"]');
+        if (b) b.setAttribute("aria-label", texto + t.titulo);
+      };
+      rotular("concluir", "Concluir: ");
+      rotular("excluir", "Excluir: ");
+    }
+    renderTempo();
+  }
+
+  function reordenar(idOrigem, idDestino) {
+    const de = acharIndice(idOrigem), para = acharIndice(idDestino);
+    if (de < 0 || para < 0 || de === para) return;
+    const [t] = estado.tarefas.splice(de, 1);
+    estado.tarefas.splice(para, 0, t);
+    salvar();
+    render();
+  }
+
+  function mover(id, passo) {
+    const abertas = pendentes();
+    const pos = abertas.findIndex((t) => t.id === id);
+    const destino = pos + passo;
+    if (pos < 0 || destino < 0 || destino >= abertas.length) return;
+    reordenar(id, abertas[destino].id);
+    const li = elLista.querySelector(seletor(id));
+    if (li) li.focus();
+  }
+
+  /* ---------- composer ---------- */
+
+  $("form").addEventListener("submit", (e) => {
+    e.preventDefault();
+    criar(elCampo.value);
+    elCampo.value = "";
+    elFantasma.hidden = true;
+    elCampo.focus();
+  });
+
+  /* previa fantasma: voce ve o que o parser entendeu antes de confirmar */
+  function atualizarFantasma() {
+    const bruto = elCampo.value.replace(/\s+/g, " ").trim();
+    if (!bruto) { elFantasma.hidden = true; return; }
+    const { min, titulo } = lerDuracao(elCampo.value);
+    const c = contas();
+    const cabe = !min || min <= c.sobra;
+    elFantasma.hidden = false;
+    elFantasma.dataset.cabe = cabe ? "sim" : "nao";
+    elFantasma.querySelector(".f-nome").textContent = titulo || bruto;
+    elFantasma.querySelector(".f-tempo").textContent =
+      (min ? formatar(min) : "sem duração") + (cabe ? "" : " · não cabe hoje");
+  }
+  elCampo.addEventListener("input", atualizarFantasma);
+  elCampo.addEventListener("focus", atualizarFantasma);
+  elCampo.addEventListener("blur", () => { elFantasma.hidden = true; });
+
+  /* ---------- eventos da lista ---------- */
+
+  elLista.addEventListener("click", (e) => {
+    const botao = e.target.closest("[data-acao]");
+    const li = e.target.closest(".tarefa");
+    if (!botao || !li || botao.dataset.acao === "renomear") return;
+    const id = li.dataset.id;
+    if (botao.dataset.acao === "concluir") concluir(id);
+    else if (botao.dataset.acao === "excluir") excluir(id);
+    else if (botao.dataset.acao === "prio") ciclarPrioridade(id);
+    else if (botao.dataset.acao === "tempo") editarTempo(id);
+  });
+
+  elLista.addEventListener("change", (e) => {
+    if (!e.target.dataset || e.target.dataset.acao !== "renomear") return;
+    renomear(e.target.closest(".tarefa").dataset.id, e.target.value);
+  });
+
+  elLista.addEventListener("keydown", (e) => {
+    const li = e.target.closest(".tarefa");
+    if (!li) return;
+    const id = li.dataset.id;
+    const noNome = e.target.classList.contains("nome");
+
+    if (e.altKey && (e.key === "ArrowUp" || e.key === "ArrowDown")) {
+      e.preventDefault();
+      /* o render de mover() destroi o input sem disparar change: salva a edicao antes */
+      if (noNome) renomear(id, e.target.value);
+      mover(id, e.key === "ArrowUp" ? -1 : 1);
+      return;
+    }
+
+    if (noNome) {
+      if (e.key === "Enter") { e.preventDefault(); e.target.blur(); li.focus(); }
+      else if (e.key === "Escape") {
+        const t = estado.tarefas[acharIndice(id)];
+        if (t) e.target.value = t.titulo;
+        e.target.blur();
+        li.focus();
+      }
+      return;
+    }
+
+    /* os atalhos valem so na linha em si: dentro de um <button> eles roubariam
+       a ativacao nativa e Enter concluiria a tarefa em vez de acionar o botao */
+    if (e.target !== li) return;
+
+    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); concluir(id); }
+    else if (e.key === "Delete" || e.key === "Backspace") { e.preventDefault(); excluir(id); }
+  });
+
+  /* o input de titulo nao recebe clique dentro de um li draggable */
+  elLista.addEventListener("pointerdown", (e) => {
+    const li = e.target.closest(".tarefa");
+    if (li) li.draggable = !e.target.classList.contains("nome");
+  });
+  elLista.addEventListener("focusout", (e) => {
+    const li = e.target.closest(".tarefa");
+    if (li) li.draggable = true;
+  });
+
+  /* realce cruzado entre lista e trilho */
+  elLista.addEventListener("pointerover", (e) => {
+    const li = e.target.closest(".tarefa");
+    if (!li) return;
+    const banda = elTrilho.querySelector(seletor(li.dataset.id));
+    if (banda) banda.classList.add("destaque");
+  });
+  elLista.addEventListener("pointerout", () => {
+    elTrilho.querySelectorAll(".destaque").forEach((b) => b.classList.remove("destaque"));
+  });
+
+  /* arrastar para reordenar */
+  let arrastando = null;
+  const limparDrag = () => {
+    arrastando = null;
+    elLista.querySelectorAll(".alvo,.arrastando").forEach((n) => n.classList.remove("alvo", "arrastando"));
+  };
+  elLista.addEventListener("dragstart", (e) => {
+    const li = e.target.closest(".tarefa");
+    if (!li) return;
+    arrastando = li.dataset.id;
+    li.classList.add("arrastando");
+    e.dataTransfer.effectAllowed = "move";
+    try { e.dataTransfer.setData("text/plain", arrastando); } catch (err) { /* navegador antigo */ }
+  });
+  elLista.addEventListener("dragover", (e) => {
+    if (!arrastando) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    const li = e.target.closest(".tarefa");
+    elLista.querySelectorAll(".alvo").forEach((n) => n.classList.remove("alvo"));
+    if (li && li.dataset.id !== arrastando) li.classList.add("alvo");
+  });
+  elLista.addEventListener("drop", (e) => {
+    e.preventDefault();
+    const li = e.target.closest(".tarefa");
+    if (arrastando && li && li.dataset.id !== arrastando) reordenar(arrastando, li.dataset.id);
+    limparDrag();
+  });
+  elLista.addEventListener("dragend", limparDrag);
+
+  elFeitas.addEventListener("click", (e) => {
+    const b = e.target.closest('[data-acao="reabrir"]');
+    if (b) reabrir(b.closest(".feita").dataset.id);
+  });
+
+  $("alternar-feitas").addEventListener("click", () => {
+    estado.feitasAbertas = !estado.feitasAbertas;
+    salvar();
+    renderFeitas();
+  });
+
+  $("limpar").addEventListener("click", () => {
+    const n = feitas().length;
+    if (!n) return;
+    comDesfazer("removi " + n + (n === 1 ? " concluída" : " concluídas"), () => {
+      estado.tarefas = pendentes();
+      salvar();
+      render();
+    });
+  });
+
+  /* ---------- editor do dia ---------- */
+
+  elJanela.addEventListener("click", () => {
+    elInicio.value = relogio(estado.inicio);
+    elFim.value = relogio(estado.fim);
+    elEditorDia.hidden = false;
+    elInicio.focus();
+  });
+
+  $("salvar-dia").addEventListener("click", () => {
+    const ler = (v) => {
+      const p = /^(\d{1,2}):(\d{2})$/.exec(v || "");
+      return p ? (+p[1]) * 60 + (+p[2]) : null;
+    };
+    const i = ler(elInicio.value), f = ler(elFim.value);
+    if (i !== null && f !== null && f > i) {
+      estado.inicio = i;
+      estado.fim = f;
+      salvar();
+      render();
+    }
+    elEditorDia.hidden = true;
+    elJanela.focus();
+  });
+
+  elEditorDia.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") { elEditorDia.hidden = true; elJanela.focus(); }
+  });
+
+  /* ---------- teclado global ---------- */
+
+  document.addEventListener("keydown", (e) => {
+    const alvo = document.activeElement;
+    const digitando = alvo && /^(INPUT|TEXTAREA)$/.test(alvo.tagName);
+    if (e.key === "/" && !digitando) { e.preventDefault(); elCampo.focus(); }
+    else if (e.key === "Escape") {
+      if (alvo === elCampo) elCampo.blur();
+      else if (!elAviso.hidden) fecharAviso();
+    }
+  });
+
+  /* ---------- o dia encolhendo ---------- */
+  /* o tick nao tem transicao: tempo passando e um fato seco, nao um efeito */
+  setInterval(renderTempo, 30000);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) renderTempo(); });
+
+  /* sem foco automatico: o composer aceso e a unica luz da tela e ela nao pode ser o repouso */
+  render();
+})();
+</script>
+</body>
+</html>
