@@ -644,6 +644,9 @@ body::after{
 
   const estado = carregar();
   let storageQuebrado = false;
+  /* declarado aqui, e nao junto do resto do desfazer, porque o listener de
+     storage abaixo o consulta e e registrado antes daquele bloco */
+  let paraDesfazer = null;
 
   function salvar() {
     try { localStorage.setItem(CHAVE, JSON.stringify(estado)); }
@@ -660,6 +663,11 @@ body::after{
   window.addEventListener("storage", (e) => {
     if (e.key !== CHAVE) return;
     Object.assign(estado, carregar());
+    /* o desfazer pendente virou lixo: ele restauraria um retrato anterior ao
+       que a outra aba acabou de gravar, apagando o trabalho dela — o oposto
+       do que este listener existe para evitar. (guardado porque este listener
+       e registrado antes das referencias de DOM existirem.) */
+    if (paraDesfazer) fecharAviso();
     render();
   });
 
@@ -1151,15 +1159,24 @@ body::after{
 
   /* ---------- desfazer ---------- */
 
-  let paraDesfazer = null;
   let timerAviso = null;
+  /* uma pilha, e nao uma variavel unica: apagar duas coisas seguidas deixava
+     so a ultima recuperavel, e o desfazer revertia junto tudo que tinha
+     acontecido no intervalo, em silencio. cada acao volta sozinha, na ordem. */
+  const PILHA = 12;
 
   function comDesfazer(texto, acao) {
-    /* o snapshot guarda o dia junto: as acoes da faixa mexem nos dois, e
+    /* o retrato guarda o dia junto: as acoes da faixa mexem nos dois, e
        desfazer so as tarefas deixaria a fila de ontem carimbada como hoje */
-    const antes = { tarefas: estado.tarefas.map((t) => ({ ...t })), dia: estado.dia };
+    const antes = { tarefas: estado.tarefas.map((t) => ({ ...t })), dia: estado.dia, texto };
     acao();
-    paraDesfazer = antes;
+    paraDesfazer = paraDesfazer || [];
+    paraDesfazer.push(antes);
+    if (paraDesfazer.length > PILHA) paraDesfazer.shift();
+    mostrarAviso(texto);
+  }
+
+  function mostrarAviso(texto) {
     elAvisoTexto.textContent = texto;
     elAviso.hidden = false;
     clearTimeout(timerAviso);
@@ -1173,12 +1190,15 @@ body::after{
   }
 
   $("aviso-desfazer").addEventListener("click", () => {
-    if (!paraDesfazer) return;
-    estado.tarefas = paraDesfazer.tarefas;
-    estado.dia = paraDesfazer.dia;
-    fecharAviso();
+    if (!paraDesfazer || !paraDesfazer.length) return;
+    const passo = paraDesfazer.pop();
+    estado.tarefas = passo.tarefas;
+    estado.dia = passo.dia;
     salvar();
     render();
+    /* ainda ha passos atras: o aviso continua, apontando para o proximo */
+    if (paraDesfazer.length) mostrarAviso(paraDesfazer[paraDesfazer.length - 1].texto);
+    else fecharAviso();
   });
 
   /* ---------- acoes ---------- */
@@ -1251,7 +1271,12 @@ body::after{
     if (i < 0) return;
     const titulo = estado.tarefas[i].titulo;
     comDesfazer("apaguei “" + curto(titulo) + "”", () => {
-      estado.tarefas.splice(i, 1);
+      /* re-busca o indice dentro da acao: entre capturar e aplicar, outra aba
+         pode ter gravado e mexido na lista — com o indice velho, apagaria
+         a linha errada. concluir() ja fazia assim. */
+      const j = acharIndice(id);
+      if (j < 0) return;
+      estado.tarefas.splice(j, 1);
       salvar();
       render();
     });
