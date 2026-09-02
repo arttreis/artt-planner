@@ -168,6 +168,8 @@ body::after{
 .faixa{min-width:0;transition:background var(--t)}
 .faixa+.faixa{box-shadow:inset 1px 0 0 var(--bg)}
 .gasto{background:var(--bg)}
+/* reservado: ocupado, mas nao por voce — tinta mais fraca que a banda de trabalho */
+.reservado{background:repeating-linear-gradient(90deg,var(--fill) 0 2px,var(--bg) 2px 5px)}
 .banda{background:var(--fill-hover)}
 .banda.destaque{background:var(--ink)}
 /* banda de palpite: ocupa o mesmo espaco, mas nao finge ser medida */
@@ -335,6 +337,27 @@ body::after{
 }
 .feita .f-tempo{flex:0 0 auto;font-family:var(--mono);font-size:10.5px;letter-spacing:.06em}
 
+/* ---------- o que ocupa o dia sem ser trabalho ----------
+   fica acima da fila porque acontece antes dela na conta: e o dia que voce
+   ja nao tem. sem check, porque nao se conclui almoco para ganhar tempo. */
+.lista-reservas{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:var(--pd3)}
+.reserva{
+  display:flex;align-items:center;gap:var(--pd2);padding:7px 12px;border-radius:var(--br2);
+  color:var(--ink-50);background:var(--fill);transition:background var(--t);
+}
+.reserva:hover{background:var(--fill-hover)}
+.reserva .r-marca{
+  flex:0 0 auto;width:22px;height:22px;display:grid;place-items:center;color:var(--ink-30);
+}
+.reserva .r-marca svg{width:13px;height:13px}
+.reserva .r-nome{
+  flex:1 1 auto;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:13px;
+}
+.reserva .r-tempo{flex:0 0 auto;font-family:var(--mono);font-size:10.5px;letter-spacing:.06em}
+.reserva .acao{width:26px;height:26px}
+.reserva .acoes{opacity:0}
+.reserva:hover .acoes,.reserva:focus-within .acoes{opacity:1}
+
 /* ---------- pilula do composer ---------- */
 .pilula-area{flex:0 0 auto;padding:var(--pd2) calc(var(--pd) * 1.25) calc(var(--pd) * 1.25)}
 .fantasma{
@@ -474,6 +497,11 @@ body::after{
       </div>
     </div>
 
+    <section class="reservas" id="reservas" hidden>
+      <p class="rotulo"><span class="t-mono" id="reservas-rotulo"></span></p>
+      <ul class="lista-reservas" id="lista-reservas"></ul>
+    </section>
+
     <p class="rotulo" id="rotulo-fila"><span class="t-mono" id="rotulo-texto"></span></p>
 
     <ul class="lista" id="lista"></ul>
@@ -570,7 +598,10 @@ body::after{
       id: t && t.id ? String(t.id) : proximoId(),
       titulo: String((t && t.titulo) || "").slice(0, 300),
       min: Number.isFinite(+(t && t.min)) && +t.min > 0 ? Math.min(Math.round(+t.min), DIA) : 0,
-      feito: !!(t && t.feito)
+      feito: !!(t && t.feito),
+      /* reserva ocupa a janela sem ser trabalho: almoco, reuniao, bloco fixo.
+         nao se conclui, nao devolve tempo, nao entra na fila — so encolhe o dia. */
+      reserva: !!(t && t.reserva)
     };
   }
 
@@ -716,8 +747,10 @@ body::after{
 
   const atrasada = () => estado.dia !== hoje();
 
-  const pendentes = () => estado.tarefas.filter((t) => !t.feito);
-  const feitas = () => estado.tarefas.filter((t) => t.feito);
+  /* a fila e so trabalho: reserva ocupa a janela mas nunca e "coisa na fila" */
+  const pendentes = () => estado.tarefas.filter((t) => !t.feito && !t.reserva);
+  const feitas = () => estado.tarefas.filter((t) => t.feito && !t.reserva);
+  const reservas = () => estado.tarefas.filter((t) => t.reserva);
 
   /* a conta inteira do produto, em minutos. nenhum pixel entra aqui. */
   /* toda tarefa ocupa espaco. o composer nao deixa nascer nenhuma sem duracao,
@@ -730,11 +763,17 @@ body::after{
     const janela = estado.fim - estado.inicio;
     const agora = agoraMin();
     const decorrido = limitar(agora - estado.inicio, 0, janela);
-    const restante = janela - decorrido;
     const abertas = pendentes();
     const comprometido = abertas.reduce((s, t) => s + custoDe(t), 0);
+    /* reserva sai da janela ANTES de qualquer promessa de folga: a diferenca
+       entre "cabem 4h" e "cabem 4h se voce nao almocar" e o que separa um
+       medidor de um otimista. so a reserva que ainda nao passou e descontada. */
+    const reservado = reservas().reduce((s, t) => s + t.min, 0);
+    const reservaViva = Math.max(0, Math.min(reservado, janela - decorrido));
+    const restante = janela - decorrido - reservaViva;
     return {
       janela, agora, decorrido, restante, abertas, comprometido,
+      reservado, reservaViva,
       semEstimativa: abertas.filter((t) => !t.min).length,
       sobra: restante - comprometido,
       estouro: Math.max(0, comprometido - restante),
@@ -748,7 +787,9 @@ body::after{
   function distribuir() {
     const c = contas();
     const vagas = new Map();
-    let cursor = c.decorrido;
+    /* a reserva ocupa a frente do que resta: o trabalho comeca depois dela.
+       nao e o horario real do almoco — e o espaco que ele tira do dia. */
+    let cursor = c.decorrido + c.reservaViva;
     let corte = -1;
     c.abertas.forEach((t, i) => {
       const custo = custoDe(t);
@@ -797,8 +838,52 @@ body::after{
     renderChamada(d);
     renderTrilho(d);
     renderFaixaOntem();
+    renderReservas();
     renderPendentes(d);
     renderFeitas();
+  }
+
+  function renderReservas() {
+    const lista = reservas();
+    const secao = $("reservas");
+    secao.hidden = lista.length === 0;
+    if (!lista.length) return;
+
+    const total = lista.reduce((s, t) => s + t.min, 0);
+    $("reservas-rotulo").textContent = longo(total) + " fora do trabalho";
+
+    const ul = $("lista-reservas");
+    ul.textContent = "";
+    lista.forEach((t) => {
+      const li = document.createElement("li");
+      li.className = "reserva";
+      li.dataset.id = t.id;
+
+      const marca = document.createElement("span");
+      marca.className = "r-marca";
+      marca.innerHTML = RELOGIO;
+
+      const nome = document.createElement("span");
+      nome.className = "r-nome";
+      nome.textContent = t.titulo;
+
+      const tempo = document.createElement("span");
+      tempo.className = "r-tempo";
+      tempo.textContent = formatar(t.min);
+
+      const lixo = document.createElement("button");
+      lixo.className = "acao";
+      lixo.dataset.acao = "excluir";
+      lixo.innerHTML = LIXO;
+      lixo.setAttribute("aria-label", "Remover reserva: " + t.titulo);
+
+      const acoes = document.createElement("div");
+      acoes.className = "acoes";
+      acoes.append(lixo);
+
+      li.append(marca, nome, tempo, acoes);
+      ul.appendChild(li);
+    });
   }
 
   /* nada acontece sozinho: a fila velha continua exatamente como ficou, e a
@@ -858,7 +943,9 @@ body::after{
          no estouro ele e piso — palpite so pode aumentar o debito, nunca reduzi-lo. */
       elMedidaTxt.textContent = (c.semEstimativa ? "~" : "") + formatar(c.sobra);
       elResto.textContent = "no seu dia";
-      elContexto.textContent = longo(c.comprometido) + " na fila · o dia acaba às " + relogio(estado.fim);
+      elContexto.textContent = longo(c.comprometido) + " na fila" +
+        (c.reservaViva ? " · " + longo(c.reservaViva) + " reservado" : "") +
+        " · o dia acaba às " + relogio(estado.fim);
     } else {
       /* passar das 19:00 qualifica o estouro, nao substitui a pergunta.
          antes, as 19:01 a tela trocava "não cabe 2h48" por "1m de hora extra"
@@ -892,6 +979,13 @@ body::after{
     };
 
     if (c.decorrido > 0) elTrilho.appendChild(faixa("gasto", c.decorrido));
+
+    /* a reserva antes do trabalho: e o que o dia ja nao tem para oferecer */
+    if (c.reservaViva > 0) {
+      const r = faixa("reservado", c.reservaViva);
+      r.title = "reservado · " + longo(c.reservaViva);
+      elTrilho.appendChild(r);
+    }
 
     c.abertas.forEach((t) => {
       const vaga = vagas.get(t.id);
@@ -1094,7 +1188,7 @@ body::after{
 
   /* titulo e duracao chegam ja resolvidos: quem decide o tempo e o composer,
      que nao deixa nascer tarefa sem ele */
-  function criar(titulo, min) {
+  function criar(titulo, min, reserva) {
     const limpo = String(titulo).replace(/\s+/g, " ").trim();
     if (!limpo || !min) return;
     /* escrever numa fila de ontem ja e a decisao de comecar hoje: carimba o dia
@@ -1103,7 +1197,9 @@ body::after{
       estado.tarefas = pendentes();
       estado.dia = hoje();
     }
-    estado.tarefas.unshift({ id: proximoId(), titulo: limpo.slice(0, 300), min, feito: false });
+    estado.tarefas.unshift({
+      id: proximoId(), titulo: limpo.slice(0, 300), min, feito: false, reserva: !!reserva
+    });
     salvar();
     render();
   }
@@ -1260,28 +1356,40 @@ body::after{
      ele pergunta. a tarefa so existe depois que o tempo dela existe. */
   const CHIPS = [15, 30, 60, 120];
   let pendenteDeTempo = null;
+  let pendenteEhReserva = false;
+
+  /* o que ocupa o dia sem ser trabalho seu. escrever "almoco 1h" nao deveria
+     virar uma tarefa que voce conclui para ganhar tempo de volta que nunca
+     esteve la — entao essas viram reserva, e o prefixo "-" forca qualquer uma. */
+  const RESERVA = /^(?:-\s*|(?:almo[çc]o|caf[ée]|janta(?:r)?|reuni[ãa]o|call|daily|1:1|dentista|m[ée]dico|academia|deslocamento|transito|tr[âa]nsito)\b)/i;
+  const ehReserva = (titulo) => RESERVA.test(titulo.trim());
+  const semPrefixo = (titulo) => titulo.replace(/^-\s*/, "").trim();
 
   $("form").addEventListener("submit", (e) => {
     e.preventDefault();
     const bruto = elCampo.value.replace(/\s+/g, " ").trim();
     if (!bruto) return;
     const { min, titulo } = lerDuracao(elCampo.value);
-    if (min) { criarEfechar(titulo || bruto, min); return; }
-    abrirChips(titulo || bruto);
+    const nome = titulo || bruto;
+    const reserva = ehReserva(nome);
+    if (min) { criarEfechar(semPrefixo(nome), min, reserva); return; }
+    abrirChips(semPrefixo(nome), reserva);
   });
 
-  function criarEfechar(titulo, min) {
-    criar(titulo, min);
+  function criarEfechar(titulo, min, reserva) {
+    criar(titulo, min, reserva);
     elCampo.value = "";
     elFantasma.hidden = true;
     fecharChips();
     elCampo.focus();
   }
 
-  function abrirChips(titulo) {
+  function abrirChips(titulo, reserva) {
     pendenteDeTempo = titulo;
+    pendenteEhReserva = !!reserva;
     elFantasma.hidden = true;
-    $("chips-txt").innerHTML = "<b>" + escapar(titulo) + "</b> — quanto tempo isso leva?";
+    $("chips-txt").innerHTML = "<b>" + escapar(titulo) + "</b> — " +
+      (reserva ? "quanto tempo isso tira do dia?" : "quanto tempo isso leva?");
 
     const fila = $("chips-fila");
     fila.textContent = "";
@@ -1311,20 +1419,22 @@ body::after{
   function fecharChips() {
     elChips.hidden = true;
     pendenteDeTempo = null;
+    pendenteEhReserva = false;
   }
 
   $("chips-fila").addEventListener("click", (e) => {
     const b = e.target.closest(".chip");
     if (!b || !pendenteDeTempo) return;
+    const titulo = pendenteDeTempo, reserva = pendenteEhReserva;
     if (b.dataset.min === "livre") {
       elChips.hidden = true;
-      pedirTempo(pendenteDeTempo, 0, (min) => {
-        if (min) criarEfechar(pendenteDeTempo, min);
+      pedirTempo(titulo, 0, (min) => {
+        if (min) criarEfechar(titulo, min, reserva);
         else { elChips.hidden = false; }
       });
       return;
     }
-    criarEfechar(pendenteDeTempo, +b.dataset.min);
+    criarEfechar(titulo, +b.dataset.min, reserva);
   });
 
   /* setas andam entre os chips; Esc volta pro campo sem criar nada */
@@ -1473,6 +1583,11 @@ body::after{
   elFeitas.addEventListener("click", (e) => {
     const b = e.target.closest('[data-acao="reabrir"]');
     if (b) reabrir(b.closest(".feita").dataset.id);
+  });
+
+  $("lista-reservas").addEventListener("click", (e) => {
+    const b = e.target.closest('[data-acao="excluir"]');
+    if (b) excluir(b.closest(".reserva").dataset.id);
   });
 
   $("alternar-feitas").addEventListener("click", () => {
