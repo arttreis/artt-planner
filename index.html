@@ -358,7 +358,7 @@ body::after{
 .reserva .acoes{opacity:0}
 .reserva:hover .acoes,.reserva:focus-within .acoes{opacity:1}
 
-/* ---------- o arquivo ----------
+/* ---------- a nuvem ----------
    fica no pe da rolagem, em tinta baixa: e infraestrutura, nao assunto do dia. */
 .arquivo{margin-top:calc(var(--pd) * 1.5);padding-top:var(--pd);border-top:1px solid var(--line-soft)}
 .arq-linha{
@@ -372,9 +372,50 @@ body::after{
   transition:color var(--t);
 }
 .arq-link:hover{color:var(--ink)}
-/* ligado e o unico estado que ganha o verde: e o unico em que o dia esta a salvo */
-#arq-estado[data-e="ligado"]{color:var(--green)}
-#arq-estado[data-e="dormindo"],#arq-estado[data-e="perdido"],#arq-estado[data-e="erro"]{color:var(--ink-70)}
+/* sincronizado e o unico estado que ganha o verde: e o unico em que o dia
+   existe fora deste navegador */
+#nuvem-estado[data-e="ligada"]{color:var(--green)}
+#nuvem-estado[data-e="erro"],#nuvem-estado[data-e="offline"]{color:var(--ink-70)}
+
+/* ---------- entrar ----------
+   uma folha sobre o aparelho, nao uma pagina a parte: voce nao sai do dia
+   para entrar na conta. */
+.entrada{
+  position:absolute;inset:0;z-index:20;
+  display:grid;place-items:center;padding:var(--pd);
+  background:var(--scrim);backdrop-filter:blur(3px);
+}
+.ent-caixa{
+  position:relative;width:100%;max-width:330px;
+  background:var(--surface-2);border:1px solid var(--line);border-radius:var(--br);
+  padding:calc(var(--pd) * 1.5);
+}
+.ent-fechar{
+  position:absolute;top:10px;right:12px;
+  width:26px;height:26px;border-radius:var(--br2);
+  color:var(--ink-30);font-size:13px;transition:color var(--t),background var(--t);
+}
+.ent-fechar:hover{color:var(--ink);background:var(--fill)}
+.ent-titulo{margin:0 0 var(--pd3);font-size:15px;font-weight:600;letter-spacing:-.02em}
+.ent-sub{margin:0 0 var(--pd);font-size:12.5px;color:var(--ink-50)}
+.ent-form{margin:0}
+.ent-campo{
+  width:100%;height:44px;padding:0 14px;margin-bottom:var(--pd2);
+  background:var(--fill);border:1px solid var(--line);border-radius:var(--br2);
+  font-size:14px;color:var(--ink);
+}
+.ent-campo:focus{outline:none;border-color:var(--green-glow);background:var(--fill-hover)}
+/* o codigo e medida, entao e mono e espacado — como todo numero deste sistema */
+.ent-codigo{
+  font-family:var(--mono);font-size:22px;letter-spacing:.32em;text-align:center;
+}
+.ent-botao{
+  width:100%;height:44px;border-radius:var(--br-pill);
+  background:var(--green);color:var(--on-green);
+  font-size:13.5px;font-weight:600;transition:opacity var(--t);
+}
+.ent-botao:hover{opacity:.88}
+.ent-recado{margin:var(--pd2) 0 0;font-size:12px;color:var(--ink-50);min-height:16px}
 
 /* ---------- pilula do composer ---------- */
 .pilula-area{flex:0 0 auto;padding:var(--pd2) calc(var(--pd) * 1.25) calc(var(--pd) * 1.25)}
@@ -548,16 +589,14 @@ body::after{
       <p class="vazio-rodape" id="vazio-rodape">Escreve assim, com a duração no fim: ela sai do título e entra na barra do dia.</p>
     </div>
 
-    <section class="arquivo" id="arquivo-secao">
+    <section class="arquivo" id="nuvem-secao">
       <p class="arq-linha">
-        <span class="t-mono" id="arq-estado"></span>
+        <span class="t-mono" id="nuvem-estado"></span>
         <span class="arq-acoes">
-          <button class="arq-link" type="button" id="arq-ligar" hidden></button>
-          <button class="arq-link" type="button" id="arq-exportar">exportar</button>
-          <button class="arq-link" type="button" id="arq-importar">importar</button>
+          <button class="arq-link" type="button" id="nuvem-acao" hidden></button>
+          <button class="arq-link" type="button" id="nuvem-sair" hidden>sair</button>
         </span>
       </p>
-      <input type="file" id="arq-input" accept="application/json,.json" hidden>
     </section>
 
     <section class="feitas" id="feitas" data-aberto="nao" hidden>
@@ -597,6 +636,32 @@ body::after{
   <div class="aviso" id="aviso" hidden role="status" aria-live="polite">
     <span id="aviso-texto"></span>
     <button type="button" id="aviso-desfazer">desfazer</button>
+  </div>
+
+  <div class="entrada" id="entrada" hidden role="dialog" aria-modal="true" aria-label="Entrar">
+    <div class="ent-caixa">
+      <button class="ent-fechar" type="button" id="entrada-fechar" aria-label="Fechar">✕</button>
+      <p class="ent-titulo">Levar seu dia para outros aparelhos</p>
+
+      <form id="form-email" class="ent-form" autocomplete="on">
+        <div id="entrada-email">
+          <p class="ent-sub">Sem senha: mando um código de 6 dígitos.</p>
+          <input class="ent-campo" id="campo-email" type="email" inputmode="email"
+                 autocomplete="email" placeholder="seu@email.com" aria-label="Seu e-mail">
+          <button class="ent-botao" type="submit">mandar código</button>
+        </div>
+      </form>
+
+      <form id="form-codigo" class="ent-form" autocomplete="off">
+        <div id="entrada-codigo" hidden>
+          <input class="ent-campo ent-codigo" id="campo-codigo" inputmode="numeric"
+                 autocomplete="one-time-code" maxlength="6" placeholder="000000" aria-label="Código de 6 dígitos">
+          <button class="ent-botao" type="submit">entrar</button>
+        </div>
+      </form>
+
+      <p class="ent-recado" id="entrada-recado" role="status" aria-live="polite"></p>
+    </div>
   </div>
 
 </main>
@@ -1765,235 +1830,188 @@ body::after{
     }
   });
 
-  /* ---------- o arquivo ----------
-     o mesmo dia em dois computadores, sem conta e sem servidor: o estado vive
-     num arquivo dentro de uma pasta que o iCloud/Drive/Dropbox ja sincroniza.
-     o navegador continua sendo a fonte de verdade da sessao — o arquivo e
-     camada de sincronia, e quando ele falha o dia nao se perde junto.
+  /* ---------- a nuvem ----------
+     o mesmo dia em qualquer navegador, inclusive celular e Safari. entra-se
+     com um codigo de seis digitos que chega por e-mail: sem senha para
+     decorar, sem conta para criar alem do proprio e-mail.
 
-     so Chromium no desktop tem essa API. onde nao tem, sobra exportar e
-     importar a mao, que e o que os botoes fazem de qualquer jeito. */
+     o navegador continua sendo a fonte de verdade da sessao. a nuvem e
+     camada de sincronia: se ela cair, o dia nao vai junto. */
 
-  const TEM_ARQUIVO = typeof window.showSaveFilePicker === "function";
-  const BD = "artt-planner-arquivo", LOJA = "handles";
-  let arquivo = null;          /* FileSystemFileHandle */
-  let timerGravar = null;
-  let ultimoVConhecido = 0;    /* versao do estado quando lemos o arquivo */
+  const API = "/api";
+  let entrou = false;
+  let timerSubir = null;
+  let vDoServidor = 0;   /* maior carimbo que ja vi vindo de la */
 
-  /* o handle nao e texto: localStorage nao guarda, IndexedDB guarda */
-  function comBanco(fn) {
-    return new Promise((ok, falha) => {
-      const req = indexedDB.open(BD, 1);
-      req.onupgradeneeded = () => req.result.createObjectStore(LOJA);
-      req.onerror = () => falha(req.error);
-      req.onsuccess = () => {
-        const bd = req.result;
-        const tx = bd.transaction(LOJA, "readwrite");
-        const r = fn(tx.objectStore(LOJA));
-        tx.oncomplete = () => { bd.close(); ok(r && r.result); };
-        tx.onerror = () => { bd.close(); falha(tx.error); };
-      };
+  async function api(rota, opcoes) {
+    const r = await fetch(API + rota, {
+      credentials: "same-origin",
+      headers: { "content-type": "application/json" },
+      ...opcoes
     });
+    const corpo = await r.json().catch(() => ({}));
+    return { ok: r.ok, status: r.status, corpo };
   }
 
-  const guardarHandle = (h) => comBanco((loja) => loja.put(h, "arquivo"));
-  const lerHandle = () => comBanco((loja) => loja.get("arquivo"));
-  const esquecerHandle = () => comBanco((loja) => loja.delete("arquivo"));
-
-  const podeEscrever = async (h) => {
-    try { return (await h.queryPermission({ mode: "readwrite" })) === "granted"; }
-    catch (e) { return false; }
-  };
-
-  /* le o arquivo e devolve o estado gravado la, ou null */
-  async function lerArquivo(h) {
-    const texto = await (await h.getFile()).text();
-    if (!texto.trim()) return null;
-    const bruto = JSON.parse(texto);
-    return bruto && Array.isArray(bruto.tarefas) ? bruto : null;
-  }
-
-  /* NUNCA sobrescreve sem olhar: o outro computador pode ter gravado depois.
-     na duvida, quem tem o carimbo mais novo vence, e o mais velho nao apaga. */
-  async function gravar() {
-    if (!arquivo) return;
+  /* sobe o dia atual. o servidor recusa se ele estiver na frente — e ai
+     quem adota e o cliente, em vez dos dois discordarem em silencio. */
+  async function subirDia() {
+    if (!entrou) return;
     try {
-      if (!(await podeEscrever(arquivo))) { marcarArquivo("dormindo"); return; }
-
-      const doArquivo = await lerArquivo(arquivo);
-      if (doArquivo && +doArquivo.v > ultimoVConhecido && +doArquivo.v > estado.v) {
-        /* o arquivo esta na frente: quem chegou depois foi o outro aparelho */
-        adotarDoArquivo(doArquivo);
-        return;
-      }
-
-      const w = await arquivo.createWritable();
-      await w.write(JSON.stringify(estado));
-      await w.close();
-      ultimoVConhecido = estado.v;
-      marcarArquivo("ligado");
+      const r = await api("/dias", {
+        method: "POST",
+        body: JSON.stringify({ dia: estado.dia, v: estado.v, doc: estado })
+      });
+      if (r.ok) { vDoServidor = Math.max(vDoServidor, estado.v); marcarNuvem("ligada"); return; }
+      if (r.status === 409 && r.corpo.servidor) { adotarDaNuvem(r.corpo.servidor); return; }
+      if (r.status === 401) { entrou = false; marcarNuvem("fora"); return; }
+      marcarNuvem("erro");
     } catch (e) {
-      /* o cliente de sync trocou o arquivo por baixo (conflito, evicted no
-         iCloud): o handle morreu. dizer isso e pedir o arquivo de novo. */
-      if (e && (e.name === "NotFoundError" || e.name === "NotAllowedError")) {
-        arquivo = null;
-        esquecerHandle().catch(() => {});
-        marcarArquivo("perdido");
-      } else {
-        marcarArquivo("erro");
-      }
+      /* sem rede: o dia esta salvo aqui e sobe na proxima */
+      marcarNuvem("offline");
     }
   }
 
-  /* troca o documento inteiro pelo do arquivo, que esta mais na frente.
-     nao e merge por tarefa: o que esta na tela e descartado junto. so vale
-     porque quem escreve e uma pessoa so, em dois lugares, quase nunca ao
-     mesmo tempo — e porque quem grava por ultimo teve o dia mais recente. */
-  function adotarDoArquivo(bruto) {
-    Object.assign(estado, carregarDe(bruto));
-    ultimoVConhecido = estado.v;
+  /* baixa o que mudou desde a ultima vez. so troca a tela se o dia de la for
+     o mesmo dia daqui e estiver na frente — dia antigo do servidor nao
+     sequestra a fila de hoje. */
+  async function baixarDias() {
+    if (!entrou) return;
+    try {
+      const r = await api("/dias?desde=" + vDoServidor, { method: "GET" });
+      if (r.status === 401) { entrou = false; marcarNuvem("fora"); return; }
+      if (!r.ok) { marcarNuvem("erro"); return; }
+
+      const dias = r.corpo.dias || [];
+      dias.forEach((d) => { vDoServidor = Math.max(vDoServidor, d.v); });
+      const doDia = dias.filter((d) => d.dia === estado.dia).sort((a, b) => b.v - a.v)[0];
+      if (doDia && doDia.v > estado.v) adotarDaNuvem(doDia);
+      else marcarNuvem("ligada");
+    } catch (e) { marcarNuvem("offline"); }
+  }
+
+  /* troca o documento inteiro pelo da nuvem, que esta na frente. nao e merge
+     por tarefa: vale porque quem escreve e uma pessoa so, e quem gravou por
+     ultimo teve o dia mais recente. */
+  function adotarDaNuvem(deLa) {
+    Object.assign(estado, carregarDe(deLa.doc));
+    vDoServidor = Math.max(vDoServidor, deLa.v);
     try { localStorage.setItem(CHAVE, JSON.stringify(estado)); } catch (e) {}
     render();
-    marcarArquivo("ligado");
-    mostrarAviso("atualizei com o que veio do outro computador");
+    marcarNuvem("ligada");
+    mostrarAviso("atualizei com o que veio do outro aparelho");
   }
 
-  /* debounce: cada close() acorda o cliente de sync. 2s evita disparar o
-     iCloud a cada tecla sem deixar o outro aparelho esperando. */
+  /* debounce: digitar tres tarefas seguidas e uma subida, nao tres */
   function agendarGravacao() {
-    if (!arquivo) return;
-    clearTimeout(timerGravar);
-    timerGravar = setTimeout(gravar, 2000);
+    if (!entrou) return;
+    clearTimeout(timerSubir);
+    timerSubir = setTimeout(subirDia, 1500);
   }
 
-  async function escolherArquivo() {
-    try {
-      const h = await window.showSaveFilePicker({
-        suggestedName: "artt-planner.json",
-        types: [{ description: "planner", accept: { "application/json": [".json"] } }]
-      });
-      arquivo = h;
-      await guardarHandle(h);
-      /* arquivo que ja tem dia gravado: adota em vez de atropelar */
-      const doArquivo = await lerArquivo(h).catch(() => null);
-      if (doArquivo && +doArquivo.v > estado.v) adotarDoArquivo(doArquivo);
-      else { ultimoVConhecido = 0; await gravar(); }
-    } catch (e) { /* o usuario fechou o seletor */ }
-  }
-
-  /* na volta: se a permissao sobreviveu, reconecta sozinho. se nao, oferece um
-     clique — requestPermission() exige gesto e falharia aqui. */
-  async function retomarArquivo() {
-    if (!TEM_ARQUIVO) { marcarArquivo("indisponivel"); return; }
-    let h = null;
-    try { h = await lerHandle(); } catch (e) { /* sem banco: segue sem arquivo */ }
-    if (!h) { marcarArquivo("desligado"); return; }
-    arquivo = h;
-    if (await podeEscrever(h)) {
-      const doArquivo = await lerArquivo(h).catch(() => null);
-      if (doArquivo && +doArquivo.v > estado.v) adotarDoArquivo(doArquivo);
-      else { ultimoVConhecido = +((doArquivo || {}).v) || 0; marcarArquivo("ligado"); }
-    } else {
-      marcarArquivo("dormindo");
-    }
-  }
-
-  async function acordarArquivo() {
-    if (!arquivo) return escolherArquivo();
-    try {
-      const r = await arquivo.requestPermission({ mode: "readwrite" });
-      if (r !== "granted") { marcarArquivo("dormindo"); return; }
-      const doArquivo = await lerArquivo(arquivo).catch(() => null);
-      if (doArquivo && +doArquivo.v > estado.v) adotarDoArquivo(doArquivo);
-      else { ultimoVConhecido = +((doArquivo || {}).v) || 0; await gravar(); }
-    } catch (e) { marcarArquivo("perdido"); }
-  }
-
-  async function desligarArquivo() {
-    arquivo = null;
-    clearTimeout(timerGravar);
-    await esquecerHandle().catch(() => {});
-    marcarArquivo("desligado");
-  }
-
-  /* ---------- exportar e importar ----------
-     funciona em qualquer navegador, e e o backup: sem isso, limpar o cache
-     apaga o registro inteiro sem aviso. */
-
-  function exportar() {
-    const nome = "artt-planner-" + estado.dia + ".json";
-    const url = URL.createObjectURL(
-      new Blob([JSON.stringify(estado, null, 2)], { type: "application/json" })
-    );
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = nome;
-    a.click();
-    /* sem revoke o blob fica preso na memoria a cada exportacao */
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-  }
-
-  function importar(file) {
-    const leitor = new FileReader();
-    leitor.onload = () => {
-      let bruto = null;
-      try { bruto = JSON.parse(leitor.result); } catch (e) {}
-      if (!bruto || !Array.isArray(bruto.tarefas)) {
-        mostrarAviso("esse arquivo não é um planner");
-        return;
-      }
-      const n = bruto.tarefas.length;
-      comDesfazer("importei " + n + (n === 1 ? " tarefa" : " tarefas"), () => {
-        Object.assign(estado, carregarDe(bruto));
-        salvar();
-        render();
-      });
-    };
-    leitor.readAsText(file);
-  }
-
-  /* o rodape do arquivo diz uma coisa so: se o dia esta a salvo em algum lugar
-     alem deste navegador — e, quando nao esta, o que fazer a respeito. */
   const DIZERES = {
-    ligado:       ["sincronizando no arquivo", ""],
-    dormindo:     ["arquivo desconectado", "reconectar"],
-    desligado:    ["só neste navegador", "sincronizar num arquivo"],
-    perdido:      ["perdi o arquivo de vista", "escolher de novo"],
-    erro:         ["não consegui gravar no arquivo", "tentar de novo"],
-    indisponivel: ["só neste navegador", ""]
+    ligada:  ["sincronizado", ""],
+    fora:    ["só neste navegador", "entrar"],
+    offline: ["sem conexão — sobe depois", ""],
+    erro:    ["não consegui sincronizar", "tentar de novo"]
   };
 
-  function marcarArquivo(qual) {
-    const [texto, acao] = DIZERES[qual] || DIZERES.desligado;
-    const el = $("arq-estado");
+  function marcarNuvem(qual) {
+    const [texto, acao] = DIZERES[qual] || DIZERES.fora;
+    const el = $("nuvem-estado");
     el.textContent = texto;
     el.dataset.e = qual;
-    const botao = $("arq-ligar");
+    const botao = $("nuvem-acao");
     botao.hidden = !acao;
     botao.textContent = acao;
     botao.dataset.para = qual;
+    $("nuvem-sair").hidden = !entrou;
   }
 
-  $("arq-ligar").addEventListener("click", (e) => {
-    const para = e.currentTarget.dataset.para;
-    if (para === "dormindo" || para === "erro") acordarArquivo();
-    else escolherArquivo();
+  /* ---------- entrar ---------- */
+
+  let emailPedido = "";
+
+  function abrirEntrada() {
+    $("entrada").hidden = false;
+    $("entrada-email").hidden = false;
+    $("entrada-codigo").hidden = true;
+    $("entrada-recado").textContent = "";
+    $("campo-email").value = "";
+    $("campo-email").focus();
+  }
+
+  const fecharEntrada = () => { $("entrada").hidden = true; };
+
+  $("nuvem-acao").addEventListener("click", (e) => {
+    if (e.currentTarget.dataset.para === "erro") { subirDia(); return; }
+    abrirEntrada();
+  });
+  $("entrada-fechar").addEventListener("click", fecharEntrada);
+
+  $("form-email").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const email = $("campo-email").value.trim().toLowerCase();
+    if (!/^[^@\s]+@[^@\s.]+\.[^@\s]+$/.test(email)) {
+      $("entrada-recado").textContent = "esse e-mail não parece certo";
+      return;
+    }
+    $("entrada-recado").textContent = "mandando…";
+    const r = await api("/codigo", { method: "POST", body: JSON.stringify({ email }) });
+    if (!r.ok) {
+      $("entrada-recado").textContent = r.corpo.erro || "não consegui mandar o código";
+      return;
+    }
+    emailPedido = email;
+    $("entrada-email").hidden = true;
+    $("entrada-codigo").hidden = false;
+    $("entrada-recado").textContent = "mandei um código de 6 dígitos para " + email;
+    $("campo-codigo").value = "";
+    $("campo-codigo").focus();
   });
 
-  $("arq-exportar").addEventListener("click", exportar);
-  $("arq-importar").addEventListener("click", () => $("arq-input").click());
-  $("arq-input").addEventListener("change", (e) => {
-    const f = e.target.files && e.target.files[0];
-    if (f) importar(f);
-    /* sem isso, reescolher o MESMO arquivo nao dispara change de novo */
-    e.target.value = "";
+  $("form-codigo").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const codigo = $("campo-codigo").value.replace(/\D/g, "");
+    if (codigo.length !== 6) { $("entrada-recado").textContent = "o código tem 6 dígitos"; return; }
+    $("entrada-recado").textContent = "conferindo…";
+    const r = await api("/entrar", { method: "POST", body: JSON.stringify({ email: emailPedido, codigo }) });
+    if (!r.ok) {
+      $("entrada-recado").textContent = r.corpo.erro || "código inválido";
+      return;
+    }
+    entrou = true;
+    fecharEntrada();
+    marcarNuvem("ligada");
+    /* baixa antes de subir: o outro aparelho pode ter o dia mais novo */
+    await baixarDias();
+    await subirDia();
   });
 
-  /* voltar pra aba e o momento em que o outro computador pode ter gravado */
+  $("nuvem-sair").addEventListener("click", async () => {
+    await api("/sair", { method: "POST" }).catch(() => {});
+    entrou = false;
+    vDoServidor = 0;
+    marcarNuvem("fora");
+    mostrarAviso("saí da conta — o dia continua neste navegador");
+  });
+
+  /* voltar pra aba e quando o outro aparelho pode ter gravado */
   document.addEventListener("visibilitychange", () => {
-    if (document.hidden) { clearTimeout(timerGravar); gravar(); }
-    else if (arquivo) gravar();
+    if (!entrou) return;
+    if (document.hidden) { clearTimeout(timerSubir); subirDia(); }
+    else baixarDias();
   });
+
+  async function retomarNuvem() {
+    try {
+      const r = await api("/eu", { method: "GET" });
+      entrou = !!(r.ok && r.corpo.entrou);
+    } catch (e) { entrou = false; }
+    if (!entrou) { marcarNuvem("fora"); return; }
+    marcarNuvem("ligada");
+    await baixarDias();
+  }
 
   /* ---------- o dia encolhendo ---------- */
   /* o tick nao tem transicao: tempo passando e um fato seco, nao um efeito.
@@ -2009,7 +2027,7 @@ body::after{
 
   render();
   /* nao bloqueia a primeira pintura: o dia aparece, o arquivo se conecta atras */
-  retomarArquivo();
+  retomarNuvem();
 })();
 </script>
 </body>

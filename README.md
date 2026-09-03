@@ -1,8 +1,11 @@
 # artt · planner
 
-Controle de tarefas pessoal, de uso individual. Um arquivo só: `index.html`, com HTML, CSS e JS
-inline — sem build, sem framework, sem backend, sem conta. Abre com duplo clique ou serve como
+Controle de tarefas pessoal, de uso individual. O produto é um arquivo só: `index.html`, com
+HTML, CSS e JS inline — sem build e sem framework. Ele funciona inteiro assim, servido como
 estático em qualquer lugar.
+
+Em `servidor/` há um Worker opcional (Cloudflare + D1 + Resend) que leva o mesmo dia para
+outros aparelhos. Sem ele o app não perde nada além da sincronização.
 
 ## A ideia
 
@@ -89,41 +92,45 @@ desfazer — e ele empilha: desfazer duas vezes volta duas ações, na ordem inv
 
 ## Onde ficam os dados
 
-Em `localStorage`, na chave `artt-planner:v2`, no seu próprio navegador. Não há servidor nem
-conta. Duas abas abertas se conversam pelo evento `storage` em vez de uma sobrescrever a outra.
+Em `localStorage`, na chave `artt-planner:v2`, no seu próprio navegador. Duas abas abertas se
+conversam pelo evento `storage` em vez de uma sobrescrever a outra.
 
-### Levar o mesmo dia para outro computador
+### Levar o mesmo dia para outros aparelhos
 
-**Exportar / importar** funciona em qualquer navegador. Exportar baixa um `.json` com o dia
-inteiro — é também o único backup que existe, já que limpar o cache apaga tudo sem aviso.
+Você entra com seu e-mail e um código de 6 dígitos — sem senha para decorar, sem conta para
+criar além do próprio endereço. A partir daí o mesmo dia aparece em qualquer navegador onde
+você entrar, inclusive celular e Safari.
 
-**Sincronizar num arquivo** é o caminho sem ato manual: você aponta um arquivo dentro de uma
-pasta que o iCloud, o Drive ou o Dropbox já sincroniza, e os dois computadores passam a ler e
-escrever nele. Não há servidor no meio — quem sincroniza é a sua nuvem.
+O rodapé diz em que modo você está. `sincronizado` é o único estado em que o dia existe fora
+deste navegador.
 
-O rodapé diz em que modo você está. `sincronizando no arquivo` é o único estado em que o dia
-existe fora deste navegador.
+O navegador continua sendo a fonte de verdade da sessão: se a rede cair, o dia fica salvo aqui
+e sobe depois. Sem conexão o produto funciona inteiro — ele só não sincroniza.
 
-Como isso não perde trabalho: cada gravação carimba um `v` no estado, e antes de escrever o app
-lê o arquivo. Se o carimbo de lá for mais novo, ele adota em vez de sobrescrever — quem chegou
-depois foi o outro computador. A escrita tem 2s de espera para não acordar o cliente de sync a
-cada tecla, e é atômica: se a aba fechar no meio, o arquivo mantém o conteúdo anterior inteiro.
+Como isso não perde trabalho: cada gravação carimba um `v` no estado, e o servidor recusa
+gravação mais velha devolvendo a versão dele, para o cliente adotar. Não é merge por tarefa —
+se você editar nos dois computadores ao mesmo tempo, offline, um dos lados perde o intervalo.
+Para uso sequencial (manhã em casa, tarde no escritório) isso não acontece.
 
-Se o cliente de sync trocar o arquivo por baixo (conflito, ou *evicted* no iCloud), o app diz
-que perdeu o arquivo de vista e pede outro — em vez de falhar calado.
+O servidor lê seus dados: não há cifra ponta a ponta, e isso é escolha, não esquecimento. Com
+login por código, a chave teria que vir do servidor — quem consegue se convencer de que você é
+você, consegue se convencer sozinho. Cifra de mentira é pior que cifra nenhuma, porque você
+confia nela.
 
-**Só funciona em Chrome e Edge no desktop.** Safari, Firefox e qualquer navegador de celular
-não têm a API; lá sobra exportar e importar. O navegador continua sendo a fonte de verdade da
-sessão: se o arquivo falhar, o dia não vai junto.
+O código de acesso nunca é guardado: o banco tem só o hash dele. Como subir o servidor está em
+[servidor/README.md](servidor/README.md).
 
 ## Fora de escopo, por decisão
 
 Recorrência, tags, múltiplos dias, colaboração. Todos criariam um segundo eixo de ordenação
 numa fila cuja única ordem é a prioridade.
 
-Conta e servidor também — por enquanto. A sincronização por arquivo cobre dois computadores
-sem nenhum dos dois; o dia em que ela não bastar (celular, ou duas pessoas na mesma fila) é o
-dia de reabrir essa decisão.
+Colaboração continua fora: a fila é de uma pessoa só, e é isso que faz o número grande ser
+confiável — ninguém pode te mandar tarefa.
+
+Conta e servidor deixaram de estar aqui. A sincronização por arquivo cobria dois desktops no
+Chrome, mas não cobria celular nem Safari — e era esse o limite. O login por e-mail é a menor
+conta possível: um endereço, um código, nenhuma senha.
 
 Rollover automático também: tarefa aberta não rola para amanhã sozinha — é assim que lista
 vira cemitério. Mas *não rolar* e *não saber que dia é* são decisões diferentes, e só a

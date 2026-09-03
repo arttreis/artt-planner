@@ -1,0 +1,28 @@
+name = "artt-planner-api"
+main = "worker.js"
+compatibility_date = "2026-09-01"
+
+# a rota vive no MESMO dominio do site, de proposito: cookie de sessao entre
+# dominios diferentes exigiria SameSite=None, que Safari e Firefox bloqueiam.
+# troque pelo seu dominio antes de publicar.
+# [[routes]]
+# pattern = "planner.arttreis.com.br/api/*"
+# zone_name = "arttreis.com.br"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "artt-planner"
+database_id = "PREENCHA_DEPOIS_DE_CRIAR"
+
+[vars]
+# o remetente precisa estar num dominio verificado no Resend.
+# o onboarding@resend.dev so entrega no e-mail da propria conta.
+EMAIL_REMETENTE = "planner@arttreis.com.br"
+
+# faxina dos codigos expirados, toda madrugada
+[triggers]
+crons = ["17 4 * * *"]
+
+# segredos NAO ficam aqui. sao dois, e vao por linha de comando:
+#   npx wrangler secret put RESEND_API_KEY
+#   npx wrangler secret put SEGREDO_SESSAO
