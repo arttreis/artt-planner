@@ -1845,8 +1845,10 @@ body::after{
     }
   }
 
-  /* junta o que veio do arquivo sem descartar o que esta na tela:
-     mesma tarefa dos dois lados, fica a versao do lado mais novo. */
+  /* troca o documento inteiro pelo do arquivo, que esta mais na frente.
+     nao e merge por tarefa: o que esta na tela e descartado junto. so vale
+     porque quem escreve e uma pessoa so, em dois lugares, quase nunca ao
+     mesmo tempo — e porque quem grava por ultimo teve o dia mais recente. */
   function adotarDoArquivo(bruto) {
     Object.assign(estado, carregarDe(bruto));
     ultimoVConhecido = estado.v;
