@@ -1,0 +1,11 @@
+{
+  "name": "artt-planner-servidor",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "site": "node -e \"require('fs').mkdirSync('site',{recursive:true});require('fs').copyFileSync('../index.html','site/index.html');console.log('site/index.html atualizado a partir da raiz')\"",
+    "teste": "node teste.mjs",
+    "dev": "npm run site && wrangler dev",
+    "deploy": "npm run teste && npm run site && wrangler deploy"
+  }
+}

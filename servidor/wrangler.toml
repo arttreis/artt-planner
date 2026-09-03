@@ -2,12 +2,25 @@ name = "artt-planner-api"
 main = "worker.js"
 compatibility_date = "2026-09-01"
 
-# a rota vive no MESMO dominio do site, de proposito: cookie de sessao entre
-# dominios diferentes exigiria SameSite=None, que Safari e Firefox bloqueiam.
-# troque pelo seu dominio antes de publicar.
-# [[routes]]
-# pattern = "planner.arttreis.com.br/api/*"
-# zone_name = "arttreis.com.br"
+# o site e a api saem do mesmo worker, no mesmo dominio: e isso que permite
+# cookie SameSite=Lax. em dominios separados o cookie seria de terceiro, e
+# Safari e Firefox o bloqueiam — o login nao gruda.
+#
+# custom_domain, e nao route: a Cloudflare reserva route para quando existe
+# uma origem externa. aqui o worker E a origem, e o custom domain cria o
+# registro DNS e o certificado sozinho — nada a configurar no painel.
+[[routes]]
+pattern = "planner.arttreis.com.br"
+custom_domain = true
+
+# so o que e publico entra aqui. apontar para a raiz do projeto publicaria
+# o worker.js, o schema e os testes junto — "npm run site" copia o index.html
+# da raiz para ca, e a raiz segue sendo a fonte unica.
+[assets]
+directory = "./site"
+# o binding permite ao worker devolver um arquivo estatico quando o caminho
+# nao e /api/ — sem ele, env.ASSETS nao existe
+binding = "ASSETS"
 
 [[d1_databases]]
 # o nome pelo qual o worker alcanca o banco: env.artt_planner.

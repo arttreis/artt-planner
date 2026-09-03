@@ -2,3 +2,4 @@
 .wrangler/
 wrangler.local.toml
 node_modules/
+site/

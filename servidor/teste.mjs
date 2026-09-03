@@ -83,7 +83,8 @@ globalThis.fetch = async (url, opts) => {
   throw new Error("fetch inesperado: " + url);
 };
 
-const env = { artt_planner: { prepare }, RESEND_API_KEY: "re_teste", EMAIL_REMETENTE: "p@x.com", SEGREDO_SESSAO: "segredo-de-teste-longo-o-bastante" };
+const ASSETS = { fetch: async () => new Response("<!doctype html><title>artt · planner</title>", { headers: { "content-type": "text/html" } }) };
+const env = { artt_planner: { prepare }, ASSETS, RESEND_API_KEY: "re_teste", EMAIL_REMETENTE: "p@x.com", SEGREDO_SESSAO: "segredo-de-teste-longo-o-bastante" };
 
 const chamar = (metodo, rota, corpo, cookie) =>
   worker.fetch(new Request("https://x.com/api" + rota, {
@@ -199,6 +200,17 @@ banco.codigos.push({ hash: "velho", email: "x@x.com", expira: Date.now() - 7200e
 const antesFaxina = banco.codigos.length;
 await worker.scheduled({}, env);
 checa("faxina remove codigo expirado", banco.codigos.length < antesFaxina);
+
+/* ---- 15. o site sai do mesmo worker que a api ---- */
+const cru = (caminho) => worker.fetch(new Request("https://x.com" + caminho), env);
+r = await cru("/");
+checa("a raiz serve o site", r.status === 200 && (await r.text()).includes("artt"));
+r = await cru("/qualquer/coisa");
+checa("caminho desconhecido cai no site, nao em 404 de api", r.status === 200);
+r = await cru("/api/naoexiste");
+checa("rota de api inexistente ainda da 404", r.status === 404);
+r = await cru("/api/eu");
+checa("api continua respondendo", r.status === 200);
 
 console.log("\n" + ok + " passaram, " + falhas.length + " falharam");
 if (falhas.length) { console.log("\nFALHAS:"); falhas.forEach(f => console.log("  - " + f)); process.exit(1); }

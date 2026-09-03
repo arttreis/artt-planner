@@ -258,7 +258,14 @@ async function subir(req, env, pessoa) {
 export default {
   async fetch(req, env) {
     const url = new URL(req.url);
-    const rota = url.pathname.replace(/^\/api/, "") || "/";
+
+    /* o site sai daqui tambem, como arquivo estatico. o que nao for /api/
+       nao e assunto deste script: devolve para a camada de assets, que serve
+       o index.html sem invocar o worker nem gastar cota. */
+    if (!url.pathname.startsWith("/api/")) {
+      return env.ASSETS ? env.ASSETS.fetch(req) : new Response("não existe", { status: 404 });
+    }
+    const rota = url.pathname.slice(4) || "/";
 
     if (req.method === "OPTIONS") return new Response(null, { status: 204 });
 
@@ -268,14 +275,18 @@ export default {
       if (rota === "/sair" && req.method === "POST") return sair();
       if (rota === "/eu" && req.method === "GET") return await quemSou(req, env);
 
+      /* rota que nao existe e 404 antes de ser 401: pedir login para um
+         caminho inexistente mente sobre a causa do erro */
+      if (rota !== "/dias") return erro("não existe", 404);
+
       /* daqui pra baixo, so quem entrou */
       const pessoa = await lerSessao(lerCookie(req, "sessao"), env.SEGREDO_SESSAO);
       if (!pessoa) return erro("entre primeiro", 401);
 
-      if (rota === "/dias" && req.method === "GET") return await baixar(req, env, pessoa);
-      if (rota === "/dias" && req.method === "POST") return await subir(req, env, pessoa);
+      if (req.method === "GET") return await baixar(req, env, pessoa);
+      if (req.method === "POST") return await subir(req, env, pessoa);
 
-      return erro("não existe", 404);
+      return erro("método não serve aqui", 405);
     } catch (e) {
       /* a mensagem real vai pro log, nunca pro cliente */
       console.error(e && e.stack || e);

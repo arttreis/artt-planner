@@ -3,9 +3,14 @@
 Um Worker, um banco D1 e o Resend. Sem framework e sem dependência — a mesma
 disciplina do `index.html`, pelo mesmo motivo: dá pra ler inteiro.
 
-O que ele faz: diz quem é você (código de 6 dígitos por e-mail) e guarda um
-documento por dia. Ele **não** entende tarefa, não ordena fila, não calcula
-sobra — essa conta continua sendo do cliente.
+O que ele faz: serve o site, diz quem é você (código de 6 dígitos por e-mail) e
+guarda um documento por dia. Ele **não** entende tarefa, não ordena fila, não
+calcula sobra — essa conta continua sendo do cliente.
+
+O `index.html` da raiz e a API saem do mesmo Worker, no mesmo domínio. Não é
+economia: é o que permite o cookie de sessão ser `SameSite=Lax`. Em domínios
+separados ele seria cookie de terceiro, e Safari e Firefox o bloqueiam — o
+login não gruda.
 
 ## Subir do zero
 
@@ -51,26 +56,38 @@ node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"
 Trocar esse segredo desloga todo mundo — é o botão de pânico se um dia você
 achar que vazou.
 
-### 4. A rota
+### 4. O domínio
 
-Descomente o bloco `[[routes]]` no `wrangler.toml` e ponha o **seu** domínio.
+No `wrangler.toml`, ponha o **seu** domínio no bloco `[[routes]]`:
 
-Isso importa mais do que parece: o Worker precisa responder no mesmo domínio
-do site, em `/api/*`. Em domínios diferentes o cookie de sessão exigiria
-`SameSite=None`, que Safari e Firefox bloqueiam como cookie de terceiro — e o
-login simplesmente não gruda.
+```toml
+[[routes]]
+pattern = "planner.seudominio.com.br"
+custom_domain = true
+```
+
+É `custom_domain`, não route: a Cloudflare reserva route para quando existe uma
+origem externa a ser interceptada. Aqui o Worker **é** a origem, e o custom
+domain cria o registro DNS e o certificado sozinho.
+
+Se já houver um CNAME nesse hostname (apontando para outra hospedagem, por
+exemplo), **apague antes** — a Cloudflare recusa criar custom domain por cima
+de um CNAME existente, e o deploy falha.
 
 ### 5. Publicar
 
 ```bash
-npx wrangler deploy
+npm run deploy
 ```
+
+Isso roda os testes, copia o `index.html` da raiz para `site/` e publica. Se
+algum teste falhar, nada sobe.
 
 ## Mexer sem quebrar nada
 
 ```bash
-npx wrangler d1 execute artt-planner-local --local --file schema.sql
-npx wrangler dev --port 8788
+npx wrangler d1 execute artt-planner --local --file schema.sql
+npm run dev
 ```
 
 Em desenvolvimento, se `RESEND_API_KEY` contiver `fake`, nenhum e-mail sai — o
