@@ -83,7 +83,7 @@ globalThis.fetch = async (url, opts) => {
   throw new Error("fetch inesperado: " + url);
 };
 
-const env = { DB: { prepare }, RESEND_API_KEY: "re_teste", EMAIL_REMETENTE: "p@x.com", SEGREDO_SESSAO: "segredo-de-teste-longo-o-bastante" };
+const env = { artt_planner: { prepare }, RESEND_API_KEY: "re_teste", EMAIL_REMETENTE: "p@x.com", SEGREDO_SESSAO: "segredo-de-teste-longo-o-bastante" };
 
 const chamar = (metodo, rota, corpo, cookie) =>
   worker.fetch(new Request("https://x.com/api" + rota, {

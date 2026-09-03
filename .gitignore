@@ -20,11 +20,13 @@
 .kimi/
 .github/agents/
 AGENTS.md
-# o planner nao tem backend nem chave de nada: este exemplo e do andaime
+# os segredos do servidor vivem no wrangler secret, nao em arquivo:
+# este exemplo e do andaime de IA, nao do produto
 .env.example
 
 # deploy e dependências
 .vercel
+.wrangler/
 node_modules/
 dist/
 build/

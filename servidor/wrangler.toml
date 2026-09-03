@@ -10,9 +10,11 @@ compatibility_date = "2026-09-01"
 # zone_name = "arttreis.com.br"
 
 [[d1_databases]]
-binding = "DB"
+# o nome pelo qual o worker alcanca o banco: env.artt_planner.
+# se mudar aqui, tem que mudar no worker.js junto.
+binding = "artt_planner"
 database_name = "artt-planner"
-database_id = "PREENCHA_DEPOIS_DE_CRIAR"
+database_id = "9011ef3f-3d1d-4019-8db9-c5ff07df0446"
 
 [vars]
 # o remetente precisa estar num dominio verificado no Resend.

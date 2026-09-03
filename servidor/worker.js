@@ -139,7 +139,7 @@ async function pedirCodigo(req, env) {
   if (!emailValido(email)) return erro("e-mail inválido");
 
   const agora = Date.now();
-  const recentes = await env.DB.prepare(
+  const recentes = await env.artt_planner.prepare(
     "SELECT COUNT(*) AS n FROM codigos WHERE email = ? AND expira > ?"
   ).bind(email, agora - 3600e3).first();
   if (recentes && recentes.n >= PEDIDOS_HORA) return erro("muitos códigos pedidos; tente daqui a pouco", 429);
@@ -148,7 +148,7 @@ async function pedirCodigo(req, env) {
   const codigo = String(crypto.getRandomValues(new Uint32Array(1))[0] % 1000000).padStart(6, "0");
   const hash = await sha256(codigo + ":" + email);
 
-  await env.DB.prepare(
+  await env.artt_planner.prepare(
     "INSERT OR REPLACE INTO codigos (hash, email, expira, tentou, usado) VALUES (?, ?, ?, 0, 0)"
   ).bind(hash, email, agora + CODIGO_MIN * 60e3).run();
 
@@ -164,14 +164,14 @@ async function entrar(req, env) {
   if (!emailValido(email) || digitado.length !== 6) return erro("código inválido");
 
   const hash = await sha256(digitado + ":" + email);
-  const linha = await env.DB.prepare(
+  const linha = await env.artt_planner.prepare(
     "SELECT hash, expira, tentou, usado FROM codigos WHERE hash = ?"
   ).bind(hash).first();
 
   /* conta a tentativa mesmo quando o codigo nao existe, para que errar nao
      saia mais barato que acertar */
   if (!linha || linha.usado || linha.expira < Date.now()) {
-    await env.DB.prepare(
+    await env.artt_planner.prepare(
       "UPDATE codigos SET tentou = tentou + 1 WHERE email = ? AND usado = 0 AND expira > ?"
     ).bind(email, Date.now()).run();
     return erro("código inválido ou expirado", 401);
@@ -181,15 +181,15 @@ async function entrar(req, env) {
 
   /* uso unico: o UPDATE condicional e a garantia — dois pedidos simultaneos
      com o mesmo codigo, so um sai com usado = 0 */
-  const gasto = await env.DB.prepare(
+  const gasto = await env.artt_planner.prepare(
     "UPDATE codigos SET usado = 1 WHERE hash = ? AND usado = 0"
   ).bind(hash).run();
   if (!gasto.meta.changes) return erro("código já usado", 401);
 
-  let pessoa = await env.DB.prepare("SELECT id FROM pessoas WHERE email = ?").bind(email).first();
+  let pessoa = await env.artt_planner.prepare("SELECT id FROM pessoas WHERE email = ?").bind(email).first();
   if (!pessoa) {
     const id = crypto.randomUUID();
-    await env.DB.prepare("INSERT INTO pessoas (id, email, criada) VALUES (?, ?, ?)")
+    await env.artt_planner.prepare("INSERT INTO pessoas (id, email, criada) VALUES (?, ?, ?)")
       .bind(id, email, Date.now()).run();
     pessoa = { id };
   }
@@ -203,7 +203,7 @@ const sair = () => json({ ok: true }, 200, { "set-cookie": cookieMorto() });
 async function quemSou(req, env) {
   const pessoa = await lerSessao(lerCookie(req, "sessao"), env.SEGREDO_SESSAO);
   if (!pessoa) return json({ entrou: false });
-  const linha = await env.DB.prepare("SELECT email FROM pessoas WHERE id = ?").bind(pessoa).first();
+  const linha = await env.artt_planner.prepare("SELECT email FROM pessoas WHERE id = ?").bind(pessoa).first();
   return json({ entrou: true, email: linha ? linha.email : null });
 }
 
@@ -211,7 +211,7 @@ async function quemSou(req, env) {
    viu — na primeira vez vem 0 e ele recebe tudo. */
 async function baixar(req, env, pessoa) {
   const desde = +(new URL(req.url).searchParams.get("desde") || 0) || 0;
-  const { results } = await env.DB.prepare(
+  const { results } = await env.artt_planner.prepare(
     "SELECT dia, doc, v FROM dias WHERE pessoa = ? AND v > ? ORDER BY v ASC LIMIT 400"
   ).bind(pessoa, desde).all();
   return json({
@@ -234,7 +234,7 @@ async function subir(req, env, pessoa) {
      que um cliente com defeito nao encha o banco */
   if (texto.length > 262144) return erro("documento grande demais", 413);
 
-  const r = await env.DB.prepare(
+  const r = await env.artt_planner.prepare(
     "INSERT INTO dias (pessoa, dia, doc, v) VALUES (?, ?, ?, ?) " +
     "ON CONFLICT(pessoa, dia) DO UPDATE SET doc = excluded.doc, v = excluded.v " +
     "WHERE excluded.v > dias.v"
@@ -244,7 +244,7 @@ async function subir(req, env, pessoa) {
 
   /* nao gravou: o servidor tem versao igual ou mais nova. devolve a dele para
      o cliente adotar, em vez de deixar os dois discordando em silencio. */
-  const atual = await env.DB.prepare(
+  const atual = await env.artt_planner.prepare(
     "SELECT doc, v FROM dias WHERE pessoa = ? AND dia = ?"
   ).bind(pessoa, corpo.dia).first();
   return json({
@@ -285,6 +285,6 @@ export default {
 
   /* faxina: codigo velho nao serve pra nada e so cresce */
   async scheduled(evento, env) {
-    await env.DB.prepare("DELETE FROM codigos WHERE expira < ?").bind(Date.now() - 3600e3).run();
+    await env.artt_planner.prepare("DELETE FROM codigos WHERE expira < ?").bind(Date.now() - 3600e3).run();
   }
 };
