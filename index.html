@@ -547,11 +547,63 @@ a.acao{color:var(--ink-30);text-decoration:none}
 }
 .form-ideia input::placeholder{color:var(--ink-30)}
 
+/* ---------- matriz de eisenhower ----------
+   ela e um instrumento do medidor, nao um painel ao lado dele: por isso a
+   previa da fila resultante, com a linha de corte, fica dentro do bloco e
+   anda junto com o arrasto. sem ela os quadrantes teriam capacidade infinita
+   e priorizar voltaria a ser de graca — que e exatamente o que a ordem da
+   fila existe para impedir. */
+.m-nota{margin:0 0 var(--pd2);font-size:12px;color:var(--ink-30)}
+.m-rot{display:block;color:var(--ink-30);margin-bottom:var(--pd3);font-size:9.5px}
+.m-campo{display:flex;flex-direction:column;gap:var(--pd2)}
+/* minmax(0,1fr), e nao 1fr: trilha de grid tem min-width auto, entao o chip
+   mais longo alargaria o quadrante em vez de ser cortado com reticencias */
+.m-grade{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:var(--pd2)}
+.m-zona{
+  border:1px dashed var(--line);border-radius:var(--br2);padding:var(--pd2);
+  min-height:64px;min-width:0;transition:border-color var(--t),background var(--t);
+}
+.m-zona[data-alvo="sim"]{border-color:var(--green);background:var(--fill)}
+.m-pool{min-height:44px}
+.m-chips{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:3px;min-height:20px;min-width:0}
+.m-chip{
+  display:flex;align-items:center;gap:6px;padding:5px 8px;
+  border-radius:var(--br2);background:var(--fill-hover);
+  font-size:12px;color:var(--ink-70);cursor:grab;touch-action:none;min-width:0;
+}
+.m-chip .m-nome{flex:1 1 auto;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.m-chip .m-min{flex:0 0 auto;font-family:var(--mono);font-size:9.5px;color:var(--ink-30)}
+.m-chip.arrastando{opacity:.45;cursor:grabbing;pointer-events:none}
+
+.m-previa-rot{margin:var(--pd) 0 var(--pd3)}
+.m-previa{list-style:none;margin:0;padding:0;counter-reset:p}
+.m-previa li{
+  display:flex;align-items:center;gap:6px;padding:3px 0;
+  font-size:12px;color:var(--ink-70);
+}
+.m-previa li::before{
+  counter-increment:p;content:counter(p);
+  flex:0 0 auto;width:14px;font-family:var(--mono);font-size:9.5px;color:var(--ink-30);
+}
+.m-previa .p-nome{flex:1 1 auto;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+/* daqui pra baixo o dia nao alcanca — a mesma frase que a fila ja usa */
+.m-previa li[data-cabe="nao"]{color:var(--ink-30)}
+.m-previa li[data-corte="sim"]{
+  border-top:1px solid var(--line);margin-top:var(--pd3);padding-top:var(--pd2);
+}
+.m-previa li[data-corte="sim"]::after{
+  content:"daqui não dá tempo";
+  font-family:var(--mono);font-size:9px;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--ink-30);flex:0 0 auto;
+}
+.m-vazia{font-size:12px;color:var(--ink-30);margin:0}
+.m-acoes{display:flex;align-items:center;gap:var(--pd);margin-top:var(--pd)}
+
 @media (min-width:1200px){
   body{
     /* o aparelho fica na coluna do meio, no tamanho que sempre teve.
        os trilhos so existem se tiverem bloco dentro. */
-    grid-template-columns:minmax(272px,340px) 496px minmax(272px,340px);
+    grid-template-columns:minmax(272px,340px) 496px minmax(300px,380px);
     justify-content:center;
     align-items:start;
     gap:var(--pd);
@@ -747,7 +799,38 @@ a.acao{color:var(--ink-30);text-decoration:none}
     </form>
   </section>
 </div>
-<div class="lado" id="lado-dir"></div>
+<div class="lado" id="lado-dir">
+  <section class="bloco" id="matriz">
+    <p class="rotulo">
+      <span class="t-mono" id="matriz-rotulo">ordenar</span>
+      <button class="pill" type="button" id="matriz-abrir" aria-expanded="false">abrir</button>
+    </p>
+    <p class="m-nota" id="matriz-nota">Arruma a fila por urgência e importância. O que sair daqui vira a ordem do dia.</p>
+
+    <div id="matriz-corpo" hidden>
+      <div class="m-campo" id="matriz-campo">
+        <div class="m-zona m-pool" data-zona="pool">
+          <span class="t-mono m-rot">na fila, sem classificar</span>
+          <ul class="m-chips"></ul>
+        </div>
+        <div class="m-grade">
+          <div class="m-zona" data-zona="q1"><span class="t-mono m-rot">faz agora</span><ul class="m-chips"></ul></div>
+          <div class="m-zona" data-zona="q2"><span class="t-mono m-rot">agenda</span><ul class="m-chips"></ul></div>
+          <div class="m-zona" data-zona="q3"><span class="t-mono m-rot">delega</span><ul class="m-chips"></ul></div>
+          <div class="m-zona" data-zona="q4"><span class="t-mono m-rot">fica pra depois</span><ul class="m-chips"></ul></div>
+        </div>
+      </div>
+
+      <p class="m-rot t-mono m-previa-rot">a fila que sai daqui</p>
+      <ol class="m-previa" id="matriz-previa"></ol>
+
+      <div class="m-acoes">
+        <button class="pill" type="button" id="matriz-aplicar">aplicar</button>
+        <button class="arq-link" type="button" id="matriz-descartar">descartar</button>
+      </div>
+    </div>
+  </section>
+</div>
 
 <script>
 (() => {
@@ -995,11 +1078,14 @@ a.acao{color:var(--ink-30);text-decoration:none}
   const PALPITE = 30;
   const custoDe = (t) => t.min || PALPITE;
 
-  function contas() {
+  /* recebe a fila em vez de le-la quando alguem quer a conta de uma ordem que
+     ainda nao existe — e o que a matriz usa para mostrar, ao vivo, onde o dia
+     pararia se voce aplicasse aquela arrumacao. sem argumento, e a fila real. */
+  function contas(abertas) {
     const janela = estado.fim - estado.inicio;
     const agora = agoraMin();
     const decorrido = limitar(agora - estado.inicio, 0, janela);
-    const abertas = pendentes();
+    abertas = abertas || pendentes();
     const comprometido = abertas.reduce((s, t) => s + custoDe(t), 0);
     /* reserva sai da janela ANTES de qualquer promessa de folga: a diferenca
        entre "cabem 4h" e "cabem 4h se voce nao almocar" e o que separa um
@@ -1020,8 +1106,8 @@ a.acao{color:var(--ink-30);text-decoration:none}
   /* onde cada tarefa cai dentro do dia, e a partir de qual delas nao da mais tempo.
      tarefa sem estimativa entra pelo palpite: ela desloca o cursor e pode
      disparar o corte como qualquer outra — so aparece marcada como palpite. */
-  function distribuir() {
-    const c = contas();
+  function distribuir(abertas) {
+    const c = contas(abertas);
     const vagas = new Map();
     /* a reserva ocupa a frente do que resta: o trabalho comeca depois dela.
        nao e o horario real do almoco — e o espaco que ele tira do dia. */
@@ -1888,6 +1974,187 @@ a.acao{color:var(--ink-30);text-decoration:none}
   });
 
   renderIdeias();
+
+  /* ---------- matriz de eisenhower ----------
+     um instrumento de ordenacao, e so isso: o quadrante NAO e gravado. ele
+     existe enquanto a folha esta aberta e morre ao fechar. o que sobra e a
+     unica ordenacao que o produto tem, que e a ordem da fila.
+
+     e por isso que o quadrante nao vira campo da tarefa: um quadrante gravado
+     seria um segundo eixo de ordenacao, e foi exatamente esse eixo que saiu do
+     produto em 948cd41, um commit depois de a fila ganhar ordem e linha de
+     corte. o que custa fica; o que nao custa saiu.
+
+     a previa da fila resultante, logo abaixo, e o que impede a matriz de
+     virar quatro baldes de capacidade infinita: arrastar mais uma coisa para
+     "faz agora" empurra outra para baixo da linha, no mesmo gesto e a vista. */
+  const MATRIZ_ORDEM = ["q1", "q2", "q3", "q4", "pool"];
+  const elMatrizCorpo = $("matriz-corpo"), elMatrizCampo = $("matriz-campo");
+
+  const zonaDe = (nome) => elMatrizCampo.querySelector('[data-zona="' + nome + '"] .m-chips');
+
+  function chipDaTarefa(t) {
+    const li = document.createElement("li");
+    li.className = "m-chip";
+    li.dataset.id = t.id;
+    li.tabIndex = 0;
+    li.setAttribute("role", "listitem");
+    li.setAttribute("aria-label", t.titulo + ", " + formatar(custoDe(t)) + ". Setas movem entre os quadrantes.");
+    const nome = document.createElement("span");
+    nome.className = "m-nome";
+    nome.textContent = t.titulo;
+    const min = document.createElement("span");
+    min.className = "m-min";
+    min.textContent = formatar(custoDe(t));
+    li.append(nome, min);
+    return li;
+  }
+
+  /* abre sempre do zero, com tudo sem classificar: e o que "efemera" quer
+     dizer. a fila de hoje ja e a sua ordem — a matriz e para revisita-la, nao
+     para lembrar de uma classificacao que o produto decidiu nao guardar. */
+  function abrirMatriz() {
+    MATRIZ_ORDEM.forEach((z) => { zonaDe(z).textContent = ""; });
+    const pool = zonaDe("pool");
+    pendentes().forEach((t) => pool.appendChild(chipDaTarefa(t)));
+    elMatrizCorpo.hidden = false;
+    $("matriz-abrir").textContent = "fechar";
+    $("matriz-abrir").setAttribute("aria-expanded", "true");
+    renderPreviaMatriz();
+  }
+
+  function fecharMatriz() {
+    elMatrizCorpo.hidden = true;
+    $("matriz-abrir").textContent = "abrir";
+    $("matriz-abrir").setAttribute("aria-expanded", "false");
+  }
+
+  /* a ordem que sai da matriz: os quadrantes na ordem canonica, e no fim o
+     que voce nao classificou — que continua exatamente na ordem em que estava. */
+  function ordemDaMatriz() {
+    const ids = [];
+    MATRIZ_ORDEM.forEach((z) => {
+      zonaDe(z).querySelectorAll(".m-chip").forEach((c) => ids.push(c.dataset.id));
+    });
+    return ids;
+  }
+
+  const tarefasDaOrdem = (ids) => {
+    const mapa = new Map(estado.tarefas.map((t) => [t.id, t]));
+    return ids.map((id) => mapa.get(id)).filter(Boolean);
+  };
+
+  function renderPreviaMatriz() {
+    const abertas = tarefasDaOrdem(ordemDaMatriz());
+    const ol = $("matriz-previa");
+    ol.textContent = "";
+    if (!abertas.length) {
+      const p = document.createElement("li");
+      p.className = "m-vazia";
+      p.textContent = "a fila está vazia.";
+      ol.appendChild(p);
+      return;
+    }
+    /* a MESMA conta da tela principal, so que sobre a ordem hipotetica */
+    const { vagas, corte } = distribuir(abertas);
+    abertas.forEach((t, i) => {
+      const li = document.createElement("li");
+      const cabe = vagas.has(t.id) && !vagas.get(t.id).cortada;
+      li.dataset.cabe = cabe ? "sim" : "nao";
+      if (i === corte) li.dataset.corte = "sim";
+      const nome = document.createElement("span");
+      nome.className = "p-nome";
+      nome.textContent = t.titulo;
+      li.appendChild(nome);
+      ol.appendChild(li);
+    });
+  }
+
+  /* ---- arrasto 2D ----
+     os listeners ficam na raiz do campo, e nao numa zona: com
+     setPointerCapture os eventos continuam saindo do chip e borbulhando pelos
+     ancestrais dele, e a raiz e ancestral de todas as zonas — inclusive
+     depois de o chip mudar de quadrante. */
+  let arrastoM = null;
+
+  elMatrizCampo.addEventListener("pointerdown", (e) => {
+    const chip = e.target.closest(".m-chip");
+    if (!chip || e.button > 0) return;
+    e.preventDefault();
+    arrastoM = chip;
+    chip.classList.add("arrastando");
+    chip.setPointerCapture(e.pointerId);
+  });
+
+  elMatrizCampo.addEventListener("pointermove", (e) => {
+    if (!arrastoM) return;
+    /* o chip arrastado esta com pointer-events:none, entao elementFromPoint
+       enxerga a zona por baixo dele — e por isso quadrante vazio e alcancavel,
+       o que o arrasto da fila (que so procura outra linha) nao permite. */
+    const sob = document.elementFromPoint(e.clientX, e.clientY);
+    const zona = sob && sob.closest ? sob.closest("[data-zona]") : null;
+    elMatrizCampo.querySelectorAll("[data-zona]").forEach((z) => { z.dataset.alvo = z === zona ? "sim" : "nao"; });
+    if (!zona) return;
+    const lista = zona.querySelector(".m-chips");
+    const irmao = [...lista.querySelectorAll(".m-chip")].find((c) => {
+      if (c === arrastoM) return false;
+      const r = c.getBoundingClientRect();
+      return e.clientY < r.top + r.height / 2;
+    });
+    if (irmao) lista.insertBefore(arrastoM, irmao);
+    else lista.appendChild(arrastoM);
+    renderPreviaMatriz();
+  });
+
+  function soltarM() {
+    if (!arrastoM) return;
+    arrastoM.classList.remove("arrastando");
+    arrastoM = null;
+    elMatrizCampo.querySelectorAll("[data-zona]").forEach((z) => { z.dataset.alvo = "nao"; });
+    renderPreviaMatriz();
+  }
+  elMatrizCampo.addEventListener("pointerup", soltarM);
+  elMatrizCampo.addEventListener("pointercancel", soltarM);
+
+  /* teclado: o produto inteiro e navegavel sem mouse, e uma folha que so
+     aceita arrasto seria a unica tela que nao e. */
+  elMatrizCampo.addEventListener("keydown", (e) => {
+    const chip = e.target.closest(".m-chip");
+    if (!chip) return;
+    const zona = chip.closest("[data-zona]").dataset.zona;
+    const i = MATRIZ_ORDEM.indexOf(zona);
+    let destino = null;
+    if (e.key === "ArrowRight") destino = MATRIZ_ORDEM[(i + 1) % MATRIZ_ORDEM.length];
+    else if (e.key === "ArrowLeft") destino = MATRIZ_ORDEM[(i + MATRIZ_ORDEM.length - 1) % MATRIZ_ORDEM.length];
+    else return;
+    e.preventDefault();
+    zonaDe(destino).appendChild(chip);
+    chip.focus();
+    renderPreviaMatriz();
+  });
+
+  /* aplicar e uma reordenacao em lote: ao contrario do arrasto da fila, que
+     move uma linha por vez e voce ve acontecer, aqui a fila inteira muda de
+     uma vez — entao isto passa pelo desfazer. */
+  function aplicarMatriz() {
+    const ids = ordemDaMatriz();
+    if (!ids.length) { fecharMatriz(); return; }
+    comDesfazer("apliquei a ordem da matriz", () => {
+      const mapa = new Map(estado.tarefas.map((t) => [t.id, t]));
+      const vistos = new Set(ids);
+      estado.tarefas = ids.map((id) => mapa.get(id)).filter(Boolean)
+        .concat(estado.tarefas.filter((t) => !vistos.has(t.id)));
+      salvar();
+      render();
+    });
+    fecharMatriz();
+  }
+
+  $("matriz-abrir").addEventListener("click", () => {
+    if (elMatrizCorpo.hidden) abrirMatriz(); else fecharMatriz();
+  });
+  $("matriz-aplicar").addEventListener("click", aplicarMatriz);
+  $("matriz-descartar").addEventListener("click", fecharMatriz);
 
   /* previa fantasma: voce ve o que o parser entendeu antes de confirmar */
   function atualizarFantasma() {
