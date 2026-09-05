@@ -1,6 +1,6 @@
 /* testa o worker contra um D1 de mentira, em memoria, com SQL de verdade
    feito na mao. o objetivo nao e cobrir SQL — e provar o fluxo de auth. */
-import worker from "file:///c:/Artt/Artt/artt-planner/servidor/worker.js";
+import worker from "./worker.js";
 
 /* ---- D1 falso: entende so as consultas que o worker faz ---- */
 const banco = { pessoas: [], codigos: [], dias: [] };
