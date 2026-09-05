@@ -286,6 +286,9 @@ body::after{
   color:var(--ink-30);transition:color var(--t),background var(--t);
 }
 .acao:hover{color:var(--ink);background:var(--fill-hover)}
+/* o vinculo do ClickUp e o unico .acao que e <a>: sem isto ele viria azul e
+   sublinhado, fora do sistema */
+a.acao{color:var(--ink-30);text-decoration:none}
 .acao svg{width:15px;height:15px}
 /* ---------- a fila e de outro dia ----------
    nao e erro nem alarme: e um fato com duas saidas. por isso tinta neutra e
@@ -771,6 +774,8 @@ body::after{
 
   /* ---------- estado ---------- */
 
+  const CLICKUP_ID = /^[A-Za-z0-9]{1,32}$/;
+
   function normalizar(t) {
     return {
       id: t && t.id ? String(t.id) : proximoId(),
@@ -779,7 +784,12 @@ body::after{
       feito: !!(t && t.feito),
       /* reserva ocupa a janela sem ser trabalho: almoco, reuniao, bloco fixo.
          nao se conclui, nao devolve tempo, nao entra na fila — so encolhe o dia. */
-      reserva: !!(t && t.reserva)
+      reserva: !!(t && t.reserva),
+      /* id da tarefa no ClickUp, nao a URL: o href se monta no render, e assim
+         nao existe caminho para um "javascript:" entrar na tela por um titulo.
+         o formato e conferido aqui porque documento vindo do disco ou da nuvem
+         nao e confiavel so por ter chegado. */
+      clickup: CLICKUP_ID.test(String((t && t.clickup) || "")) ? String(t.clickup) : ""
     };
   }
 
@@ -905,6 +915,32 @@ body::after{
     return { min: Math.min(min, DIA), titulo: limpo.replace(/\s+/g, " ").trim() };
   }
 
+  /* link de tarefa do ClickUp colado junto do titulo. so a forma /t/<id> —
+     que e a unica que identifica uma tarefa — e a URL sai do titulo como a
+     duracao sai: o titulo fica sendo o que voce leria em voz alta. */
+  const CLICKUP_URL = /(?:^|\s)https?:\/\/(?:[a-z0-9-]+\.)*clickup\.com\/t\/(?:\d+\/)?([A-Za-z0-9]{1,32})\S*(?=\s|$)/i;
+
+  function lerClickup(texto) {
+    const m = texto.match(CLICKUP_URL);
+    if (!m) return { clickup: "", titulo: texto };
+    return {
+      clickup: m[1],
+      titulo: texto.slice(0, m.index) + " " + texto.slice(m.index + m[0].length)
+    };
+  }
+
+  /* o composer inteiro le a linha por aqui. o fantasma e o submit precisam
+     entender exatamente a mesma coisa: se so o submit tirasse a URL, a previa
+     mostraria o link cru como titulo e ainda acusaria "nao entendi o tempo"
+     por causa dos digitos do id. */
+  function lerLinha(texto) {
+    const l = lerClickup(texto);
+    const d = lerDuracao(l.titulo);
+    /* semLink e o texto sem a URL: e sobre ele que a suspeita de tempo mal
+       escrito tem que ser avaliada. */
+    return { min: d.min, titulo: d.titulo, clickup: l.clickup, semLink: l.titulo };
+  }
+
   /* o texto tem numero mas nada casou: provavelmente e tempo mal escrito.
      serve so para a previa avisar em vez de criar uma tarefa muda. */
   const pareceTempoQuebrado = (texto, min) =>
@@ -1027,6 +1063,24 @@ body::after{
   const CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12.5l5.5 5.5L20 6.5"/></svg>';
   const RELOGIO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7.5V12l3 2"/></svg>';
   const PEGA = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>';
+  const LINK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13.5a4 4 0 006 .5l2.5-2.5a4 4 0 10-5.7-5.7L11.5 7"/><path d="M14 10.5a4 4 0 00-6-.5L5.5 12.5a4 4 0 105.7 5.7L12.5 17"/></svg>';
+
+  /* o vinculo e um <a> de verdade: abre em outra aba e e o meio do caminho
+     entre "eu sei que existe la" e "o planner virou cliente do ClickUp".
+     nada e lido de la, nada e escrito la. o href se monta aqui, a partir do
+     id — nunca de texto que alguem digitou. */
+  function eloClickup(t) {
+    if (!t.clickup) return null;
+    const a = document.createElement("a");
+    a.className = "acao";
+    a.href = "https://app.clickup.com/t/" + t.clickup;
+    a.target = "_blank";
+    a.rel = "noopener noreferrer";
+    a.innerHTML = LINK;
+    a.setAttribute("aria-label", "Abrir no ClickUp: " + t.titulo);
+    return a;
+  }
+
   const LIXO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9.5 7V5h5v2M6.5 7l1 12.5h9L17.5 7"/></svg>';
 
   const semMovimento = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -1079,6 +1133,8 @@ body::after{
 
       const acoes = document.createElement("div");
       acoes.className = "acoes";
+      const elo = eloClickup(t);
+      if (elo) acoes.append(elo);
       acoes.append(lixo);
 
       li.append(marca, nome, tempo, acoes);
@@ -1287,6 +1343,8 @@ body::after{
 
       const acoes = document.createElement("div");
       acoes.className = "acoes";
+      const elo = eloClickup(t);
+      if (elo) acoes.append(elo);
       acoes.append(lixo);
 
       const pega = document.createElement("button");
@@ -1418,7 +1476,7 @@ body::after{
 
   /* titulo e duracao chegam ja resolvidos: quem decide o tempo e o composer,
      que nao deixa nascer tarefa sem ele */
-  function criar(titulo, min, reserva) {
+  function criar(titulo, min, reserva, clickup) {
     const limpo = String(titulo).replace(/\s+/g, " ").trim();
     if (!limpo || !min) return false;
     /* escrever numa fila de ontem ja e a decisao de comecar hoje: carimba o dia
@@ -1428,7 +1486,8 @@ body::after{
       estado.dia = hoje();
     }
     estado.tarefas.unshift({
-      id: proximoId(), titulo: limpo.slice(0, 300), min, feito: false, reserva: !!reserva
+      id: proximoId(), titulo: limpo.slice(0, 300), min, feito: false, reserva: !!reserva,
+      clickup: CLICKUP_ID.test(String(clickup || "")) ? String(clickup) : ""
     });
     salvar();
     render();
@@ -1597,6 +1656,9 @@ body::after{
      campo: e o que faz a ideia sair da caixa no mesmo gesto em que a tarefa
      nasce, para um desfazer so devolver os dois. */
   let pendenteDaIdeia = null;
+  /* o vinculo colado junto do titulo tem que sobreviver ao pedagio de duracao:
+     a tarefa so nasce depois dos chips, e a URL ja saiu do campo. */
+  let pendenteDoClickup = "";
 
   /* o que ocupa o dia sem ser trabalho seu. escrever "almoco 1h" nao deveria
      virar uma tarefa que voce conclui para ganhar tempo de volta que nunca
@@ -1612,26 +1674,29 @@ body::after{
     pendenteDaIdeia = null;
     const bruto = elCampo.value.replace(/\s+/g, " ").trim();
     if (!bruto) return;
-    const { min, titulo } = lerDuracao(elCampo.value);
+    const { min, titulo, clickup } = lerLinha(elCampo.value);
     const nome = titulo || bruto;
     const reserva = ehReserva(nome);
-    if (min) { criarEfechar(semPrefixo(nome), min, reserva); return; }
+    if (min) { pendenteDoClickup = clickup; criarEfechar(semPrefixo(nome), min, reserva); return; }
     abrirChips(semPrefixo(nome), reserva);
+    /* depois de abrirChips, que zera o pendente para quem abre o pedagio por
+       outro caminho nao herdar link nenhum */
+    pendenteDoClickup = clickup;
   });
 
   function criarEfechar(titulo, min, reserva) {
     /* promocao de ideia: sair da caixa e entrar na fila sao o mesmo gesto,
        entao um desfazer so devolve os dois. criar tarefa do zero continua sem
        desfazer — o que ganha desfazer aqui e a ideia ter sumido. */
-    const daIdeia = pendenteDaIdeia;
+    const daIdeia = pendenteDaIdeia, link = pendenteDoClickup;
     if (daIdeia && ideias.some((i) => i.id === daIdeia)) {
       comDesfazer("puxei “" + curto(titulo) + "” pro dia", () => {
-        criar(titulo, min, reserva);
+        criar(titulo, min, reserva, link);
         ideias = ideias.filter((i) => i.id !== daIdeia);
         salvarIdeias();
         renderIdeias();
       });
-    } else criar(titulo, min, reserva);
+    } else criar(titulo, min, reserva, link);
     elCampo.value = "";
     elFantasma.hidden = true;
     fecharChips();
@@ -1642,6 +1707,7 @@ body::after{
     /* zerado aqui para que so quem abre o pedagio POR uma ideia carregue esse
        estado — puxarIdeia grava logo depois desta chamada. */
     pendenteDaIdeia = null;
+    pendenteDoClickup = "";
     pendenteDeTempo = titulo;
     pendenteEhReserva = !!reserva;
     elFantasma.hidden = true;
@@ -1678,6 +1744,7 @@ body::after{
     pendenteDeTempo = null;
     pendenteEhReserva = false;
     pendenteDaIdeia = null;
+    pendenteDoClickup = "";
   }
 
   $("chips-fila").addEventListener("click", (e) => {
@@ -1827,7 +1894,7 @@ body::after{
     if (!elChips.hidden) return;
     const bruto = elCampo.value.replace(/\s+/g, " ").trim();
     if (!bruto) { elFantasma.hidden = true; return; }
-    const { min, titulo } = lerDuracao(elCampo.value);
+    const { min, titulo, clickup, semLink } = lerLinha(elCampo.value);
     const c = contas();
     const cabe = !min || min <= c.sobra;
     elFantasma.hidden = false;
@@ -1835,9 +1902,12 @@ body::after{
     elFantasma.querySelector(".g-nome").textContent = titulo || bruto;
     /* numero no texto que o parser nao entendeu quase sempre e tempo mal escrito:
        dizer isso agora evita a tarefa muda que some da conta depois */
-    elFantasma.querySelector(".g-tempo").textContent = min
+    /* o link reconhecido e dito na previa: senao a URL some do campo e voce
+       nao sabe se ela virou vinculo ou se foi engolida. */
+    const marca = clickup ? " · clickup" : "";
+    elFantasma.querySelector(".g-tempo").textContent = (min
       ? formatar(min) + (cabe ? "" : " · não cabe hoje")
-      : (pareceTempoQuebrado(bruto, min) ? "não entendi o tempo · 45m, 1h30" : "o tempo vem a seguir");
+      : (pareceTempoQuebrado(semLink, min) ? "não entendi o tempo · 45m, 1h30" : "o tempo vem a seguir")) + marca;
   }
   elCampo.addEventListener("input", atualizarFantasma);
   elCampo.addEventListener("focus", atualizarFantasma);
