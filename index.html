@@ -513,6 +513,37 @@ body::after{
   box-shadow:inset 0 1px 0 rgba(242,242,242,.05),0 40px 110px -44px rgba(0,0,0,.95);
 }
 
+/* ---------- caixa de ideias ----------
+   linha mais leve que a da tarefa de proposito: ideia nao tem duracao, entao
+   ela nao tem a coluna de medida que toda tarefa tem. a diferenca de peso na
+   tela e a mesma diferenca que existe no dia. */
+.ideias-nota{margin:0 0 var(--pd2);font-size:12px;color:var(--ink-30)}
+.ideias-vazio{margin:0 0 var(--pd2);font-size:13px;color:var(--ink-30)}
+.lista-ideias{list-style:none;margin:0 0 var(--pd2);padding:0;display:flex;flex-direction:column;gap:var(--pd3)}
+.ideia{
+  display:flex;align-items:center;gap:var(--pd2);padding:6px 6px 6px 12px;
+  border-radius:var(--br2);background:var(--fill);border:1px solid var(--line-soft);
+}
+.ideia .i-nome{
+  flex:1 1 auto;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;
+  font-size:13px;color:var(--ink-70);
+}
+.ideia .i-acoes{flex:0 0 auto;display:flex;align-items:center;gap:2px;opacity:0;transition:opacity var(--t)}
+.ideia:hover .i-acoes,.ideia:focus-within .i-acoes{opacity:1}
+.i-acao{
+  width:26px;height:26px;display:grid;place-items:center;border-radius:var(--br2);
+  color:var(--ink-30);transition:color var(--t),background var(--t);
+}
+.i-acao:hover{color:var(--ink);background:var(--fill-hover)}
+.i-acao svg{width:14px;height:14px}
+/* sem hover no toque, as acoes ficam sempre visiveis */
+@media (hover:none){.ideia .i-acoes{opacity:1}}
+.form-ideia input{
+  width:100%;background:var(--fill);border:1px solid var(--line);
+  border-radius:var(--br-pill);padding:8px 14px;font-size:13px;color:var(--ink);
+}
+.form-ideia input::placeholder{color:var(--ink-30)}
+
 @media (min-width:1200px){
   body{
     /* o aparelho fica na coluna do meio, no tamanho que sempre teve.
@@ -702,7 +733,17 @@ body::after{
 <!-- os trilhos do bento. ficam depois do aparelho no DOM de proposito: no
      celular a coluna e uma so, e bloco novo tem que cair EMBAIXO do dia, nao
      na frente dele. no desktop a grade joga o primeiro para a esquerda. -->
-<div class="lado" id="lado-esq"></div>
+<div class="lado" id="lado-esq">
+  <section class="bloco" id="ideias">
+    <p class="rotulo"><span class="t-mono" id="ideias-rotulo"></span></p>
+    <p class="ideias-nota">não custam minuto nenhum até virarem tarefa</p>
+    <p class="ideias-vazio" id="ideias-vazio" hidden>Nada aqui. Escreve embaixo o que ainda não é tarefa.</p>
+    <ul class="lista-ideias" id="lista-ideias"></ul>
+    <form class="form-ideia" id="form-ideia" autocomplete="off">
+      <input id="campo-ideia" maxlength="300" placeholder="uma ideia" aria-label="Nova ideia">
+    </form>
+  </section>
+</div>
 <div class="lado" id="lado-dir"></div>
 
 <script>
@@ -1323,12 +1364,14 @@ body::after{
   const PILHA = 12;
 
   function comDesfazer(texto, acao) {
-    /* o retrato guarda o documento inteiro, nao so as tarefas: a faixa de
-       ontem mexe no dia e o import troca ate a janela — desfazer parcial
-       deixaria a tela num estado que nunca existiu */
+    /* o retrato guarda tudo que uma acao desfazivel alcanca, nao so as
+       tarefas: a faixa de ontem mexe no dia, o editor troca a janela, e puxar
+       uma ideia tira ela da caixa. desfazer parcial deixaria a tela num
+       estado que nunca existiu */
     const antes = {
       tarefas: estado.tarefas.map((t) => ({ ...t })),
       dia: estado.dia, inicio: estado.inicio, fim: estado.fim,
+      ideias: ideias.map((i) => ({ ...i })),
       texto
     };
     acao();
@@ -1358,8 +1401,11 @@ body::after{
     estado.dia = passo.dia;
     estado.inicio = passo.inicio;
     estado.fim = passo.fim;
+    ideias = passo.ideias;
     salvar();
+    salvarIdeias();
     render();
+    renderIdeias();
     /* ainda ha passos atras: o aviso continua, apontando para o proximo */
     if (paraDesfazer.length) mostrarAviso(paraDesfazer[paraDesfazer.length - 1].texto);
     else fecharAviso();
@@ -1374,7 +1420,7 @@ body::after{
      que nao deixa nascer tarefa sem ele */
   function criar(titulo, min, reserva) {
     const limpo = String(titulo).replace(/\s+/g, " ").trim();
-    if (!limpo || !min) return;
+    if (!limpo || !min) return false;
     /* escrever numa fila de ontem ja e a decisao de comecar hoje: carimba o dia
        e leva junto o que estava aberto, em vez de misturar em silencio */
     if (atrasada()) {
@@ -1386,6 +1432,7 @@ body::after{
     });
     salvar();
     render();
+    return true;
   }
 
   function concluir(id) {
@@ -1546,6 +1593,10 @@ body::after{
   const CHIPS = [15, 30, 60, 120];
   let pendenteDeTempo = null;
   let pendenteEhReserva = false;
+  /* setado quando o pedagio de duracao foi aberto POR uma ideia, e nao pelo
+     campo: e o que faz a ideia sair da caixa no mesmo gesto em que a tarefa
+     nasce, para um desfazer so devolver os dois. */
+  let pendenteDaIdeia = null;
 
   /* o que ocupa o dia sem ser trabalho seu. escrever "almoco 1h" nao deveria
      virar uma tarefa que voce conclui para ganhar tempo de volta que nunca
@@ -1556,6 +1607,9 @@ body::after{
 
   $("form").addEventListener("submit", (e) => {
     e.preventDefault();
+    /* digitar no campo e uma intencao nova: se havia uma ideia esperando
+       duracao, ela nao tem nada a ver com o que esta sendo escrito agora. */
+    pendenteDaIdeia = null;
     const bruto = elCampo.value.replace(/\s+/g, " ").trim();
     if (!bruto) return;
     const { min, titulo } = lerDuracao(elCampo.value);
@@ -1566,7 +1620,18 @@ body::after{
   });
 
   function criarEfechar(titulo, min, reserva) {
-    criar(titulo, min, reserva);
+    /* promocao de ideia: sair da caixa e entrar na fila sao o mesmo gesto,
+       entao um desfazer so devolve os dois. criar tarefa do zero continua sem
+       desfazer — o que ganha desfazer aqui e a ideia ter sumido. */
+    const daIdeia = pendenteDaIdeia;
+    if (daIdeia && ideias.some((i) => i.id === daIdeia)) {
+      comDesfazer("puxei “" + curto(titulo) + "” pro dia", () => {
+        criar(titulo, min, reserva);
+        ideias = ideias.filter((i) => i.id !== daIdeia);
+        salvarIdeias();
+        renderIdeias();
+      });
+    } else criar(titulo, min, reserva);
     elCampo.value = "";
     elFantasma.hidden = true;
     fecharChips();
@@ -1574,6 +1639,9 @@ body::after{
   }
 
   function abrirChips(titulo, reserva) {
+    /* zerado aqui para que so quem abre o pedagio POR uma ideia carregue esse
+       estado — puxarIdeia grava logo depois desta chamada. */
+    pendenteDaIdeia = null;
     pendenteDeTempo = titulo;
     pendenteEhReserva = !!reserva;
     elFantasma.hidden = true;
@@ -1609,6 +1677,7 @@ body::after{
     elChips.hidden = true;
     pendenteDeTempo = null;
     pendenteEhReserva = false;
+    pendenteDaIdeia = null;
   }
 
   $("chips-fila").addEventListener("click", (e) => {
@@ -1637,6 +1706,121 @@ body::after{
     const proximo = todos[(i + (e.key === "ArrowRight" ? 1 : todos.length - 1)) % todos.length];
     if (proximo) proximo.focus();
   });
+
+  /* ---------- caixa de ideias ----------
+     o que ainda nao e tarefa. entra sem duracao de proposito: ideia nao ocupa
+     minuto nenhum, e por isso nao aparece na chamada, no trilho nem na conta.
+     virar tarefa passa pelo mesmo pedagio de duracao do composer — e ai, sim,
+     ela custa espaco como qualquer outra. e assim que a caixa convive com
+     "toda tarefa tem duracao" em vez de furar a regra.
+
+     mora em chave propria do localStorage, fora do documento do dia. dentro
+     dele a caixa seria sincronizada por (pessoa, dia) e o aparelho que
+     abrisse com o dia velho sobrescreveria a caixa atual — perda silenciosa
+     de um dado cuja razao de existir e durar. por ora ela e deste navegador. */
+  const CHAVE_IDEIAS = "artt-planner:ideias";
+  const MAX_IDEIAS = 200;
+
+  const normalizarIdeia = (i) => ({
+    id: i && i.id ? String(i.id) : proximoId(),
+    titulo: String((i && i.titulo) || "").slice(0, 300)
+  });
+
+  function carregarIdeias() {
+    try {
+      const bruto = JSON.parse(localStorage.getItem(CHAVE_IDEIAS));
+      if (!Array.isArray(bruto)) return [];
+      return bruto.map(normalizarIdeia).filter((i) => i.titulo).slice(0, MAX_IDEIAS);
+    } catch (e) { return []; }
+  }
+
+  let ideias = carregarIdeias();
+
+  /* nao passa por salvar(): a caixa nao entra no documento do dia, entao nao
+     carimba v nem agenda gravacao na nuvem. */
+  function salvarIdeias() {
+    try { localStorage.setItem(CHAVE_IDEIAS, JSON.stringify(ideias)); } catch (e) {}
+  }
+
+  const SETA = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h13M12 5l7 7-7 7"/></svg>';
+
+  function renderIdeias() {
+    $("ideias-rotulo").textContent = ideias.length
+      ? ideias.length + (ideias.length === 1 ? " ideia" : " ideias")
+      : "ideias";
+    $("ideias-vazio").hidden = ideias.length > 0;
+
+    const ul = $("lista-ideias");
+    ul.textContent = "";
+    ideias.forEach((i) => {
+      const li = document.createElement("li");
+      li.className = "ideia";
+      li.dataset.id = i.id;
+      const nome = escapar(i.titulo);
+      li.innerHTML =
+        '<span class="i-nome">' + nome + '</span>' +
+        '<span class="i-acoes">' +
+          '<button class="i-acao" type="button" data-acao="puxar" aria-label="Puxar &quot;' + nome + '&quot; pro dia">' + SETA + '</button>' +
+          '<button class="i-acao" type="button" data-acao="apagar" aria-label="Apagar &quot;' + nome + '&quot;">' + LIXO + '</button>' +
+        '</span>';
+      ul.appendChild(li);
+    });
+  }
+
+  function criarIdeia(titulo) {
+    const limpo = String(titulo).replace(/\s+/g, " ").trim();
+    if (!limpo || ideias.length >= MAX_IDEIAS) return false;
+    ideias.unshift({ id: proximoId(), titulo: limpo.slice(0, 300) });
+    salvarIdeias();
+    renderIdeias();
+    return true;
+  }
+
+  function excluirIdeia(id) {
+    const i = ideias.find((x) => x.id === id);
+    if (!i) return;
+    comDesfazer("apaguei “" + curto(i.titulo) + "”", () => {
+      ideias = ideias.filter((x) => x.id !== id);
+      salvarIdeias();
+      renderIdeias();
+    });
+  }
+
+  /* ideia nao tem duracao, e tarefa sem duracao nao existe: puxar abre o
+     mesmo pedagio do composer. a ideia so sai da caixa quando o tempo dela
+     for respondido — desistir dos chips deixa tudo como estava. */
+  function puxarIdeia(id) {
+    const i = ideias.find((x) => x.id === id);
+    if (!i) return;
+    abrirChips(i.titulo, ehReserva(i.titulo));
+    pendenteDaIdeia = id;
+  }
+
+  $("lista-ideias").addEventListener("click", (e) => {
+    const b = e.target.closest(".i-acao");
+    if (!b) return;
+    const li = b.closest(".ideia");
+    if (!li) return;
+    if (b.dataset.acao === "puxar") puxarIdeia(li.dataset.id);
+    else excluirIdeia(li.dataset.id);
+  });
+
+  $("form-ideia").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const campo = $("campo-ideia");
+    /* campo cheio que nao virou ideia e a caixa no teto: o texto fica ali em
+       vez de sumir sem explicacao. */
+    if (criarIdeia(campo.value)) campo.value = "";
+  });
+
+  /* outra aba deste navegador mexeu na caixa: recarrega em vez de sobrescrever */
+  window.addEventListener("storage", (e) => {
+    if (e.key !== CHAVE_IDEIAS) return;
+    ideias = carregarIdeias();
+    renderIdeias();
+  });
+
+  renderIdeias();
 
   /* previa fantasma: voce ve o que o parser entendeu antes de confirmar */
   function atualizarFantasma() {
