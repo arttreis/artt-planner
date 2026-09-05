@@ -496,6 +496,39 @@ body::after{
 }
 
 /* no celular o aparelho vira a tela inteira */
+/* ---------- bento ----------
+   o aparelho nao muda: mesmo tamanho, mesmo miolo, mesma casca. a grade so
+   abre trilho AO LADO dele para os blocos novos (ideias, matriz, etc).
+   trilho vazio nao existe — :empty tira do fluxo, entao ate o primeiro bloco
+   nascer a tela e exatamente a de hoje. */
+.lado{display:flex;flex-direction:column;gap:var(--pd);width:100%;max-width:496px}
+.lado:empty{display:none}
+
+/* o ladrilho dos blocos novos: mesma superficie e mesma sombra do aparelho,
+   um raio abaixo — o dia continua sendo o objeto principal da tela. */
+.bloco{
+  position:relative;
+  background:var(--surface);border:1px solid var(--line);
+  border-radius:var(--br);padding:calc(var(--pd) * 1.25);
+  box-shadow:inset 0 1px 0 rgba(242,242,242,.05),0 40px 110px -44px rgba(0,0,0,.95);
+}
+
+@media (min-width:1200px){
+  body{
+    /* o aparelho fica na coluna do meio, no tamanho que sempre teve.
+       os trilhos so existem se tiverem bloco dentro. */
+    grid-template-columns:minmax(272px,340px) 496px minmax(272px,340px);
+    justify-content:center;
+    align-items:start;
+    gap:var(--pd);
+  }
+  .fone{grid-column:2;grid-row:1}
+  #lado-esq{grid-column:1;grid-row:1}
+  #lado-dir{grid-column:3;grid-row:1}
+  /* alinha o topo dos blocos com o topo do aparelho */
+  .lado{max-width:none}
+}
+
 @media (max-width:480px){
   body{padding:0}
   .fone{max-width:none;height:100dvh;border-radius:0;border:0;box-shadow:none}
@@ -665,6 +698,12 @@ body::after{
   </div>
 
 </main>
+
+<!-- os trilhos do bento. ficam depois do aparelho no DOM de proposito: no
+     celular a coluna e uma so, e bloco novo tem que cair EMBAIXO do dia, nao
+     na frente dele. no desktop a grade joga o primeiro para a esquerda. -->
+<div class="lado" id="lado-esq"></div>
+<div class="lado" id="lado-dir"></div>
 
 <script>
 (() => {
