@@ -18,7 +18,7 @@ custom_domain = true
 
 # so o que e publico entra aqui. apontar para a raiz do projeto publicaria
 # o worker.js, o schema e os testes junto — "npm run site" copia as paginas
-# e a pasta compartilhado/ da raiz para ca, e a raiz segue sendo a fonte unica.
+# e a pasta shared/ da raiz para ca, e a raiz segue sendo a fonte unica.
 [assets]
 directory = "./site"
 # o binding permite ao worker devolver um arquivo estatico quando o caminho
@@ -26,21 +26,22 @@ directory = "./site"
 binding = "ASSETS"
 
 [[d1_databases]]
-# o nome pelo qual o worker alcanca o banco: env.artt_planner.
-# se mudar aqui, tem que mudar no worker.js junto.
-binding = "artt_planner"
+# o nome pelo qual o worker alcanca o banco: env.DB.
+# se mudar aqui, tem que mudar no worker.js junto. o database_name e o
+# recurso na Cloudflare e nao mudou de nome (mudar criaria outro banco).
+binding = "DB"
 database_name = "artt-planner"
 database_id = "9011ef3f-3d1d-4019-8db9-c5ff07df0446"
 
 [vars]
 # o remetente precisa estar num dominio verificado no Resend.
 # o onboarding@resend.dev so entrega no e-mail da propria conta.
-EMAIL_REMETENTE = "merlin@arttreis.com.br"
+SENDER_EMAIL = "merlin@arttreis.com.br"
 
 # quem pode entrar. e um sistema de uma pessoa: qualquer outro e-mail recebe
 # a mesma resposta de sucesso e nenhum codigo. vazio libera todo mundo — so
 # para desenvolvimento local.
-EMAILS_DONO = "midia@guessless.com.br,arthurcastilhos@gmail.com"
+OWNER_EMAILS = "midia@guessless.com.br,arthurcastilhos@gmail.com"
 
 # faxina dos codigos expirados, toda madrugada
 [triggers]
@@ -48,5 +49,5 @@ crons = ["17 4 * * *"]
 
 # segredos NAO ficam aqui. sao tres, e vao por linha de comando:
 #   npx wrangler secret put RESEND_API_KEY
-#   npx wrangler secret put SEGREDO_SESSAO
+#   npx wrangler secret put SESSION_SECRET
 #   npx wrangler secret put ANTHROPIC_API_KEY   # o Merlin (sugestoes); sem ela a rota responde 503

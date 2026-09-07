@@ -25,7 +25,7 @@ no `localStorage`, o worker `merlin-api` e o remetente `merlin@arttreis.com.br`.
 ### Uma pessoa
 
 O login por e-mail continua existindo porque é o que leva os dados ao celular e ao Safari. Mas o
-worker só aceita os **e-mails do dono**, fixados em `EMAILS_DONO` no `wrangler.toml`. Outro
+worker só aceita os **e-mails do dono**, fixados em `OWNER_EMAILS` no `wrangler.toml`. Outro
 endereço recebe uma resposta idêntica à de sucesso e nenhum código é enviado.
 
 ### Só o dia tem minutos
@@ -82,21 +82,26 @@ barra de navegação; a escolha persiste no navegador e segue o sistema quando n
 
 ## 3. Arquitetura
 
-Cinco páginas novas ao lado do dia, todas sem build e sem framework, cada uma legível inteira,
-como o `index.html` sempre foi. O que é comum vive em `compartilhado/`.
+Cinco páginas novas ao lado do dia, todas sem build e sem CDN, cada uma legível inteira,
+como o `index.html` sempre foi. O que é comum vive em `shared/`. Desde 07/09/2026 a
+tela é desenhada com o Preact local (`shared/preact.js`, com `htm` no lugar de JSX):
+a página continua uma só, o que muda é que o JS descreve a tela em vez de montar string. O
+plano e o estado da migração estão em `MIGRACAO.md`.
 
 ```
 index.html             o dia (aparelho) — o que já existia, com barra de navegação
-ideias.html            caixa de ideias com corpo, estágio e desenvolvimento
-semana.html            a semana em colunas, por frente
-mapas.html             mapa mental
-funis.html             funil: mapa com tipos de nó e vazão
-clientes.html          clientes, frentes, canais, objetivos, backlog
-financeiro.html        do jeito da planilha: mês dia a dia, ano, painel de fixos/cartão/dívidas
-compartilhado/
+ideas.html            caixa de ideias com corpo, estágio e desenvolvimento
+week.html            a semana em colunas, por frente
+maps.html             mapa mental
+funnels.html             funil: mapa com tipos de nó e vazão
+clients.html          clientes, frentes, canais, objetivos, backlog
+finance.html        do jeito da planilha: mês dia a dia, ano, painel de fixos/cartão/dívidas
+shared/
   base.css             tokens dos dois temas + navegação + componentes comuns
-  nucleo.js            utilidades, tema, sessão/nuvem, coleções sincronizadas, caixa de entrada do dia
-servidor/              o mesmo worker; ganha /api/docs genérico e a trava de e-mail
+  core.js            utilidades, tema, sessão/nuvem, coleções sincronizadas, caixa de entrada do dia
+  preact.js            preact + hooks + htm num arquivo, copiado do node_modules (npm run preact)
+  ui.js                a camada de tela: hooks que ligam às coleções, diálogo, formulário, selos, ícones
+server/              o mesmo worker; ganha /api/docs genérico e a trava de e-mail
 ```
 
 ### Coleções sincronizadas
@@ -111,7 +116,7 @@ O dia continua sendo um documento por data na tabela `dias`. Nada muda ali.
 ### Caixa de entrada do dia
 
 Nenhum módulo mexe no documento do dia. Quem quer mandar algo para hoje escreve na fila
-`merlin:entrada` (`{titulo, min?, frente?, cliente?, origem}`) e o dia a esvazia ao abrir ou ao
+`merlin:inbox` (`{titulo, min?, frente?, cliente?, origem}`) e o dia a esvazia ao abrir ou ao
 receber o evento de `storage`. Com duração, vira tarefa; sem duração, cai na caixa de ideias do
 dia e passa pelo pedágio de lá. É um gesto só, sem acoplamento.
 
@@ -129,11 +134,11 @@ duração", o aparelho e a barra que se gasta.
 O que existe, mais:
 
 - `@frente` e `@cliente` no campo de nova tarefa, com selo na linha.
-- Caixa de ideias do dia passa a ler a mesma coleção de `ideias.html`.
+- Caixa de ideias do dia passa a ler a mesma coleção de `ideas.html`.
 - Esvazia a caixa de entrada.
 - Barra de navegação e tema.
 
-### 4.2 Ideias (`ideias.html`)
+### 4.2 Ideias (`ideas.html`)
 
 Semelhante ao financeiro em estrutura: não é uma lista solta, é um lugar organizado.
 
@@ -146,7 +151,7 @@ Semelhante ao financeiro em estrutura: não é uma lista solta, é um lugar orga
 - **Quadro por estágio** como visão alternativa à lista.
 - Sincroniza como coleção; a caixa do dia mostra as não arquivadas.
 
-### 4.3 Semana (`semana.html`)
+### 4.3 Semana (`week.html`)
 
 Inspirado no quadro do parceiro no Google Tarefas: colunas `seg · ter · qua · qui · sex · fim
 de semana`, e dentro de cada coluna os cartões agrupados por **frente**.
@@ -158,7 +163,7 @@ de semana`, e dentro de cada coluna os cartões agrupados por **frente**.
   aparece numa faixa "ficou de trás", com a escolha de trazer ou arquivar. Nada rola sozinho.
 - Modelo de recorrência simples: cartão marcado como "toda semana" reaparece na semana nova.
 
-### 4.4 Mapa mental (`mapas.html`)
+### 4.4 Mapa mental (`maps.html`)
 
 Referência: MindMaster / XMind. O que faz um mapa ser bom é **teclado e layout automático**.
 
@@ -171,7 +176,7 @@ Referência: MindMaster / XMind. O que faz um mapa ser bom é **teclado e layout
 - Vários mapas, cada um ligado opcionalmente a ideia, cliente ou funil.
 - SVG próprio, sem biblioteca.
 
-### 4.5 Funil (`funis.html`)
+### 4.5 Funil (`funnels.html`)
 
 Mapa com **tipos de nó**, **fluxo direcionado** e **números em cima**.
 
@@ -186,7 +191,7 @@ Mapa com **tipos de nó**, **fluxo direcionado** e **números em cima**.
 - Período selecionável; retratos com data para comparar.
 - Pertence a um cliente e a um **canal** (4.6), ou à frente.
 
-### 4.6 Clientes (`clientes.html`)
+### 4.6 Clientes (`clients.html`)
 
 Cliente pertence a uma frente. O que um cliente tem:
 
@@ -211,7 +216,7 @@ Cliente pertence a uma frente. O que um cliente tem:
   memória da sessão; o servidor nunca vê texto puro; perder a senha perde o cofre, sem
   recuperação — é escolha.
 
-### 4.7 Financeiro (`financeiro.html`)
+### 4.7 Financeiro (`finance.html`)
 
 Do jeito da planilha "Controle Financeiro" que o Arthur já usa (redesenhado em 07/09/2026 a
 partir dela). Três abas:
@@ -252,7 +257,7 @@ diálogo com caixas de marcar; nada entra sozinho.
 
 | # | Etapa | Estado |
 | --- | --- | --- |
-| 0 | Fundação: nome, tema claro, navegação, `compartilhado/`, `/api/docs`, trava de e-mail | em construção |
+| 0 | Fundação: nome, tema claro, navegação, `shared/`, `/api/docs`, trava de e-mail | em construção |
 | 1 | Ideias | feito |
 | 2 | Semana | feito |
 | 3 | Clientes com frentes e canais | feito |
@@ -284,7 +289,8 @@ Decidido em 07/09/2026:
 10. **Financeiro ↔ clientes**: contrato não gera "a receber" (nem todo cliente paga fee).
 11. **Planilha**: sem importador.
 12. **Navegação**: sidebar, não barra no topo.
-13. **Stack**: HTML/JS/CSS sem framework continua. (A página "o que é isso" foi apagada em
-    07/09/2026; a leitura fica neste documento e nos READMEs.)
+13. **Stack**: HTML/JS/CSS sem build e sem CDN continua; em 07/09/2026 entrou o Preact local
+    como única dependência de tela (ver `MIGRACAO.md`). (A página "o que é isso" foi apagada
+    em 07/09/2026; a leitura fica neste documento e nos READMEs.)
 
 Em aberto: nada.

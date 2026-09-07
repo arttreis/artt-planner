@@ -1,0 +1,297 @@
+# Merlin · migração para o Preact e para o inglês
+
+Epic decidido em 07/09/2026, executado na madrugada de 07 para 08/09/2026. Este documento é a
+fonte do que mudou, em que ordem, e como saber que cada passo terminou. O que está aqui é o
+que o código faz; o que não está, não faz parte da migração.
+
+---
+
+## 1. Por quê
+
+As sete páginas desenhavam a tela montando HTML por string e trocando o `innerHTML`.
+Funcionava, mas cobrava três preços que só cresciam:
+
+- **Escape manual.** Toda string do usuário passava por `escapar()` antes de virar HTML. Eram
+  dezenas de pontos por página, e um esquecido é script executando a partir de um título.
+- **Redesenhar tudo apaga o estado do DOM.** Cada `render()` reescrevia o bloco inteiro e
+  perdia foco, cursor e rolagem. Quatro páginas guardavam o `activeElement` à mão.
+- **Nada compunha.** O diálogo do Merlin existia duas vezes, o contador de sugestões três;
+  sem componente com estado próprio, compartilhar era função que devolve string.
+
+E uma quarta decisão, tomada no meio da noite pelo Arthur: **tudo em inglês** — identificadores,
+chaves do `localStorage`, tipos de coleção, campos dos documentos, rotas e JSON da API, colunas
+do banco, classes de CSS e nomes de arquivo. Só o que aparece na tela e os comentários seguem
+em português. Sem migração de dados: o que estava gravado com os nomes antigos não é lido.
+
+Medido em 07/09/2026, antes de começar:
+
+| medida | valor |
+| --- | --- |
+| páginas | 7 |
+| linhas no total | ~12.500 |
+| `innerHTML` em `clientes.html` / `funis.html` | 32 / 30 |
+| chamadas a `escapar()` no total | ~150 |
+| páginas com restauração de foco à mão | 4 |
+| testes automatizados do lado do navegador | 0 |
+
+## 2. A decisão
+
+**Preact com `htm`**, copiado para dentro de `shared/preact.js`. Nada de Next.js, nada de
+Vite, nada de bundler.
+
+- **Diff de DOM e componentes com estado** são as duas coisas que só um framework resolve, e
+  o Preact entrega as duas em 13 KB.
+- **`htm` escreve o template numa tagged template**, sem JSX, sem transpilar. O escape vem de
+  graça: `${title}` é texto, nunca HTML.
+- **Um arquivo, sem build e sem CDN.** O `htm/preact/standalone` traz Preact, hooks e htm num
+  módulo só que não importa nada. É copiado do `node_modules` por `update-preact.mjs`
+  (`npm run preact` na raiz) e sobe com o resto de `shared/` pelo `site.mjs` de sempre.
+- **O deploy não muda.** Worker, D1, cookie `SameSite=Lax`, tudo igual.
+
+## 3. O dicionário
+
+Tudo que tinha nome em português ganhou um nome em inglês. A tabela é a referência para
+qualquer página ou módulo novo.
+
+### Arquivos e páginas
+
+| antes | depois |
+| --- | --- |
+| `compartilhado/` | `shared/` |
+| `compartilhado/nucleo.js` | `shared/core.js` (dados) |
+| `compartilhado/casca.css` | `shared/shell.css` |
+| `compartilhado/LEIA.md` | `shared/README.md` |
+| — | `shared/ui.js` (tela), `shared/preact.js` |
+| `servidor/` | `server/` (`teste.mjs` → `test.mjs`) |
+| `semana.html`, `ideias.html`, `clientes.html`, `funis.html`, `mapas.html`, `financeiro.html` | `week.html`, `ideas.html`, `clients.html`, `funnels.html`, `maps.html`, `finance.html` |
+| ids de página `dia, semana, ideias, clientes, funis, mapas, financeiro` | `day, week, ideas, clients, funnels, maps, finance` |
+
+### Chaves do navegador
+
+| antes | depois |
+| --- | --- |
+| `merlin:tema` (`claro`/`escuro`) | `merlin:theme` (`light`/`dark`) |
+| `merlin:sidebar` (`fechada`/`aberta`) | `merlin:sidebar` (`closed`/`open`) |
+| `merlin:entrada` | `merlin:inbox` |
+| `merlin:dia` | `merlin:day` |
+| `merlin:frentes`, `merlin:clientes`, `merlin:ideias`, `merlin:semana`, `merlin:mapas`, `merlin:funis`, `merlin:financeiro` | `merlin:fronts`, `merlin:clients`, `merlin:ideas`, `merlin:week`, `merlin:maps`, `merlin:funnels`, `merlin:finance` |
+| forma da coleção `{itens, vServidor, sujos}` | `{items, serverV, dirty}` |
+| túmulo `{apagado:true}` | `{deleted:true}` |
+
+### Campos comuns dos documentos
+
+| antes | depois |
+| --- | --- |
+| `titulo`, `nome`, `corpo`, `nota` | `title`, `name`, `body`, `note` |
+| `frente`, `cliente` | `front`, `client` |
+| `feito`, `apagado` | `done`, `deleted` |
+| `criada`, `atualizada`, `quando` | `createdAt`, `updatedAt`, `at` |
+| `ordem`, `cor`, `tipo`, `estagio` | `order`, `color`, `type`, `stage` |
+| `origem:{tipo,id}` | `origin:{type,id}` |
+
+Por coleção:
+
+- **fronts** `{id, name, color (1-6), order}`; sementes `artt, guessless, glsuite, saas, personal`.
+- **clients** `{id, name, front, status ('active'|'paused'|'closed'), summary, channels:[{id, type, name, items:[{id, text, done}]}], goals:[{id, text, done}], backlog:[{id, text, done}], journal:[{id, text, at}], contract:{…}, contacts:[…], links:[…], offers:[…]}`.
+- **ideas** `{id, title, body, stage, front, client, steps:[{id, text, done}], outputs:[{type, id, at}], history:[{type:'stage', from, to, at}]}`.
+- **week** `{id, title, day ('YYYY-MM-DD' | 'weekend:YYYY-MM-DD'), front, client, min, done, recurring, order, createdAt, updatedAt, recurringSource, inDay}`.
+- **maps** `{id, name, root:{id, title, note, color, collapsed, children:[…]}, front, client, idea, funnel}`.
+- **funnels** `{id, name, client, channel, front, nodes:[{id, type, title, x, y, fields:{}, number}], edges:[{from, to}], creatives:[…], automations:[…], offers:[…], triggers:[…], snapshots:[…]}`; tipos de nó `traffic, ad, lp, vsl, capture, cta, checkout, thanks, email, whatsapp, remarketing, upsell, downsell, bump`.
+- **finance** vários docs `{id, type:'entry'|'fixed'|'card'|'debt'|'config', …}`.
+- **inbox** (`merlin:inbox`) `[{id, title, min, front, client, origin:{type, id}, at}]`.
+- **day** (`merlin:day`, tabela `days`) é do `index.html`, em inglês.
+
+### API e banco
+
+| antes | depois |
+| --- | --- |
+| `POST /api/codigo {email}` | `POST /api/code {email}` |
+| `POST /api/entrar {email, codigo}` | `POST /api/sign-in {email, code}` |
+| `POST /api/sair` | `POST /api/sign-out` |
+| `GET /api/eu → {entrou, email}` | `GET /api/me → {signedIn, email}` |
+| `GET /api/dias?desde= → {dias:[{dia, v, doc}]}` | `GET /api/days?since= → {days:[{day, v, doc}]}` |
+| `POST /api/dias {dia, v, doc}` | `POST /api/days {day, v, doc}` |
+| `GET /api/docs?tipo=&desde=` | `GET /api/docs?type=&since=` |
+| `POST /api/docs {tipo, id, v, doc}` | `POST /api/docs {type, id, v, doc}` |
+| 409 `{ok:false, motivo, servidor}` | `{ok:false, reason, server}` |
+| erro `{erro}` | `{error}` |
+| `POST /api/merlin {tarefa, contexto}` | `{task, context}`; tarefas `branches, funnel, expand, week, meeting, numbers`; resposta `{text}` ou `{suggestions:[{type, nodeType, title, note}]}` |
+| cookie `sessao` | `session` |
+| tabelas `pessoas, codigos, dias, docs(tipo)` | `people, codes, days, docs(type)` |
+| binding D1 `artt_planner` | `DB` |
+| vars `EMAIL_REMETENTE`, `EMAILS_DONO` | `SENDER_EMAIL`, `OWNER_EMAILS` |
+| secret `SEGREDO_SESSAO` | `SESSION_SECRET` (**precisa ser criado de novo**: `npx wrangler secret put SESSION_SECRET`) |
+
+O banco em produção ainda tem as tabelas antigas. Rodar `npx wrangler d1 execute artt-planner
+--remote --file schema.sql` cria as novas, vazias, ao lado. As antigas podem ser apagadas
+quando o Arthur quiser.
+
+### Classes de CSS do `shared/`
+
+| antes | depois |
+| --- | --- |
+| `.pagina`, `--larga`, `--cheia` | `.page`, `--wide`, `--full` |
+| `.cabeca`, `.acoes`, `.acoes-linha` | `.header`, `.actions`, `.row-actions` |
+| `.bloco`, `--raso`, `.rotulo`, `.nota`, `.vazio` | `.block`, `--flat`, `.heading`, `.note`, `.empty` |
+| `.pill--verde`, `--icone`, `.acao` | `.pill--green`, `--icon`, `.action` |
+| `.campo`, `--mono`, `--num`, `--pilula`, `.campo-area`, `.campo-sel` | `.input`, `--mono`, `--num`, `--pill`, `.textarea`, `.select` |
+| `.rotulo-campo`, `.form-grade`, `.inteiro`, `.form-linha` | `.field-label`, `.form-grid`, `.full`, `.form-row` |
+| `.lista`, `.linha`, `.nome`, `.medida` | `.list`, `.line`, `.name`, `.measure` |
+| `.chip--verde`, `.medidor(es)`, `.leg`, `.barra`, `--hachura` | `.chip--green`, `.meter(s)`, `.legend`, `.bar`, `--hatched` |
+| `.aviso`, `.abas`, `.aba`, `.tabela`, `.tabela-rolagem` | `.notice`, `.tabs`, `.tab`, `.table`, `.table-scroll` |
+| `.espaco`, `.oculto-visual`, `.fileira`, `.coluna` | `.spacer`, `.visually-hidden`, `.row`, `.column` |
+| `.negativo`, `.positivo`, `.fraco`, `.pequeno` | `.negative`, `.positive`, `.weak`, `.small` |
+| `.is-ativa`, `.is-feita`, `.is-negativo`, `.is-verde`, `.is-hoje`, `.is-foco`, `.is-fora` | `.is-active`, `.is-done`, `.is-negative`, `.is-green`, `.is-today`, `.is-focus`, `.is-out` |
+| `.dialogo`, `__caixa`, `__caixa--larga`, `__fechar`, `__titulo`, `__acoes` | `.dialog`, `__box`, `__box--wide`, `__close`, `__title`, `__actions` |
+| `.selo`, `--verde`, `--cheio`, `.ponto`, `[data-cor]`, `--cor`, `--cor1..6` | `.badge`, `--green`, `--solid`, `.dot`, `[data-color]`, `--color`, `--color-1..6` |
+| `.sb__topo`, `__dobrar`, `__busca`, `__busca-campo`, `__achados`, `__lista`, `__secao`, `__espaco`, `__tema`, `__cartao`, `__quem`, `__movel`, `__escurece` | `.sb__top`, `__fold`, `__search`, `__search-field`, `__results`, `__list`, `__section`, `__spacer`, `__theme`, `__card`, `__who`, `__mobile`, `__scrim` |
+| `.nuvem[data-e]`, `.quem`, `.knob__sol`, `__lua` | `.cloud[data-status]`, `.who`, `.knob__sun`, `__moon` |
+| `html.sidebar-fechada`, `.sidebar-aberta` | `html.sidebar-closed`, `.sidebar-open` |
+| `.ent-campo`, `.ent-codigo`, `.ent-botao`, `.ent-recado` | `.signin-input`, `.signin-code`, `.signin-button`, `.signin-message` |
+
+## 4. A arquitetura depois
+
+```
+shared/
+  preact.js     preact + hooks + htm, copiado (npm run preact). nao se edita.
+  core.js       dados: tema, sidebar, sessao/nuvem, colecoes, frentes, inbox, notify, md.
+  ui.js         tela: hooks (useCollection, useFronts, useClients, useCloud, useHash,
+                useKeydown, useFields), componentes (Dialog, Form, Field, Markdown,
+                FrontBadge, ClientBadge) e icones como vnode (icon, svg).
+  base.css / shell.css   os mesmos, com classes em ingles.
+server/         worker.js, schema.sql, test.mjs, site.mjs, wrangler.toml
+```
+
+Uma página migrada (o esqueleto completo está em `shared/README.md`):
+
+```html
+<main class="page" id="app"></main>
+<script type="module">
+import { initPage, today, newId, notify } from "./shared/core.js";
+import { html, mount, useState, useCollection, Form, Field, useFields } from "./shared/ui.js";
+
+initPage("ideas");
+
+function Ideas() {
+  const ideas = useCollection("ideas", { normalize });
+  const [open, setOpen] = useState(null);
+  return html`...`;
+}
+mount(html`<${Ideas}/>`, "app");
+</script>
+```
+
+Regras da página migrada:
+
+- **Zero `innerHTML`** fora de `<${Markdown}/>` (o markdown das notas).
+- **Zero `escapeHtml()`**: o htm escapa tudo. Se precisou chamar, algo está errado.
+- **Estado de tela é `useState`**, nunca variável de módulo com `render()` depois.
+- **Formulários controlados** com `useFields`, para uma sincronização no meio da digitação
+  não apagar o que está sendo escrito.
+- **Eventos nos elementos** (`onClick=${...}`), não delegação por `closest()` sobre o quadro.
+  A exceção aceita é arrastar e soltar, onde o alvo é o DOM mesmo.
+- **`key` em toda lista** com o `id` do documento.
+- **Ícones via `icon("plus")` ou `svg(text)`**, nunca string concatenada.
+- Canvas e SVG desenhados à mão (mapas, funis) ficam num componente com `useRef` e continuam
+  imperativos por dentro. Migrar é envolver, não reescrever o desenho.
+- **Identificadores em inglês.** Texto de tela e comentários em português.
+
+## 5. As fases
+
+### Fase 0 · fundação — feita
+
+- [x] `preact` e `htm` como devDependencies na raiz; `update-preact.mjs` e `npm run preact`.
+- [x] `shared/preact.js` gerado (preact 10.29.8, htm 3.1.1).
+- [x] `shared/core.js` em inglês: API, chaves, tipos, rotas, classes. Sem aliases antigos.
+- [x] `shared/ui.js` com hooks, componentes e ícones.
+- [x] `shared/base.css` e `shell.css` com classes em inglês.
+- [x] `server/` em inglês: rotas, JSON, tabelas, env. 63 testes passando.
+- [x] Este documento, `shared/README.md`, `server/README.md`, `README.md`, `VISAO.md`.
+
+### Fase 1 · piloto: `week.html` — feita
+
+- [x] `Week`, `Column`, `Card`, `EditableTitle`, `CardForm`, `MerlinDialog`.
+- [x] Arrastar e soltar: dia, frente, antes/depois de um cartão (ordem fracionária).
+- [x] Edição inline com foco e seleção; Enter salva, Esc cancela, blur salva.
+- [x] Faixa "ficou de trás" com trazer e arquivar, ambos com desfazer.
+- [x] Atalhos `n`, `Alt+←/→`, `Esc`.
+- [x] Roteiro Playwright no Chromium.
+
+### Fase 2 · `ideas.html` e `finance.html`
+
+- [ ] `ideas.html`: lista à esquerda, ideia aberta à direita (`useHash`), estágio, passos,
+  atividade, sugestões do Merlin (`task: "expand"`).
+- [ ] `finance.html`: abas mês/ano/painel, tabela do mês com saldo, formulários de
+  entrada/fixo/cartão/dívida, config.
+
+### Fase 3 · `clients.html`
+
+- [ ] Cadastro de frentes, lista de clientes por frente, painel do cliente (`useHash`).
+- [ ] Canais com itens, objetivos, backlog, diário, ofertas, contrato, contatos, links.
+- [ ] Pauta de reunião com o Merlin (`task: "meeting"`).
+
+### Fase 4 · `funnels.html` e `maps.html`
+
+- [ ] `maps.html`: lista de mapas, o mapa (componente com ref), painel do nó, atalhos,
+  ramos do Merlin (`task: "branches"`).
+- [ ] `funnels.html`: lista de funis, o grafo (componente com ref), painel do nó por tipo,
+  biblioteca com busca, vazão, Merlin (`task: "funnel"` e `"numbers"`).
+
+### Fase 5 · `index.html`
+
+- [ ] Barra que se gasta, fila, sobra, reserva, caixa de ideias do dia, pedágio.
+- [ ] `merlin:inbox` esvaziada ao abrir e no evento `storage`.
+- [ ] Cartões da semana de hoje entrando sozinhos, com `inDay` escrito de volta.
+- [ ] Desfazer, dia de ontem, matriz de Eisenhower efêmera, vínculo com o ClickUp.
+- [ ] Documento do dia (`merlin:day`, `/api/days`) com campos em inglês.
+
+### Fase 6 · a casca em Preact
+
+- [ ] `mountNav`, busca global, cartão da nuvem e a tela de entrar viram componentes em
+  `ui.js`; `cloud.setStatus()` deixa de tocar no DOM.
+- [ ] `notify` vira componente com fila, mantendo a assinatura.
+
+### Fase 7 · limpeza
+
+- [ ] Sai do `core.js` o que só existia para montar string: `escapeHtml` (fica interno ao
+  `md`), `frontBadge`, `frontOptions`, `clientOptions`, `formField`, `openForm`, `isFormOpen`.
+
+## 6. Pronto quando
+
+Uma página está migrada quando tudo isto vale:
+
+1. Faz o mesmo que antes, item a item, com a lista da fase conferida no navegador (roteiro
+   Playwright no Chromium, e uma passada na largura de celular).
+2. `grep -c innerHTML` dá 0 fora de `Markdown`; `grep -c "escapeHtml("` dá 0.
+3. Nenhuma variável de módulo guarda estado de tela; nenhum `render()` solto.
+4. Foco e rolagem sobrevivem a uma sincronização chegando no meio de uma edição.
+5. Os dois temas, e a tela estreita, sem rolagem horizontal fora de `.table-scroll`.
+6. Nenhum identificador em português.
+7. `npm run site` e `npm run deploy` passam sem mudança.
+8. Commit por página.
+
+## 7. Riscos e o que fazer com eles
+
+- **O `htm` interpreta em tempo de execução.** O parse é feito uma vez por template e fica em
+  cache; o custo é de milissegundos no primeiro render.
+- **Arrastar e soltar nativo com diff de DOM.** Com `key` pelo `id`, o elemento arrastado
+  sobrevive ao re-render. Regra: `key` sempre.
+- **Formulário aberto quando chega sincronização.** Com `value` controlado o Preact
+  restauraria o valor antigo; por isso `useFields`, que guarda os valores em estado.
+- **Canvas/SVG dos mapas e funis.** Não se migra o desenho; só se envolve.
+- **Dados antigos.** Nada do que estava em `merlin:semana`, `merlin:ideias`… nem nas tabelas
+  antigas do D1 é lido pelo código novo. Decisão do Arthur em 07/09/2026: sem migração.
+
+## 8. Depois da migração: hábitos e planejamento
+
+Pedido do Arthur em 07/09/2026, para depois da refatoração: uma tela de **hábitos/tracker**
+para acompanhar o próprio desenvolvimento, e **planejamento mensal, semanal e trimestral**,
+com "o que está aberto no meu mês / no meu trimestre" visível de um lugar só. O desenho
+proposto está na seção correspondente da `VISAO.md`.
+
+## 9. Como retomar
+
+Numa sessão nova: leia este arquivo, `shared/README.md` e `shared/ui.js`; rode
+`git log --oneline -15` para ver em que fase parou; abra a página com
+`python -m http.server 8765` na raiz e o roteiro Playwright do scratchpad. A `week.html` é o
+exemplo de como fazer a próxima.

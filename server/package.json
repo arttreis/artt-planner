@@ -1,12 +1,12 @@
 {
-  "name": "merlin-servidor",
+  "name": "merlin-server",
   "private": true,
   "type": "module",
   "scripts": {
     "site": "node site.mjs",
-    "teste": "node teste.mjs",
+    "test": "node test.mjs",
     "dev": "npm run site && wrangler dev",
-    "deploy": "npm run teste && npm run site && wrangler deploy"
+    "deploy": "npm run test && npm run site && wrangler deploy"
   },
   "devDependencies": {
     "wrangler": "^4.129.0"

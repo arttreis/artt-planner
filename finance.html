@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="compartilhado/base.css">
+<link rel="stylesheet" href="shared/base.css">
 <script>/* anti-flash do tema: antes de qualquer pintura */
 try{var t=localStorage.getItem("merlin:tema");if(t?t==="claro":matchMedia("(prefers-color-scheme: light)").matches)document.documentElement.classList.add("light")}catch(e){}</script>
 <style>
@@ -118,7 +118,7 @@ import {
   seloFrente, opcoesFrente, ICONE, brl, lerValor,
   ehDia, somarDias, diaDaSemana, rotuloMes, rotuloData,
   abrirFormulario, campoForm
-} from "./compartilhado/nucleo.js";
+} from "./shared/core.js";
 
 iniciarPagina("financeiro");
 

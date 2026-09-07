@@ -10,14 +10,14 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="compartilhado/casca.css">
+<link rel="stylesheet" href="shared/shell.css">
 <script>/* o tema antes da primeira pintura, para nao piscar escuro no claro */
 try{var t=localStorage.getItem("merlin:tema");if(t?t==="claro":matchMedia("(prefers-color-scheme: light)").matches)document.documentElement.classList.add("light")}catch(e){}</script>
 <style>
 /* ---------------------------------------------------------------
    design system arttreis.com.br — lado escuro dos tokens, repetido aqui
    para a pagina continuar inteira sozinha. o lado claro (html.light) e a
-   barra vem de compartilhado/casca.css. a unica adicao e --br3 (12px),
+   barra vem de shared/shell.css. a unica adicao e --br3 (12px),
    um passo intermediario entre --br2 e --br para os ladrilhos de 44px.
    --------------------------------------------------------------- */
 :root{
@@ -818,7 +818,7 @@ a.acao{color:var(--ink-30);text-decoration:none}
 <script type="module">
 import { colecao, nuvem, api, iniciarPagina, lerEntrada, gravarEntrada,
          listarFrentes, seloFrente, corFrente, nomeCliente, lerArrobas, segundaDe }
-  from "./compartilhado/nucleo.js";
+  from "./shared/core.js";
 (() => {
   "use strict";
 

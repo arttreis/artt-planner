@@ -4,15 +4,15 @@ Um Worker, um banco D1 e o Resend. Sem framework e sem dependência — a mesma
 disciplina do `index.html`, pelo mesmo motivo: dá pra ler inteiro.
 
 O que ele faz: serve o site, diz quem é você (código de 6 dígitos por e-mail),
-guarda um documento por dia (tabela `dias`) e guarda os documentos dos outros
-módulos por tipo e id (tabela `docs`: ideias, clientes, mapas, funis,
-financeiro, semana). Ele **não** entende nada do que há dentro — só devolve e
+guarda um documento por dia (tabela `days`) e guarda os documentos dos outros
+módulos por tipo e id (tabela `docs`: ideas, clients, maps, funnels,
+finance, week). Ele **não** entende nada do que há dentro — só devolve e
 diz qual versão é mais nova.
 
-É um sistema de uma pessoa: `EMAILS_DONO` no `wrangler.toml` lista quem pode
+É um sistema de uma pessoa: `OWNER_EMAILS` no `wrangler.toml` lista quem pode
 entrar. Outro e-mail recebe a mesma resposta de sucesso e nenhum código.
 
-As páginas da raiz, a pasta `compartilhado/` e a API saem do mesmo Worker, no mesmo domínio. Não é
+As páginas da raiz, a pasta `shared/` e a API saem do mesmo Worker, no mesmo domínio. Não é
 economia: é o que permite o cookie de sessão ser `SameSite=Lax`. Em domínios
 separados ele seria cookie de terceiro, e Safari e Firefox o bloqueiam — o
 login não gruda.
@@ -24,7 +24,7 @@ Uma vez só, uns 10 minutos.
 ### 1. O banco
 
 ```bash
-cd servidor
+cd server
 npx wrangler d1 create artt-planner   # o nome do banco não mudou com o do produto
 ```
 
@@ -42,7 +42,7 @@ Crie a conta no [Resend](https://resend.com) e **verifique um domínio seu**.
 Isso não é opcional: o remetente de teste (`onboarding@resend.dev`) só entrega
 no e-mail da própria conta, e qualquer outro destinatário volta 403.
 
-Ajuste `EMAIL_REMETENTE` no `wrangler.toml` para um endereço desse domínio.
+Ajuste `SENDER_EMAIL` no `wrangler.toml` para um endereço desse domínio.
 
 ### 3. Os segredos
 
@@ -50,7 +50,7 @@ Três, e nenhum deles fica em arquivo:
 
 ```bash
 npx wrangler secret put RESEND_API_KEY
-npx wrangler secret put SEGREDO_SESSAO
+npx wrangler secret put SESSION_SECRET
 npx wrangler secret put ANTHROPIC_API_KEY
 ```
 
@@ -59,7 +59,7 @@ ramos no mapa mental e o que falta num funil). É opcional: sem ele a rota
 responde 503 e as telas dizem que falta a chave. A chave sai de
 console.anthropic.com; o modelo é o `claude-opus-5` e cada pedido custa centavos.
 
-O `SEGREDO_SESSAO` assina os cookies de sessão. Gere um forte e guarde:
+O `SESSION_SECRET` assina os cookies de sessão. Gere um forte e guarde:
 
 ```bash
 node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"
@@ -92,7 +92,7 @@ de um CNAME existente, e o deploy falha.
 npm run deploy
 ```
 
-Isso roda os testes, copia o `index.html` da raiz para `site/` e publica. Se
+Isso roda os testes, copia as páginas e `shared/` da raiz para `site/` e publica. Se
 algum teste falhar, nada sobe.
 
 ## Mexer sem quebrar nada
@@ -110,20 +110,23 @@ Crie um `.dev.vars` (que o git ignora):
 
 ```
 RESEND_API_KEY=re_fake_para_teste_local
-EMAIL_REMETENTE=planner@exemplo.com
-SEGREDO_SESSAO=qualquer-coisa-longa-em-desenvolvimento
+SENDER_EMAIL=planner@exemplo.com
+SESSION_SECRET=qualquer-coisa-longa-em-desenvolvimento
 ```
 
 ## As rotas
 
 | Rota | O que faz |
 | --- | --- |
-| `POST /api/codigo` | manda um código de 6 dígitos para o e-mail |
-| `POST /api/entrar` | troca o código por uma sessão (cookie) |
-| `POST /api/sair` | apaga o cookie |
-| `GET /api/eu` | diz se há sessão e de quem |
-| `GET /api/dias?desde=V` | devolve os dias com carimbo maior que `V` |
-| `POST /api/dias` | grava um dia; recusa se o servidor estiver na frente |
+| `POST /api/code` | manda um código de 6 dígitos para o e-mail |
+| `POST /api/sign-in` | troca o código por uma sessão (cookie) |
+| `POST /api/sign-out` | apaga o cookie |
+| `GET /api/me` | diz se há sessão e de quem |
+| `GET /api/days?since=V` | devolve os dias com carimbo maior que `V` |
+| `POST /api/days` | grava um dia; recusa se o servidor estiver na frente |
+| `GET /api/docs?type=T&since=V` | os documentos do tipo `T` com carimbo maior que `V` |
+| `POST /api/docs` | grava um documento `{type, id, v, doc}`; 409 com `server` se estiver na frente |
+| `POST /api/merlin` | `{task, context}`; tarefas `branches, funnel, expand, week, meeting, numbers` |
 
 ## Decisões que valem saber
 
@@ -135,7 +138,7 @@ Cifra de mentira é pior que cifra nenhuma, porque você confia nela.
 **O código nunca é guardado.** O banco tem o SHA-256 de `código + e-mail`.
 Quem ler o banco não entra na conta de ninguém.
 
-**Uso único, de verdade.** O gasto do código é um `UPDATE ... WHERE usado = 0`:
+**Uso único, de verdade.** O gasto do código é um `UPDATE ... WHERE used = 0`:
 dois pedidos simultâneos com o mesmo código, só um passa.
 
 **Errar custa igual a acertar.** Código inexistente também conta tentativa, e

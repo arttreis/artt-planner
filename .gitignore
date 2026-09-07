@@ -48,4 +48,4 @@ Thumbs.db
 *.swp
 
 # o que o site.mjs copia para subir com o worker: gerado, nao fonte
-servidor/site/
+server/site/
