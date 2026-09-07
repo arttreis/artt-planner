@@ -11,8 +11,10 @@ lugar de JSX), que mora aqui dentro. O que é comum vive aqui:
   caixa de entrada do dia, aviso com desfazer, markdown. Não desenha tela de módulo.
 - `preact.js` — Preact + hooks + htm num arquivo só, copiado do `node_modules` por
   `npm run preact` (na raiz). Não se edita.
-- `ui.js` — a **tela**: hooks que ligam a página às coleções, componentes comuns e ícones
-  como vnode. É o que uma página importa para desenhar.
+- `ui.js` — a **tela**: hooks que ligam a página às coleções, componentes comuns, ícones
+  como vnode e a **casca** (sidebar, busca, tema, nuvem, entrar, aviso). É o que uma página
+  importa para desenhar. Ele se registra no core com `setShellRenderer`, e é por isso que
+  `initPage(id)` — que vem do core — já monta a casca.
 
 Identificadores, chaves, campos e classes são em inglês; texto de tela e comentários, em
 português. O dicionário completo está em [`MIGRATION.md`](../MIGRATION.md).

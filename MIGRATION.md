@@ -242,27 +242,53 @@ Regras da página migrada:
 - [x] `maps.html`: lista, editor com o SVG num componente de ref (o motor desenha com
   `render()` do Preact, sem `innerHTML`), teclado, arrasto, zoom/pan, painel do nó,
   exportar, ramos do Merlin (`task: "branches"`). 8 → 0 `innerHTML`, 8 → 0 escapes.
-- [ ] `funnels.html`: lista de funis, o grafo (componente com ref), painel do nó por tipo,
-  biblioteca com busca, vazão, Merlin (`task: "funnel"` e `"numbers"`).
+- [x] `funnels.html`: lista com miniatura e editor de tela cheia — palco SVG num componente
+  de ref, biblioteca, painel por tipo de nó, vazão com taxa média, gaveta de criativos,
+  automações, ofertas, gatilhos e números, retratos e o Merlin (`task: "funnel"` e
+  `"numbers"`). 1721 → 1607 linhas de JS, 30 → 0 `innerHTML`, 49 → 0 escapes.
 
-### Fase 5 · `index.html`
+### Fase 5 · `index.html` — feita
 
-- [ ] Barra que se gasta, fila, sobra, reserva, caixa de ideias do dia, pedágio.
-- [ ] `merlin:inbox` esvaziada ao abrir e no evento `storage`.
-- [ ] Cartões da semana de hoje entrando sozinhos, com `inDay` escrito de volta.
-- [ ] Desfazer, dia de ontem, matriz de Eisenhower efêmera, vínculo com o ClickUp.
-- [ ] Documento do dia (`merlin:day`, `/api/days`) com campos em inglês.
+- [x] Barra que se gasta com o relógio, fila, sobra, reserva, caixa de ideias, pedágio.
+- [x] `merlin:inbox` esvaziada ao abrir e no evento `storage`.
+- [x] Cartões da semana de hoje entrando sozinhos, com `inDay` escrito de volta.
+- [x] Desfazer (pilha de 12), dia de ontem, matriz de Eisenhower efêmera, ClickUp.
+- [x] Documento do dia em inglês: `{day, start, end, doneOpen, v, tasks:[{id, title, min,
+  done, reserved, clickup, front, client, origin}]}`; a ordem do array é a prioridade.
+  A chave antiga `artt-planner:v2` saiu. 1746 → 1519 linhas de JS, 15 → 0 `innerHTML`,
+  3 → 0 escapes, e o escapador próprio do dia desapareceu.
 
-### Fase 6 · a casca em Preact
+### Fase 6 · a casca em Preact — feita
 
-- [ ] `mountNav`, busca global, cartão da nuvem e a tela de entrar viram componentes em
-  `ui.js`; `cloud.setStatus()` deixa de tocar no DOM.
-- [ ] `notify` vira componente com fila, mantendo a assinatura.
+- [x] Sidebar, busca global, interruptor de tema, cartão da nuvem, quem está aqui, a caixa de
+  entrar e o aviso viram componentes em `ui.js`.
+- [x] `cloud.setStatus()` só guarda estado e avisa; `notify` é o aviso da vez com quem
+  escuta, com a mesma assinatura; `signIn` tem `show/hide` e `requestCode/submitCode`, que
+  devolvem o recado pronto para a tela.
+- [x] O core não importa o ui: o ui se registra com `setShellRenderer`, e `initPage` acha o
+  desenhista pronto. Roteiro `pw/shell.mjs`, 28 verificações.
 
-### Fase 7 · limpeza
+### Fase 7 · limpeza — feita
 
-- [ ] Sai do `core.js` o que só existia para montar string: `escapeHtml` (fica interno ao
-  `md`), `frontBadge`, `frontOptions`, `clientOptions`, `formField`, `openForm`, `isFormOpen`.
+- [x] Saíram do `core.js`: `openForm`, `formField`, `closeForm`, `isFormOpen`, `frontBadge`,
+  `frontOptions` e `clientOptions`. `escapeHtml` deixou de ser exportado e só serve ao `md`.
+- [x] O core caiu de 899 para 631 linhas, sem nenhum `innerHTML`.
+
+## 5b. Como ficou
+
+| medida | antes | depois |
+| --- | --- | --- |
+| páginas | 7 | 9 (entraram hábitos e planos) |
+| linhas de JS nas páginas | 8.017 | 8.300 |
+| `innerHTML` nas páginas | 104 | 0 |
+| escapes manuais nas páginas | ~150 | 0 |
+| `innerHTML` no `shared/` | 12 | 0 |
+| `core.js` | 821 | 631 (mais `ui.js`, 510) |
+| verificações automatizadas no navegador | 0 | 592 |
+| testes do servidor | 62 | 69 |
+
+Nenhum identificador em português sobrou no código. O que aparece na tela e os comentários
+seguem em português, como sempre foram.
 
 ## 6. Pronto quando
 
