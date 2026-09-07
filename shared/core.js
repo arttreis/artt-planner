@@ -16,7 +16,9 @@
 
 export const $ = (id) => document.getElementById(id);
 
-export const escapeHtml = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) =>
+/* so a casca (sidebar, busca) e o markdown montam HTML por string; as
+   paginas desenham com o htm, que escapa sozinho. */
+const escapeHtml = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) =>
   ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
 const SESSION_ID = Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
@@ -339,56 +341,6 @@ export function notify(text, undo) {
 }
 export function closeNotice() { if (noticeEl) noticeEl.hidden = true; undoAction = null; }
 
-/* ---------- formulario em dialogo (versao por string) ----------
-   e o que as paginas ainda nao migradas usam. as migradas usam o
-   <Formulario> do ui.js. some na fase 7 da migracao. `fields` e HTML de
-   campos com atributo name; `onSubmit(values, form)` recebe {name: valor} e,
-   devolvendo false, mantem a caixa aberta. */
-let openFormEl = null;
-export const formField = (label, htmlText, full) =>
-  "<div" + (full ? ' class="full"' : "") + '><label class="field-label">' + escapeHtml(label) + "</label>" + htmlText + "</div>";
-export function openForm({ title, sub, fields, submit, remove, onSubmit, onRemove, onOpen, wide }) {
-  closeForm();
-  const d = document.createElement("div");
-  d.className = "dialog dialog--form";
-  d.setAttribute("role", "dialog"); d.setAttribute("aria-modal", "true"); d.setAttribute("aria-label", title);
-  d.innerHTML =
-    '<form class="dialog__box' + (wide ? " dialog__box--wide" : "") + '" autocomplete="off">' +
-      '<button class="dialog__close" type="button" data-close aria-label="Fechar">' + ICONS.x + "</button>" +
-      '<p class="dialog__title">' + escapeHtml(title) + "</p>" +
-      (sub ? '<p class="dialog__sub">' + escapeHtml(sub) + "</p>" : "") +
-      '<div class="form-grid">' + fields + "</div>" +
-      '<div class="dialog__actions">' +
-        (remove ? '<button class="link" type="button" data-remove>' + escapeHtml(remove) + '</button><span class="spacer"></span>' : "") +
-        '<button class="pill" type="button" data-close>cancelar</button>' +
-        '<button class="pill pill--green" type="submit">' + escapeHtml(submit || "salvar") + "</button>" +
-      "</div>" +
-    "</form>";
-  document.body.appendChild(d);
-  openFormEl = d;
-  const form = d.querySelector("form");
-  const values = () => {
-    const o = {};
-    form.querySelectorAll("[name]").forEach((el) => { o[el.name] = el.type === "checkbox" ? el.checked : el.value; });
-    return o;
-  };
-  d.addEventListener("click", (e) => { if (e.target === d || e.target.closest("[data-close]")) closeForm(); });
-  const removeBtn = d.querySelector("[data-remove]");
-  if (removeBtn) removeBtn.addEventListener("click", () => { closeForm(); if (onRemove) onRemove(); });
-  form.addEventListener("submit", (e) => {
-    e.preventDefault();
-    const r = onSubmit ? onSubmit(values(), form) : undefined;
-    if (r !== false) closeForm();
-  });
-  if (onOpen) onOpen(form);
-  const first = form.querySelector("input:not([type=hidden]),select,textarea");
-  if (first) { first.focus(); if (first.select && first.type !== "date") first.select(); }
-  return form;
-}
-export function closeForm() { if (openFormEl) { openFormEl.remove(); openFormEl = null; } }
-export const isFormOpen = () => !!openFormEl;
-document.addEventListener("keydown", (e) => { if (e.key === "Escape" && openFormEl) { e.stopPropagation(); closeForm(); } }, true);
-
 /* ---------- sessao e nuvem ---------- */
 
 const API = "/api";
@@ -710,30 +662,13 @@ export function fronts() {
   return c;
 }
 export const listFronts = () => fronts().all().sort((a, b) => a.order - b.order || a.name.localeCompare(b.name));
-/* o selo como string: so para as paginas ainda nao migradas */
-export const frontBadge = (id) => {
-  const f = id && fronts().get(id);
-  if (!f) return "";
-  return '<span class="badge" data-color="' + f.color + '"><i class="dot"></i>' + escapeHtml(f.name) + "</span>";
-};
 /* o numero da cor da frente (0 se nao ha), para quem pinta alem do selo */
 export const frontColor = (id) => { const f = id && fronts().get(id); return f ? f.color : 0; };
-export function frontOptions(selected, empty) {
-  return (empty != null ? '<option value="">' + escapeHtml(empty) + "</option>" : "") +
-    listFronts().map((f) => '<option value="' + f.id + '"' + (f.id === selected ? " selected" : "") + ">" + escapeHtml(f.name) + "</option>").join("");
-}
-
 /* clientes: o indice leve que os outros modulos usam para selo e escolha.
    a colecao inteira mora em clientes.html; aqui so o que e comum. */
 export const clients = () => collection("clients");
 export const listClients = () => clients().all().filter((c) => c.status !== "closed").sort((a, b) => String(a.name).localeCompare(String(b.name)));
 export const clientName = (id) => { const c = id && clients().get(id); return c ? c.name : ""; };
-export function clientOptions(selected, empty, front) {
-  return (empty != null ? '<option value="">' + escapeHtml(empty) + "</option>" : "") +
-    listClients().filter((c) => !front || c.front === front)
-      .map((c) => '<option value="' + c.id + '"' + (c.id === selected ? " selected" : "") + ">" + escapeHtml(c.name) + "</option>").join("");
-}
-
 /* ---------- @frente e @cliente no texto ----------
    "@guessless" ou "@lojax" liga o que esta sendo escrito a uma frente ou a
    um cliente. compara sem acento, sem espaco e sem caixa, com o id e com o
