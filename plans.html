@@ -66,7 +66,7 @@ import {
 } from "./shared/core.js";
 import {
   html, mount, useState, useEffect, useCollection, useFronts, useClients, useKeydown, isTyping,
-  useFields, Form, Field, Dialog, Markdown, FrontBadge, ClientBadge, frontOptionList, clientOptionList, icon, svg
+  useFields, Form, Field, Dialog, Markdown, FrontBadge, ClientBadge, frontOptionList, clientOptionList, icon
 } from "./shared/ui.js";
 
 initPage("plans");
@@ -144,10 +144,6 @@ function normalize(d) {
   };
 }
 
-const SPARK_ICON = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2l1.9 6.1L20 10l-6.1 1.9L12 18l-1.9-6.1L4 10l6.1-1.9L12 2z"/></svg>';
-const UNFOLD_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4v9a3 3 0 003 3h9"/><path d="M14 12l4 4-4 4"/></svg>';
-const LEFT_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>';
-const RIGHT_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>';
 
 /* ---------- a pagina ---------- */
 function Plans() {
@@ -273,8 +269,8 @@ function Horizon({ kind, doc, period, fronts, today: t, childrenOf, parentOf, on
           <p class="horizon__open">${periodSub(kind.id, period) ? periodSub(kind.id, period) + " · " : ""}${open ? open + (open === 1 ? " aberto" : " abertos") : (doc.goals.length ? "tudo feito" : "nada planejado")}</p>
         </div>
         <div class="horizon__nav">
-          <button class="action" type="button" title="anterior" onClick=${() => onShift(-1)}>${svg(LEFT_ICON)}</button>
-          <button class="action" type="button" title="próximo" onClick=${() => onShift(1)}>${svg(RIGHT_ICON)}</button>
+          <button class="action" type="button" title="anterior" onClick=${() => onShift(-1)}>${icon("chevronLeft")}</button>
+          <button class="action" type="button" title="próximo" onClick=${() => onShift(1)}>${icon("chevronRight")}</button>
           <button class="action" type="button" title=${kind.newLabel} aria-label=${kind.newLabel} onClick=${onNew}>${icon("plus")}</button>
         </div>
       </div>
@@ -311,7 +307,7 @@ function Goal({ g, kind, children, parent, onToggle, onEdit, onRemove, onUnfold,
       </div>
       <span class="row-actions">
         ${onPull && !g.done && !g.card && html`<button class="action" type="button" title="puxar para a semana" onClick=${() => onPull(g)}>${icon("arrow")}</button>`}
-        ${onUnfold && !g.done && html`<button class="action" type="button" title=${kind === "quarter" ? "desdobrar no mês" : "desdobrar na semana"} onClick=${() => onUnfold(g)}>${svg(UNFOLD_ICON)}</button>`}
+        ${onUnfold && !g.done && html`<button class="action" type="button" title=${kind === "quarter" ? "desdobrar no mês" : "desdobrar na semana"} onClick=${() => onUnfold(g)}>${icon("unfold")}</button>`}
         <button class="action" type="button" title="editar" onClick=${() => onEdit(g)}>${icon("pencil")}</button>
         <button class="action" type="button" title="apagar" onClick=${() => onRemove(g)}>${icon("trash")}</button>
       </span>
@@ -331,7 +327,7 @@ function Review({ review, onSave, onAsk, canAsk }) {
     <div class="review">
       <div class="review__head">
         <span class="t-mono">revisão</span>
-        <button class="pill pill--mini merlin-btn" type="button" disabled=${thinking || !canAsk} onClick=${ask}>${svg(SPARK_ICON)}${thinking ? "pensando…" : "revisar com o merlin"}</button>
+        <button class="pill pill--mini merlin-btn" type="button" disabled=${thinking || !canAsk} onClick=${ask}>${icon("spark")}${thinking ? "pensando…" : "revisar com o merlin"}</button>
       </div>
       <div><label class="field-label">o que foi</label><textarea class="textarea" rows="2" ...${bind("went")} onBlur=${save}></textarea></div>
       <div><label class="field-label">o que não foi</label><textarea class="textarea" rows="2" ...${bind("didnt")} onBlur=${save}></textarea></div>

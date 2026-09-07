@@ -19,7 +19,7 @@ import {
   useState, useReducer, useEffect, useLayoutEffect, useRef, useMemo, useCallback, useContext
 } from "./preact.js";
 import {
-  collection, cloud, fronts, clients, listFronts, listClients, clientName, md, ICONS
+  collection, cloud, fronts, clients, listFronts, listClients, clientName, md, ICONS, brl, parseMoney
 } from "./core.js";
 
 export {
@@ -75,8 +75,17 @@ export function useCloud() {
   return cloud;
 }
 
+/* troca o #hash sem empilhar historico e avisa quem usa useHash (o
+   replaceState nao dispara hashchange sozinho) */
+export function setHash(id) {
+  const next = id ? "#" + encodeURIComponent(id) : "";
+  if ((location.hash || "") === next) return;
+  history.replaceState(null, "", location.pathname + location.search + next);
+  window.dispatchEvent(new HashChangeEvent("hashchange"));
+}
+
 /* o #hash da url, ja decodificado, acompanhando o hashchange. e assim que
-   "clientes.html#<id>" abre o item certo. */
+   "clients.html#<id>" abre o item certo. */
 export function useHash() {
   const read = () => { try { return decodeURIComponent(location.hash.slice(1)); } catch (e) { return ""; } };
   const [hash, setHash] = useState(read);
@@ -173,9 +182,10 @@ export function clientOptionList(empty, front) {
 }
 
 /* Esc fecha o que estiver aberto por cima: registra em captura, para chegar
-   antes dos atalhos da pagina */
+   antes dos atalhos da pagina, e antes da pintura, para valer ja na primeira
+   tecla depois de abrir */
 function useEscape(onClose) {
-  useEffect(() => {
+  useLayoutEffect(() => {
     const f = (e) => { if (e.key === "Escape") { e.stopPropagation(); onClose && onClose(); } };
     document.addEventListener("keydown", f, true);
     return () => document.removeEventListener("keydown", f, true);
@@ -236,4 +246,34 @@ export function Form({ title, sub, wide, submit, remove, onSubmit, onRemove, onC
 /* um campo com rotulo dentro do formulario. `full` ocupa a linha toda. */
 export function Field({ label, full, children }) {
   return html`<div class=${full ? "full" : null}><label class="field-label">${label}</label>${children}</div>`;
+}
+
+/* o numero grande com legenda (.meter do base.css) */
+export function Meter({ label, value, class: cls }) {
+  return html`<div class="meter"><span class=${"num" + (cls ? " " + cls : "")}>${value}</span><span class="legend">${label}</span></div>`;
+}
+
+/* dinheiro: o valor e em centavos, o texto e o que a pessoa digita. so
+   reformata ao sair do campo, para "1.2" nao virar "R$ 1,20" no meio da
+   digitacao. */
+const moneyText = (cents) => (cents ? brl(cents).replace(/^R\$\s?/, "") : "");
+export function MoneyInput({ value, onChange, class: cls, ...rest }) {
+  const [text, setText] = useState(() => moneyText(value));
+  const last = useRef(value);
+  useEffect(() => { if (value !== last.current) { last.current = value; setText(moneyText(value)); } }, [value]);
+  return html`<input class=${"input input--num" + (cls ? " " + cls : "")} inputmode="decimal" value=${text}
+    onInput=${(e) => { setText(e.currentTarget.value); const c = parseMoney(e.currentTarget.value); last.current = c; onChange && onChange(c); }}
+    onBlur=${() => setText(moneyText(last.current))} ...${rest}/>`;
+}
+
+/* "novo item" no pe de uma lista: um campo e um botao, Enter adiciona */
+export function NewItemRow({ placeholder, button, onAdd, class: cls }) {
+  const [text, setText] = useState("");
+  const add = () => { const t = text.trim(); if (!t) return; onAdd(t); setText(""); };
+  return html`
+    <div class=${"form-row" + (cls ? " " + cls : "")}>
+      <input class="input" placeholder=${placeholder} value=${text} onInput=${(e) => setText(e.currentTarget.value)}
+        onKeyDown=${(e) => { if (e.key === "Enter") { e.preventDefault(); add(); } }}/>
+      <button class="pill pill--mini" type="button" onClick=${add}>${button || "adicionar"}</button>
+    </div>`;
 }

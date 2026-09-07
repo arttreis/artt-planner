@@ -86,7 +86,7 @@ import {
 } from "./shared/core.js";
 import {
   html, mount, useState, useCollection, useFronts, useKeydown, isTyping,
-  useFields, Form, Field, Dialog, Markdown, FrontBadge, frontOptionList, icon, svg
+  useFields, Form, Field, Dialog, Markdown, FrontBadge, frontOptionList, icon
 } from "./shared/ui.js";
 
 initPage("habits");
@@ -127,8 +127,6 @@ function normalize(d) {
   };
 }
 
-const SPARK_ICON = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2l1.9 6.1L20 10l-6.1 1.9L12 18l-1.9-6.1L4 10l6.1-1.9L12 2z"/></svg>';
-const ARCHIVE_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7h18v3H3zM5 10v9h14v-9M10 14h4"/></svg>';
 
 /* ---------- meses e dias ---------- */
 const monthOf = (day) => day.slice(0, 7);
@@ -256,7 +254,7 @@ function Habits() {
         <button class="pill" type="button" onClick=${() => setMonth((m) => shiftMonth(m, -1))}>‹ mês anterior</button>
         <button class="pill" type="button" onClick=${() => setMonth(monthOf(today()))}>hoje</button>
         <button class="pill" type="button" id="merlin-btn" disabled=${thinking || !list.length} onClick=${askSummary}>
-          <span class="merlin-btn__icon" aria-hidden="true">${svg(SPARK_ICON)}</span>
+          <span class="merlin-btn__icon" aria-hidden="true">${icon("spark")}</span>
           <span>${thinking ? "pensando…" : "ler o mês com o merlin"}</span>
         </button>
         <button class="pill" type="button" onClick=${() => setMonth((m) => shiftMonth(m, 1))}>próximo ›</button>
@@ -319,7 +317,7 @@ function HabitRow({ h, days, today: t, onToggle, onEdit, onArchive, onPull }) {
         <span class="row-actions">
           ${h.min > 0 && !h.marks[t] && html`<button class="action" type="button" title="puxar para o dia" onClick=${onPull}>${icon("arrow")}</button>`}
           <button class="action" type="button" title="editar" onClick=${onEdit}>${icon("pencil")}</button>
-          <button class="action" type="button" title="arquivar" onClick=${onArchive}>${svg(ARCHIVE_ICON)}</button>
+          <button class="action" type="button" title="arquivar" onClick=${onArchive}>${icon("archive")}</button>
         </span>
       </td>
     </tr>`;
