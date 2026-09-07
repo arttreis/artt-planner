@@ -2,6 +2,7 @@
    colunas de seg a sex mais o fim de semana, cartoes agrupados por frente.
    nada aqui tem hora: o cartao entra no dia pelo gesto de puxar. */
 import "./shared/base.css";
+import "./week.css";
 import {
   initPage, newId, today, isDay, notify, sendToDay, api,
   parseMentions, formatMin, parseDuration, mondayOf, addDays, dateLabel, dateOf

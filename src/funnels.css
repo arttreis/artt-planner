@@ -1,0 +1,239 @@
+/* merlin · o CSS desta pagina
+   sai do <style> do HTML para ca porque o Vite injeta o CSS do bundle no fim
+   do <head>, depois do <style> — o que invertia quem vence empate de
+   especificidade. importado logo depois do base.css, a ordem volta a ser a de
+   sempre: primeiro o comum, depois o da pagina. */
+
+/* ---------- lista de funis: cartões com miniatura do fluxo ---------- */
+.fl-grid{display:grid;gap:var(--pd);grid-template-columns:repeat(auto-fill,minmax(250px,1fr))}
+.fl-card{
+  position:relative;display:flex;flex-direction:column;gap:10px;
+  padding:12px;border-radius:var(--br);
+  background:var(--surface);border:1px solid var(--line);box-shadow:var(--sombra);
+  cursor:pointer;transition:border-color var(--t),transform var(--t);
+}
+.fl-card:hover{border-color:var(--ink-30);transform:translateY(-1px)}
+.fl-thumb{
+  position:relative;height:104px;border-radius:var(--br3);overflow:hidden;
+  background:var(--surface-2);border:1px solid var(--line-soft);
+  background-image:radial-gradient(var(--line-soft) 1px,transparent 1.3px);background-size:12px 12px;
+}
+.fl-thumb svg{position:absolute;inset:0;width:100%;height:100%}
+.fl-thumb rect{fill:var(--fill-hover);stroke:var(--line)}
+.fl-thumb rect.is-conversion{fill:color-mix(in srgb,var(--green) 22%,transparent);stroke:color-mix(in srgb,var(--green) 45%,transparent)}
+.fl-thumb path{fill:none;stroke:var(--ink-30);stroke-width:1.4}
+.fl-thumb .empty{position:absolute;inset:0;display:grid;place-items:center;padding:0;font-size:12px}
+.fl-name{margin:0;font-size:14px;font-weight:600;letter-spacing:-.02em;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fl-badges{display:flex;gap:6px;flex-wrap:wrap;min-height:20px}
+.fl-foot{display:flex;align-items:center;gap:10px;font-family:var(--mono);font-size:11px;color:var(--ink-50);font-variant-numeric:tabular-nums}
+.fl-foot .row-actions{margin-left:auto}
+.fl-card:hover .row-actions,.fl-card:focus-within .row-actions{opacity:1}
+
+/* ---------- editor: um palco em tela cheia com camadas flutuantes ----------
+   nada de barra + abas + caixa: o palco ocupa a tela toda e o resto (nome,
+   zoom, biblioteca de tipos, painel do nó, dock das abas) flutua por cima,
+   como num editor de nós. a gaveta das abas sobe por cima do palco sem
+   escondê-lo, porque a tabela e o fluxo se explicam um ao outro. */
+.fe{position:relative;z-index:1;height:calc(100dvh - var(--nav-h));margin-top:var(--nav-h);overflow:hidden;background:var(--bg)}
+.fe-stage{
+  position:absolute;inset:0;overflow:hidden;
+  background-image:radial-gradient(var(--line) 1px,transparent 1.4px);background-size:24px 24px;
+}
+.fe-stage svg{display:block;width:100%;height:100%;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none}
+.fe-top,.fe-dock{user-select:none;-webkit-user-select:none}
+.fe-stage svg.is-panning{cursor:grabbing}
+.fe-stage.is-dropping::after{content:"";position:absolute;inset:6px;border:1.5px dashed var(--green);border-radius:var(--br);pointer-events:none}
+
+/* o "vidro": todo cartão flutuante usa o mesmo fundo translúcido com blur */
+.glass{
+  background:color-mix(in srgb,var(--surface) 90%,transparent);
+  backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  border:1px solid var(--line);box-shadow:var(--sombra-2);
+}
+
+/* barra de cima: trilha à esquerda, zoom no meio, ações à direita */
+.fe-top{position:absolute;top:12px;left:12px;right:12px;z-index:8;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;pointer-events:none}
+.fe-top>*{pointer-events:auto}
+.fe-group{display:inline-flex;align-items:center;gap:4px;padding:5px;border-radius:var(--br3)}
+.fe-top .fe-group:first-child{justify-self:start;min-width:0;max-width:100%}
+.fe-top .fe-group:last-child{justify-self:end}
+.fe-trail{display:flex;align-items:center;gap:4px;min-width:0}
+.fe-trail .t-mono{color:var(--ink-30);flex:none;padding:0 2px}
+.fe-name{
+  min-width:60px;width:220px;max-width:36vw;background:none;border:0;
+  font-size:14px;font-weight:600;letter-spacing:-.02em;color:var(--ink);
+  padding:5px 8px;border-radius:var(--br2);
+}
+.fe-name:hover,.fe-name:focus{background:var(--fill);outline:none}
+.fe-zoom output{font-family:var(--mono);font-size:11.5px;color:var(--ink-70);min-width:46px;text-align:center;cursor:pointer;border-radius:var(--br2);padding:5px 0}
+.fe-zoom output:hover{background:var(--fill)}
+.fe-group .sep{width:1px;height:18px;background:var(--line-soft);margin:0 3px}
+.fe-group .action{width:30px;height:30px}
+.fe-group .action[aria-pressed="true"]{color:var(--ink);background:var(--fill-hover)}
+#suggest-btn:disabled{opacity:.6;cursor:default}
+
+/* biblioteca de tipos, à esquerda: clique põe no centro, arrasto solta onde quiser */
+.fe-library{
+  position:absolute;top:64px;left:12px;bottom:76px;z-index:7;width:196px;
+  display:flex;flex-direction:column;gap:10px;padding:12px;border-radius:var(--br);overflow:hidden;
+}
+.fe-library__top{display:flex;align-items:center;justify-content:space-between;color:var(--ink-30)}
+.fe-library__search{padding:6px 12px;font-size:12.5px;flex:none}
+.fe-library__grid:empty::after{content:"nenhum tipo com esse nome";font-size:12px;color:var(--ink-30);padding:8px 2px}
+.fe-library__grid{display:flex;flex-direction:column;gap:4px;overflow-y:auto;scrollbar-width:thin;padding-right:2px;margin-right:-2px}
+.fe-type{
+  display:flex;align-items:center;gap:10px;padding:5px 6px;
+  border-radius:10px;background:var(--fill);border:1px solid var(--line-soft);
+  cursor:grab;text-align:left;user-select:none;-webkit-user-select:none;
+  transition:background var(--t),border-color var(--t),transform var(--t);
+}
+.fe-type:hover{background:var(--fill-hover);border-color:var(--line);transform:translateX(2px)}
+.fe-type:active{cursor:grabbing;transform:none}
+.fe-type .ico,.fe-panel__top .ico{
+  width:26px;height:26px;flex:none;display:grid;place-items:center;border-radius:8px;
+  background:var(--surface-2);border:1px solid var(--line-soft);color:var(--ink-70);
+}
+.fe-type .ico svg,.fe-panel__top .ico svg{width:15px;height:15px}
+.fe-type.is-conversion .ico,.fe-panel__top .ico.is-conversion{
+  color:var(--green-ink);background:color-mix(in srgb,var(--green) 12%,transparent);border-color:color-mix(in srgb,var(--green) 32%,transparent);
+}
+.fe-type span:not(.ico){font-size:12.5px;color:var(--ink);line-height:1.2}
+.fe-library__hint{margin:0;font-size:11px;color:var(--ink-30);line-height:1.4}
+
+/* painel da direita: o funil (nada selecionado), o nó, ou a aresta */
+.fe-panel{
+  position:absolute;top:64px;right:12px;bottom:76px;z-index:7;width:320px;max-width:calc(100vw - 24px);
+  display:flex;flex-direction:column;border-radius:var(--br);overflow:hidden;
+}
+.fe-panel__top{display:flex;align-items:center;gap:10px;padding:12px 12px 10px;border-bottom:1px solid var(--line-soft)}
+.fe-panel__title{flex:1 1 auto;min-width:0}
+.fe-panel__title .t-mono{display:block;font-size:9.5px;color:var(--ink-30);margin-bottom:1px}
+.fe-panel__top h3{margin:0;font-size:13.5px;font-weight:600;letter-spacing:-.01em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fe-panel__body{flex:1 1 auto;min-height:0;overflow-y:auto;padding:12px;scrollbar-width:thin}
+.fe-panel .input,.fe-panel .textarea,.fe-panel .select{margin-bottom:8px}
+.fe-panel .textarea{min-height:60px}
+.pn-section{margin-top:12px;padding-top:10px;border-top:1px solid var(--line-soft)}
+.pn-section h4{margin:0 0 6px;font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-30);font-weight:400}
+.pn-item{display:flex;align-items:center;gap:6px;padding:4px 0;font-size:12.5px;color:var(--ink-70)}
+.pn-add{font-size:12px;color:var(--green-ink);margin-top:4px}
+.pn-add:hover{filter:brightness(1.15)}
+.pn-rate{display:flex;align-items:center;gap:6px;margin-bottom:6px}
+.pn-rate-target{flex:1 1 auto;min-width:0;font-size:12px;color:var(--ink-70);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pn-rate-input{width:72px;flex:0 0 auto;margin-bottom:0 !important}
+.pn-number{display:flex;align-items:baseline;gap:8px}
+.pn-number .input{font-size:20px;font-weight:500;padding:8px 12px}
+.pn-snapshot{display:flex;align-items:center;gap:8px;padding:6px 0;font-size:12.5px;color:var(--ink-70);border-bottom:1px solid var(--line-soft)}
+.pn-snapshot:last-of-type{border-bottom:0}
+.pn-snapshot__when{font-family:var(--mono);font-size:10.5px;color:var(--ink-30);flex:none}
+.pn-snapshot__name{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pn-shortcuts{width:100%;border-collapse:collapse;font-size:12px;color:var(--ink-50)}
+.pn-shortcuts td{padding:3px 0}
+.pn-shortcuts td:first-child{white-space:nowrap;padding-right:10px}
+.pn-period{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.pn-period input{width:100%;min-width:0;padding:7px 8px;font-size:12px;font-family:var(--mono)}
+
+/* dock embaixo: as abas viraram botões que sobem uma gaveta */
+.fe-dock{
+  position:absolute;left:50%;bottom:14px;transform:translateX(-50%);z-index:9;
+  display:flex;align-items:center;gap:2px;padding:5px;border-radius:var(--br-pill);max-width:calc(100vw - 24px);
+}
+.fe-dock button{
+  display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 12px;border-radius:var(--br-pill);
+  font-size:12.5px;color:var(--ink-50);white-space:nowrap;transition:color var(--t),background var(--t);
+}
+.fe-dock button:hover{color:var(--ink);background:var(--fill)}
+.fe-dock button[aria-pressed="true"]{color:var(--ink);background:var(--fill-hover)}
+.fe-dock button svg{width:14px;height:14px}
+.fe-dock .count{font-family:var(--mono);font-size:10px;color:var(--ink-30);padding:1px 6px;border-radius:100px;background:var(--fill);line-height:1.5}
+.fe-dock .sep{width:1px;height:18px;background:var(--line-soft);margin:0 3px}
+
+/* a gaveta das abas */
+.fe-drawer{
+  position:absolute;left:12px;right:12px;bottom:64px;z-index:8;height:min(46%,440px);
+  display:flex;flex-direction:column;border-radius:var(--br);overflow:hidden;
+}
+.fe-drawer__top{display:flex;align-items:center;gap:10px;padding:10px 12px 10px 16px;border-bottom:1px solid var(--line-soft)}
+.fe-drawer__top h3{margin:0;font-size:13.5px;font-weight:600;flex:1 1 auto}
+.fe-drawer__body{flex:1 1 auto;min-height:0;overflow:auto;padding:12px 16px 16px;scrollbar-width:thin}
+.fe.is-drawer .fe-library{display:none}
+.fe.is-drawer .fe-panel{bottom:calc(min(46%,440px) + 76px)}
+.fe-add-row{margin-bottom:var(--pd)}
+.fe-drawer .table .input,.fe-drawer .table .select{min-width:120px}
+/* as ações da linha só aparecem quando a linha está sob o mouse; a regra do
+   base.css cobre só a .line, e aqui a linha é um <tr> */
+.fe-drawer .table tr:hover .row-actions,.fe-drawer .table tr:focus-within .row-actions{opacity:1}
+#read-numbers:disabled{opacity:.6;cursor:default}
+
+/* ---------- os nós no svg ---------- */
+.node{cursor:grab}
+.node-box{fill:var(--surface);stroke:var(--line);stroke-width:1;transition:stroke .15s}
+.node:hover .node-box{stroke:var(--ink-30)}
+.node.is-selected .node-box{stroke:var(--green);stroke-width:1.5;filter:drop-shadow(0 0 14px var(--green-glow))}
+.node-icon-bg{fill:var(--fill-hover);stroke:var(--line-soft)}
+.node-icon-bg.is-conversion{fill:color-mix(in srgb,var(--green) 14%,transparent);stroke:color-mix(in srgb,var(--green) 34%,transparent)}
+.node-icon{color:var(--ink-70);fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.node-icon.is-conversion{color:var(--green-ink)}
+.node-type{fill:var(--ink-30);font-family:var(--mono);font-size:9px;letter-spacing:.08em;text-transform:uppercase}
+.node-title{fill:var(--ink);font-family:var(--sans);font-size:12.5px;font-weight:500}
+.node-body{fill:var(--bg);fill-opacity:.55;stroke:var(--line-soft)}
+html.light .node-body{fill-opacity:.35}
+.node-dot{fill:var(--ink-30)}
+.node-dot.has-number{fill:var(--green)}
+.node-number{fill:var(--ink);font-family:var(--mono);font-size:19px;font-weight:500;letter-spacing:-.02em}
+.node-number.is-empty{fill:var(--ink-30);font-weight:400;font-size:14px}
+.node-number.is-projected{fill:var(--ink-30);font-weight:400}
+.node-compare,.node-caption{fill:var(--ink-30);font-family:var(--mono);font-size:10px}
+.node-chip{fill:var(--fill);stroke:var(--line-soft)}
+.node-chip-text{fill:var(--ink-50);font-family:var(--mono);font-size:9.5px}
+.node-port{fill:var(--surface-2);stroke:var(--line)}
+.node-handle circle.vis{fill:var(--surface-2);stroke:var(--line);stroke-width:1.2;transition:fill .15s,stroke .15s}
+.node-handle circle.hit{fill:transparent;stroke:none;cursor:crosshair}
+.node-handle:hover circle.vis{fill:var(--green);stroke:var(--green)}
+.edge-hit{fill:none;stroke:transparent;stroke-width:16;cursor:pointer}
+.edge-line{fill:none;stroke:var(--ink-30);transition:stroke .15s}
+.edge-line.is-weak{stroke-dasharray:5 4}
+.edge:hover .edge-line{stroke:var(--ink-70)}
+.edge.is-selected .edge-line{stroke:var(--green)}
+.edge-label{fill:var(--ink-70);font-family:var(--mono);font-size:10px}
+.edge-label.is-weak{fill:var(--ink-50)}
+.edge-label.is-avg{fill:var(--ink-30)}
+.edge-label-bg{fill:var(--surface-2);stroke:var(--line)}
+.edge.is-selected .edge-label-bg{stroke:var(--green)}
+.temp-link{fill:none;stroke:var(--green);stroke-width:1.6;stroke-dasharray:4 4;pointer-events:none}
+.fe-empty{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:2;
+  text-align:center;max-width:300px;pointer-events:none;
+}
+
+/* ---------- gaveta: escada e sugestões ---------- */
+.ladder{display:flex;flex-direction:column;gap:6px;margin:var(--pd) 0}
+.ladder-item{display:flex;align-items:center;gap:var(--pd2);padding:8px 12px;background:var(--fill);border-radius:var(--br2)}
+.ladder-item .type{width:100px;flex:0 0 auto}
+.ladder-item .name{flex:1 1 auto}
+.ladder-item .price{font-family:var(--mono)}
+.trigger-chips{margin-bottom:var(--pd)}
+.sug-group{margin-bottom:var(--pd)}
+.sug-group h4{margin:0 0 6px;font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-30);font-weight:400}
+.sug-item{display:flex;align-items:flex-start;gap:8px;padding:7px 4px;border-bottom:1px solid var(--line-soft)}
+.sug-item input[type="checkbox"]{margin-top:3px;flex:0 0 auto;accent-color:var(--green)}
+.sug-title{font-weight:600;font-size:13px}
+.sug-note{display:block;color:var(--ink-50);font-size:12px;margin-top:2px}
+.dlg-md{min-height:120px;background:var(--fill);border:1px solid var(--line);border-radius:var(--br2);padding:8px 12px;font-size:13px;color:var(--ink);overflow:auto}
+.dlg-md :first-child{margin-top:0}
+.dlg-md p{margin:0 0 8px}
+.dlg-md ul,.dlg-md ol{margin:0 0 8px;padding-left:20px}
+.dlg-md h3,.dlg-md h4,.dlg-md h5{margin:0 0 6px;font-size:13px;font-weight:600}
+
+/* ---------- celular: biblioteca e painel viram folhas embaixo ---------- */
+@media (max-width:899px){
+  .fe-top{grid-template-columns:1fr auto}
+  .fe-zoom{display:none}
+  .fe-name{max-width:40vw}
+  .fe-library,.fe-panel{top:auto;left:12px;right:12px;bottom:64px;width:auto;height:52%}
+  .fe.is-drawer .fe-panel{display:none}
+  .fe-drawer{height:60%}
+  .fe-dock{gap:0;padding:4px;overflow-x:auto;scrollbar-width:none;justify-content:flex-start}
+  .fe-dock::-webkit-scrollbar{display:none}
+  .fe-dock button{padding:0 9px;font-size:12px}
+  #suggest-btn span{display:none}
+}

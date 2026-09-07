@@ -1,0 +1,338 @@
+/* merlin · os planos
+   trimestre, mes e semana lado a lado, objetivos por frente. desdobrar leva um
+   objetivo do horizonte de cima para o de baixo; puxar leva para a semana. */
+import "./shared/base.css";
+import "./plans.css";
+import {
+  initPage, newId, today, dayOf, dateOf, addDays, mondayOf, monthLabel, dateLabel, notify, api, clientName
+} from "./shared/core.js";
+import { useState, useEffect } from "react";
+import {
+  mount, useCollection, useFronts, useClients, useKeydown, isTyping,
+  useFields, Form, Field, Dialog, Markdown, FrontBadge, ClientBadge, frontOptionList, clientOptionList, icon
+} from "./shared/ui.jsx";
+
+initPage("plans");
+
+/* ---------- periodos ----------
+   um documento por periodo, com id previsivel (kind:period): quem abre um
+   trimestre que nunca teve objetivo le null e mostra vazio, sem criar nada. */
+const KINDS = [
+  { id: "quarter", label: "trimestre", newLabel: "objetivo do trimestre" },
+  { id: "month", label: "mês", newLabel: "objetivo do mês" },
+  { id: "week", label: "semana", newLabel: "objetivo da semana" }
+];
+const MONTHS_SHORT = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+
+function periodOf(kind, day) {
+  const d = dateOf(day);
+  if (kind === "quarter") return d.getFullYear() + "-Q" + (Math.floor(d.getMonth() / 3) + 1);
+  if (kind === "month") return day.slice(0, 7);
+  return mondayOf(day);
+}
+function shiftPeriod(kind, period, n) {
+  if (kind === "quarter") {
+    const [y, q] = period.split("-Q").map(Number);
+    const total = y * 4 + (q - 1) + n;
+    return Math.floor(total / 4) + "-Q" + ((total % 4) + 1);
+  }
+  if (kind === "month") {
+    const [y, m] = period.split("-").map(Number);
+    return dayOf(new Date(y, m - 1 + n, 1)).slice(0, 7);
+  }
+  return addDays(period, n * 7);
+}
+function periodLabel(kind, period) {
+  if (kind === "quarter") {
+    const [y, q] = period.split("-Q").map(Number);
+    return q + "º trimestre · " + y;
+  }
+  if (kind === "month") return monthLabel(period);
+  const end = addDays(period, 6);
+  const same = dateOf(period).getMonth() === dateOf(end).getMonth();
+  return "semana de " + (same ? dateOf(period).getDate() + "–" + dateLabel(end) : dateLabel(period) + "–" + dateLabel(end));
+}
+function periodSub(kind, period) {
+  if (kind === "quarter") {
+    const q = +period.split("-Q")[1];
+    return MONTHS_SHORT[(q - 1) * 3] + "–" + MONTHS_SHORT[(q - 1) * 3 + 2];
+  }
+  return "";
+}
+/* o periodo "de baixo" que cabe dentro deste: o mes atual do trimestre, a
+   semana atual do mes. desdobrar cria o filho la. */
+function childPeriod(kind, period) {
+  const t = today();
+  if (kind === "quarter") {
+    const cur = periodOf("month", t);
+    return cur.startsWith(period.split("-Q")[0]) && periodOf("quarter", cur + "-01") === period ? cur : period.split("-Q")[0] + "-" + String((+period.split("-Q")[1] - 1) * 3 + 1).padStart(2, "0");
+  }
+  const cur = mondayOf(t);
+  return cur.slice(0, 7) === period ? cur : mondayOf(period + "-01") < period + "-01" ? addDays(mondayOf(period + "-01"), 7) : mondayOf(period + "-01");
+}
+const docId = (kind, period) => kind + ":" + period;
+
+function normalize(d) {
+  return {
+    id: d.id,
+    kind: KINDS.some((k) => k.id === d.kind) ? d.kind : "week",
+    period: String(d.period || ""),
+    goals: (Array.isArray(d.goals) ? d.goals : []).map((g) => ({
+      id: g.id, text: String(g.text || "").slice(0, 200), front: g.front || "", client: g.client || "",
+      done: !!g.done, parent: g.parent || "", card: g.card || "", order: +g.order || 0, createdAt: +g.createdAt || 0
+    })),
+    review: { went: String((d.review && d.review.went) || ""), didnt: String((d.review && d.review.didnt) || ""), next: String((d.review && d.review.next) || "") },
+    createdAt: +d.createdAt || Date.now(),
+    updatedAt: +d.updatedAt || +d.createdAt || Date.now()
+  };
+}
+
+
+/* ---------- a pagina ---------- */
+function Plans() {
+  const plans = useCollection("plans", { normalize });
+  const week = useCollection("week");
+  const fronts = useFronts();
+  useClients();
+  const t = today();
+  const [periods, setPeriods] = useState(() => ({ quarter: periodOf("quarter", t), month: periodOf("month", t), week: periodOf("week", t) }));
+  const [form, setForm] = useState(null);       // { kind, period, id?, parent? } | null
+  const [summary, setSummary] = useState(null); // { title, text } | null
+
+  const docOf = (kind) => plans.get(docId(kind, periods[kind])) || normalize({ id: docId(kind, periods[kind]), kind, period: periods[kind] });
+  const allGoals = plans.all().flatMap((d) => d.goals.map((g) => ({ ...g, kind: d.kind, period: d.period, docId: d.id })));
+  const childrenOf = (id) => allGoals.filter((g) => g.parent === id);
+  const parentOf = (id) => allGoals.find((g) => g.id === id);
+
+  const saveDoc = (doc) => plans.save({ ...doc, updatedAt: Date.now() });
+  const saveGoals = (kind, period, goals) => {
+    const id = docId(kind, period);
+    const doc = plans.get(id) || normalize({ id, kind, period });
+    saveDoc({ ...doc, goals });
+  };
+
+  /* ---------- acoes ---------- */
+  const toggleDone = (kind, g, value) => {
+    const doc = docOf(kind);
+    saveGoals(kind, doc.period, doc.goals.map((x) => x.id === g.id ? { ...x, done: value } : x));
+  };
+  const removeGoal = (kind, g) => {
+    const doc = docOf(kind);
+    const before = doc.goals;
+    saveGoals(kind, doc.period, doc.goals.filter((x) => x.id !== g.id));
+    notify("objetivo apagado", () => saveGoals(kind, doc.period, before));
+  };
+  /* desdobrar: cria um filho no periodo de baixo, apontando para o pai.
+     concluir todos os filhos nao fecha o pai sozinho: fechar e decisao. */
+  const unfold = (kind, g) => {
+    const childKind = kind === "quarter" ? "month" : "week";
+    setForm({ kind: childKind, period: childPeriod(kind, periods[kind]), parent: g.id, prefill: { text: g.text, front: g.front, client: g.client } });
+  };
+  /* puxar para a semana: vira cartao no quadro da semana, e dali entra no dia
+     pelo gesto de sempre. o cartao lembra de onde veio (origin). */
+  const pullToWeek = (g) => {
+    const monday = periods.week;
+    const day = mondayOf(t) === monday ? (dateOf(t).getDay() === 0 || dateOf(t).getDay() === 6 ? "weekend:" + monday : t) : monday;
+    const now = Date.now();
+    const card = { id: newId(), title: g.text, day, front: g.front, client: g.client, min: 0, done: false, recurring: false, order: now, createdAt: now, updatedAt: now, origin: { type: "plan", id: g.id } };
+    week.save(card);
+    const doc = docOf("week");
+    saveGoals("week", doc.period, doc.goals.map((x) => x.id === g.id ? { ...x, card: card.id } : x));
+    notify("virou cartão da semana", () => { week.remove(card.id); saveGoals("week", doc.period, doc.goals.map((x) => x.id === g.id ? { ...x, card: "" } : x)); });
+  };
+  const saveReview = (kind, review) => {
+    const doc = docOf(kind);
+    if (JSON.stringify(doc.review) === JSON.stringify(review)) return;
+    saveDoc({ ...doc, review });
+  };
+
+  /* ---------- revisar com o merlin ---------- */
+  const askReview = async (kind) => {
+    const doc = docOf(kind);
+    const lines = doc.goals.map((g) => {
+      const f = g.front ? fronts.find((x) => x.id === g.front) : null;
+      return [g.text, f ? f.name : null, clientName(g.client) || null, g.done ? "feito" : "aberto"].filter(Boolean).join(" · ");
+    });
+    const weekDone = kind === "week" ? week.all().filter((c) => c.done && (c.day === doc.period || (c.day.startsWith("weekend:") ? c.day.slice(8) === doc.period : mondayOf(c.day) === doc.period))).map((c) => c.title) : [];
+    const r = await api("/merlin", { method: "POST", body: JSON.stringify({ task: "review", context: { kind: KINDS.find((k) => k.id === kind).label, period: periodLabel(kind, doc.period), goals: lines, weekDone, review: doc.review } }) }).catch(() => null);
+    if (!r) { notify("não consegui falar com o Merlin"); return; }
+    if (r.ok) setSummary({ title: "o merlin revisa " + (kind === "week" ? "a semana" : kind === "month" ? "o mês" : "o trimestre"), text: r.body.text || "" });
+    else if (r.status === 401) notify("entre para usar o Merlin");
+    else notify(r.body.error || "não consegui falar com o Merlin");
+  };
+
+  useKeydown((e) => {
+    if (form || summary) return;
+    if (e.key === "n" && !isTyping() && !e.ctrlKey && !e.metaKey && !e.altKey) { e.preventDefault(); setForm({ kind: "week", period: periods.week }); }
+  });
+
+  const shift = (kind, n) => setPeriods((p) => ({ ...p, [kind]: shiftPeriod(kind, p[kind], n) }));
+  const goToday = () => setPeriods({ quarter: periodOf("quarter", t), month: periodOf("month", t), week: periodOf("week", t) });
+  const openCount = (kind) => docOf(kind).goals.filter((g) => !g.done).length;
+
+  return (
+    <>
+      <div className="header">
+        <div>
+          <h1>planos</h1>
+          <p className="sub">{openCount("quarter")} abertos no trimestre · {openCount("month")} no mês · {openCount("week")} na semana</p>
+        </div>
+        <div className="actions">
+          <button className="pill" type="button" onClick={goToday}>hoje</button>
+          <button className="pill pill--green" type="button" title="novo objetivo da semana (n)" onClick={() => setForm({ kind: "week", period: periods.week })}>{icon("plus")}objetivo</button>
+        </div>
+      </div>
+
+      <div className="horizons">
+        {KINDS.map((k) => <Horizon key={k.id} kind={k} doc={docOf(k.id)} period={periods[k.id]} fronts={fronts} today={t}
+          childrenOf={childrenOf} parentOf={parentOf}
+          onShift={(n) => shift(k.id, n)} onNew={() => setForm({ kind: k.id, period: periods[k.id] })}
+          onToggle={(g, v) => toggleDone(k.id, g, v)} onEdit={(g) => setForm({ kind: k.id, period: periods[k.id], id: g.id })}
+          onRemove={(g) => removeGoal(k.id, g)} onUnfold={k.id === "week" ? null : (g) => unfold(k.id, g)}
+          onPull={k.id === "week" ? pullToWeek : null} onReview={(r) => saveReview(k.id, r)} onAsk={() => askReview(k.id)} />)}
+      </div>
+
+      {form && <GoalForm plans={plans} form={form} onClose={() => setForm(null)} onRemove={(g) => removeGoal(form.kind, g)} parentOf={parentOf} />}
+      {summary && <MerlinDialog title={summary.title} text={summary.text} onClose={() => setSummary(null)} />}
+    </>
+  );
+}
+
+/* ---------- uma coluna: um horizonte ---------- */
+function Horizon({ kind, doc, period, fronts, today: t, childrenOf, parentOf, onShift, onNew, onToggle, onEdit, onRemove, onUnfold, onPull, onReview, onAsk }) {
+  const isCurrent = period === periodOf(kind.id, t);
+  const open = doc.goals.filter((g) => !g.done).length;
+  const groups = fronts.map((f) => ({ id: f.id, goals: doc.goals.filter((g) => g.front === f.id) })).filter((g) => g.goals.length);
+  const noFront = doc.goals.filter((g) => !g.front || !fronts.some((f) => f.id === g.front));
+  if (noFront.length) groups.push({ id: "", goals: noFront });
+  const sortGoals = (list) => list.slice().sort((a, b) => (a.done - b.done) || a.order - b.order || a.createdAt - b.createdAt);
+  return (
+    <section className={"block block--flat horizon horizon--" + kind.id + (isCurrent ? " is-current" : "")}>
+      <div className="horizon__head">
+        <div>
+          <p className="horizon__kind t-mono t-mute">{kind.label}{isCurrent ? " · atual" : ""}</p>
+          <p className="horizon__period">{periodLabel(kind.id, period)}</p>
+          <p className="horizon__open">{periodSub(kind.id, period) ? periodSub(kind.id, period) + " · " : ""}{open ? open + (open === 1 ? " aberto" : " abertos") : (doc.goals.length ? "tudo feito" : "nada planejado")}</p>
+        </div>
+        <div className="horizon__nav">
+          <button className="action" type="button" title="anterior" onClick={() => onShift(-1)}>{icon("chevronLeft")}</button>
+          <button className="action" type="button" title="próximo" onClick={() => onShift(1)}>{icon("chevronRight")}</button>
+          <button className="action" type="button" title={kind.newLabel} aria-label={kind.newLabel} onClick={onNew}>{icon("plus")}</button>
+        </div>
+      </div>
+      <div className="horizon__body">
+        {!doc.goals.length && <p className="empty">{kind.id === "quarter" ? "O que este trimestre precisa entregar." : kind.id === "month" ? "Desdobre o trimestre, ou escreva direto." : "O que fecha esta semana. Daqui vira cartão."}</p>}
+        {groups.map((g) => (
+          <div key={g.id} className="goal-group">
+            <p className="goal-group__label">{g.id ? <FrontBadge id={g.id} /> : <span className="t-mono t-mute">sem frente</span>}</p>
+            <ul className="list">
+              {sortGoals(g.goals).map((goal) => <Goal key={goal.id} g={goal} kind={kind.id} children={childrenOf(goal.id)} parent={goal.parent ? parentOf(goal.parent) : null}
+                onToggle={onToggle} onEdit={onEdit} onRemove={onRemove} onUnfold={onUnfold} onPull={onPull} />)}
+            </ul>
+          </div>))}
+        <Review key={doc.id} review={doc.review} onSave={onReview} onAsk={onAsk} canAsk={doc.goals.length > 0} />
+      </div>
+    </section>
+  );
+}
+
+/* ---------- um objetivo ---------- */
+function Goal({ g, kind, children, parent, onToggle, onEdit, onRemove, onUnfold, onPull }) {
+  const doneChildren = children.filter((c) => c.done).length;
+  return (
+    <li className={"line goal" + (g.done ? " is-done" : "")}>
+      <input type="checkbox" className="goal__check" checked={g.done} aria-label={"Concluir " + g.text} onChange={(e) => onToggle(g, e.currentTarget.checked)} />
+      <div className="goal__main">
+        <span className="goal__text">{g.text}</span>
+        {(g.client || parent || children.length > 0 || g.card) && (
+          <span className="goal__meta">
+            <ClientBadge id={g.client} />
+            {g.card && <span className="badge badge--green">na semana</span>}
+            {children.length > 0 && <span className="goal__children" title="desdobrado">{doneChildren}/{children.length} {kind === "quarter" ? "no mês" : "na semana"}</span>}
+            {parent && <span className="goal__parent" title={parent.text}>↳ {parent.text}</span>}
+          </span>)}
+      </div>
+      <span className="row-actions">
+        {onPull && !g.done && !g.card && <button className="action" type="button" title="puxar para a semana" onClick={() => onPull(g)}>{icon("arrow")}</button>}
+        {onUnfold && !g.done && <button className="action" type="button" title={kind === "quarter" ? "desdobrar no mês" : "desdobrar na semana"} onClick={() => onUnfold(g)}>{icon("unfold")}</button>}
+        <button className="action" type="button" title="editar" onClick={() => onEdit(g)}>{icon("pencil")}</button>
+        <button className="action" type="button" title="apagar" onClick={() => onRemove(g)}>{icon("trash")}</button>
+      </span>
+    </li>
+  );
+}
+
+/* ---------- a revisao do periodo ----------
+   tres campos livres, gravados ao sair do campo. o merlin propoe; quem
+   escreve e o arthur. */
+function Review({ review, onSave, onAsk, canAsk }) {
+  const [v, bind, , setValues] = useFields(review);
+  const [thinking, setThinking] = useState(false);
+  useEffect(() => { setValues(review); }, [review.went, review.didnt, review.next]);
+  const save = () => onSave({ went: v.went, didnt: v.didnt, next: v.next });
+  const ask = async () => { if (thinking) return; setThinking(true); try { await onAsk(); } finally { setThinking(false); } };
+  return (
+    <div className="review">
+      <div className="review__head">
+        <span className="t-mono">revisão</span>
+        <button className="pill pill--mini merlin-btn" type="button" disabled={thinking || !canAsk} onClick={ask}>{icon("spark")}{thinking ? "pensando…" : "revisar com o merlin"}</button>
+      </div>
+      <div><label className="field-label">o que foi</label><textarea className="textarea" rows="2" {...bind("went")} onBlur={save}></textarea></div>
+      <div><label className="field-label">o que não foi</label><textarea className="textarea" rows="2" {...bind("didnt")} onBlur={save}></textarea></div>
+      <div><label className="field-label">o que muda</label><textarea className="textarea" rows="2" {...bind("next")} onBlur={save}></textarea></div>
+    </div>
+  );
+}
+
+/* ---------- a caixa do objetivo: criar, editar e desdobrar sao a mesma ---------- */
+function GoalForm({ plans, form, onClose, onRemove, parentOf }) {
+  const kind = KINDS.find((k) => k.id === form.kind);
+  const id = docId(form.kind, form.period);
+  const doc = plans.get(id) || normalize({ id, kind: form.kind, period: form.period });
+  const g = form.id ? doc.goals.find((x) => x.id === form.id) : null;
+  const pre = form.prefill || {};
+  const [v, bind, set] = useFields({
+    text: g ? g.text : (pre.text || ""),
+    front: g ? g.front : (pre.front || ""),
+    client: g ? g.client : (pre.client || "")
+  });
+  if (form.id && !g) return null;
+  const parent = form.parent ? parentOf(form.parent) : (g && g.parent ? parentOf(g.parent) : null);
+  const submit = () => {
+    const text = v.text.trim().slice(0, 200);
+    if (!text) { notify("o objetivo precisa de um texto"); return false; }
+    const now = Date.now();
+    const goals = g
+      ? doc.goals.map((x) => x.id === g.id ? { ...x, text, front: v.front, client: v.client } : x)
+      : [...doc.goals, { id: newId(), text, front: v.front, client: v.client, done: false, parent: form.parent || "", card: "", order: now, createdAt: now }];
+    plans.save({ ...doc, goals, updatedAt: now });
+  };
+  return (
+    <Form title={g ? kind.newLabel.replace("objetivo", "objetivo") : (form.parent ? "desdobrar em " + kind.label : kind.newLabel)}
+        sub={periodLabel(form.kind, form.period) + (parent ? " · de: " + parent.text : "")}
+        submit={g ? "salvar" : "adicionar"} remove={g ? "apagar" : ""} onRemove={() => onRemove(g)} onClose={onClose} onSubmit={submit}>
+      <Field label="objetivo" full><input className="input" maxLength="200" required placeholder="o que precisa estar feito" {...bind("text")} /></Field>
+      <Field label="frente"><select className="select" {...bind("front")} onChange={(e) => { set("front", e.currentTarget.value); set("client", ""); }}>{frontOptionList("sem frente")}</select></Field>
+      <Field label="cliente"><select className="select" {...bind("client")}>{clientOptionList("sem cliente", v.front || undefined)}</select></Field>
+    </Form>
+  );
+}
+
+/* ---------- a revisao do merlin ---------- */
+function MerlinDialog({ title, text, onClose }) {
+  const copy = async () => {
+    try { await navigator.clipboard.writeText(text); notify("copiado"); }
+    catch (e) { notify("não consegui copiar"); }
+  };
+  return (
+    <Dialog title={title} wide onClose={onClose}
+        actions={<>
+          <button className="pill" type="button" onClick={copy}>copiar</button>
+          <button className="pill pill--green" type="button" onClick={onClose}>fechar</button>
+        </>}>
+      <Markdown className="merlin-body" text={text} />
+    </Dialog>
+  );
+}
+
+mount(<Plans />, "app");

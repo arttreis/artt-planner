@@ -1,0 +1,793 @@
+/* merlin · a caixa de ideias
+   a ideia chega como uma mensagem chega: vira uma linha na lista da esquerda,
+   agrupada por dia, e abre no painel da direita sem sair da tela. */
+import "./shared/base.css";
+import "./ideas.css";
+import {
+  initPage, newId, today, dayOf, addDays, dateLabel, notify, sendToDay, api,
+  parseMentions, listClients, clientName, collection, fronts
+} from "./shared/core.js";
+import { useState, useEffect, useLayoutEffect, useRef } from "react";
+import {
+  mount, useCollection, useFronts, useClients, useHash,
+  useKeydown, isTyping, useFields, Form, Field, Dialog, Markdown, frontOptionList, clientOptionList, icon
+} from "./shared/ui.jsx";
+
+initPage("ideas");   // monta a barra, carrega frentes e clientes, retoma a sessao
+
+/* icones proprios: so esta pagina usa. a faisca e o gesto de pedir ajuda ao
+   Merlin; a caixa e arquivar (a de icons.jsx); a pessoa e "virar projeto de
+   cliente". */
+const SparkIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3z" /><path d="M19 15.5l.7 2 2 .7-2 .7-.7 2-.7-2-2-.7 2-.7.7-2z" />
+  </svg>
+);
+const PersonIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <circle cx="12" cy="8" r="3.5" /><path d="M5 20a7 7 0 0114 0" />
+  </svg>
+);
+const ListIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" aria-hidden="true">
+    <path d="M4 7h16M4 12h16M4 17h10" />
+  </svg>
+);
+const BoardIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <rect x="3" y="4" width="5" height="16" rx="1.5" /><rect x="9.5" y="4" width="5" height="11" rx="1.5" /><rect x="16" y="4" width="5" height="8" rx="1.5" />
+  </svg>
+);
+const BulbIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M9 18h6M10 21h4M12 3a6 6 0 00-3.5 10.9c.7.5 1 1.3 1 2.1h5c0-.8.3-1.6 1-2.1A6 6 0 0012 3z" />
+  </svg>
+);
+const BackIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M19 12H5M11 6l-6 6 6 6" />
+  </svg>
+);
+const ChevronIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M6 9l6 6 6-6" />
+  </svg>
+);
+
+/* os 5 estagios, na ordem em que aparecem no quadro. e a unica fonte da
+   verdade da lista: o select do painel, a normalizacao e o quadro leem daqui.
+   o id vai no documento; o rotulo e o que aparece na tela. */
+const STAGES = [
+  { id: "seed", label: "semente" },
+  { id: "exploring", label: "explorando" },
+  { id: "defined", label: "definida" },
+  { id: "executing", label: "executando" },
+  { id: "archived", label: "arquivada" }
+];
+const STAGE_IDS = STAGES.map((s) => s.id);
+const stageLabel = (id) => { const s = STAGES.find((s) => s.id === id); return s ? s.label : id; };
+
+function normalize(d) {
+  return {
+    ...d,
+    title: String(d.title || "").slice(0, 300),
+    body: String(d.body || ""),
+    stage: STAGE_IDS.includes(d.stage) ? d.stage : "seed",
+    front: d.front || "",
+    client: d.client || "",
+    steps: Array.isArray(d.steps) ? d.steps : [],
+    outputs: Array.isArray(d.outputs) ? d.outputs : [],
+    history: Array.isArray(d.history) ? d.history : [],
+    createdAt: d.createdAt || d.updatedAt || Date.now(),
+    updatedAt: d.updatedAt || d.createdAt || Date.now()
+  };
+}
+
+/* unica excecao ao "nao grave no localStorage": preferencia de tela */
+const VIEW_KEY = "merlin:ideas:view";
+const readView = () => { try { return localStorage.getItem(VIEW_KEY) === "board" ? "board" : "list"; } catch (e) { return "list"; } };
+
+/* ---------- tempo, do jeito que uma caixa de entrada mostra ---------- */
+
+const HOUR = 3600000;
+const dayOfStamp = (ms) => dayOf(new Date(ms));
+/* dentro do grupo de hoje o que importa e "ha quanto tempo"; nos outros
+   dias, a hora do dia — o proprio grupo ja diz que dia foi */
+function shortWhen(ms) {
+  const diff = Date.now() - ms;
+  if (dayOfStamp(ms) === today()) {
+    if (diff < 60000) return "agora";
+    if (diff < HOUR) return Math.round(diff / 60000) + " min";
+    return Math.round(diff / HOUR) + " h";
+  }
+  const d = new Date(ms);
+  return String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
+}
+function longWhen(ms) {
+  const diff = Date.now() - ms;
+  if (diff < 60000) return "agora";
+  if (diff < HOUR) return "há " + Math.round(diff / 60000) + " min";
+  if (diff < 24 * HOUR && dayOfStamp(ms) === today()) return "há " + Math.round(diff / HOUR) + " h";
+  const day = dayOfStamp(ms);
+  if (day === addDays(today(), -1)) return "ontem";
+  return dateLabel(day, day.slice(0, 4) !== today().slice(0, 4));
+}
+function groupLabel(day) {
+  if (day === today()) return "hoje";
+  if (day === addDays(today(), -1)) return "ontem";
+  return dateLabel(day, day.slice(0, 4) !== today().slice(0, 4));
+}
+const stampLabel = (ms) => new Date(ms).toLocaleString("pt-BR");
+
+/* ---------- leitura do documento ---------- */
+
+/* a previa e a primeira linha de prosa do corpo; sem corpo, o primeiro
+   passo aberto; sem nada, o silencio — a linha fica so com o estagio */
+function preview(d) {
+  const line = String(d.body || "").split(/\r?\n/).map((l) => l.replace(/^[#\-*\d.)\s\[\]x]+/i, "").trim()).find(Boolean);
+  if (line) return line;
+  const step = d.steps.find((s) => !s.done);
+  return step ? "→ " + step.text : "";
+}
+const isUntouched = (d) => d.stage === "seed" && !d.body && !d.steps.length;
+const stepsDone = (d) => d.steps.filter((s) => s.done).length;
+
+/* ---------- avatar da frente: a inicial na cor dela ---------- */
+function Initial({ front, small }) {
+  const f = front && fronts().get(front);
+  const cls = "initial" + (small ? " initial--sm" : "");
+  if (!f) return <span className={cls} aria-hidden="true">·</span>;
+  return <span className={cls} data-color={f.color} title={f.name}>{String(f.name).trim().charAt(0)}</span>;
+}
+
+/* ---------- a pagina ----------
+   o estado de tela mora aqui: a visao (lista/quadro), a ideia aberta, a
+   caixa de ideia nova, as sugestoes do merlin e as secoes dobradas. nada
+   disso e documento — some ao recarregar, como deve (a visao e a excecao). */
+function Ideas() {
+  const ideas = useCollection("ideas", { normalize });
+  useFronts();
+  useClients();
+  const hash = useHash();
+  const [view, setView] = useState(readView);
+  const [openId, setOpenId] = useState(null);
+  const [form, setForm] = useState(false);
+  const [suggestions, setSuggestions] = useState(null);   // { targetId, items:[{type, title, note, checked}] } | null
+  const [thinking, setThinking] = useState(false);
+  const [panelSync, setPanelSync] = useState(0);          // sobe quando o painel deve reler o documento inteiro
+  const [sections, setSections] = useState({ steps: true, activity: true });
+  const [, tick] = useState(0);
+  const listRef = useRef(null);
+  const focusTitle = useRef(false);   // o painel que montar em seguida leva o foco para o titulo
+  /* espelho do openId que muda na hora, nao so no render: o efeito do hash
+     roda depois da pintura e precisa saber o que um Esc no meio do caminho
+     ja fez, senao reabre o painel que acabou de fechar */
+  const openIdRef = useRef(null);
+  const setOpen = (id) => { openIdRef.current = id; setOpenId(id); };
+
+  const all = ideas.all();
+  /* arquivada nao aparece na lista — senao ela ficaria acumulando para
+     sempre, do mesmo jeito que uma tarefa feita nao volta a poluir a fila do
+     dia. quem quer ver as arquivadas usa o quadro, que tem a coluna delas. */
+  const listItems = all.filter((d) => d.stage !== "archived").sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+  const live = listItems.length;
+  const open = openId ? ideas.get(openId) : null;
+
+  /* a hora relativa ("5 min") envelhece sozinha */
+  useEffect(() => { const t = setInterval(() => tick((n) => n + 1), 60000); return () => clearInterval(t); }, []);
+
+  const changeView = (v) => { setView(v); try { localStorage.setItem(VIEW_KEY, v); } catch (e) {} };
+  const hashId = () => { const h = decodeURIComponent(location.hash.slice(1)); return h && ideas.has(h) ? h : ""; };
+
+  /* ---------- abrir e fechar o painel ---------- */
+  const openIdea = (id, opts = {}) => {
+    const d = ideas.get(id);
+    if (!d) return;
+    const changed = openIdRef.current !== id;
+    focusTitle.current = !opts.noFocus && changed && !d.title;
+    setOpen(id);
+    if (!opts.keepHash) location.hash = id;
+  };
+  const closePanel = (opts = {}) => {
+    setOpen(null);
+    if (!opts.keepHash && hashId()) history.replaceState(null, "", location.pathname + location.search);
+  };
+  /* o hash manda: quem chega por link abre a ideia; quem apaga o hash fecha.
+     le a URL agora, nao o valor que disparou o efeito: entre o hashchange e
+     a pintura um Esc pode ja ter limpado o hash. */
+  useEffect(() => {
+    const id = hashId();
+    if (id) { if (view !== "list") changeView("list"); openIdea(id, { keepHash: true }); }
+    else if (openIdRef.current) closePanel({ keepHash: true });
+  }, [hash]);
+  /* a ideia aberta sumiu por fora (outra aba): o painel fecha sozinho */
+  useEffect(() => { if (openId && !open) closePanel({ keepHash: true }); });
+
+  /* ---------- gravar ---------- */
+  const saveIdea = (doc) => ideas.save({ ...doc, updatedAt: Date.now() });
+  const recordOutput = (doc, type, refId) => saveIdea({ ...doc, outputs: doc.outputs.concat([{ type, id: refId || "", at: Date.now() }]) });
+  /* mudar de estagio deixa rastro: e a unica mudanca de campo que conta como
+     acontecimento — frente e cliente sao classificacao, estagio e caminho */
+  const changeStage = (doc, next) => {
+    if (!doc || doc.stage === next) return;
+    saveIdea({ ...doc, stage: next, history: doc.history.concat([{ type: "stage", from: doc.stage, to: next, at: Date.now() }]) });
+  };
+  const pull = (doc) => {
+    sendToDay({ title: doc.title || "ideia sem título", front: doc.front || "", client: doc.client || "", origin: { type: "idea", id: doc.id } });
+    recordOutput(doc, "day", "");
+  };
+  const removeIdea = (id) => {
+    const before = ideas.remove(id);
+    if (openId === id) closePanel();
+    if (before) notify("ideia apagada", () => ideas.save(before));
+  };
+  const archiveOrRestore = (doc) => {
+    if (doc.stage === "archived") {
+      /* volta para onde estava antes de arquivar, se der para saber */
+      const last = doc.history.slice().reverse().find((h) => h.type === "stage" && h.to === "archived");
+      changeStage(doc, last && STAGE_IDS.includes(last.from) && last.from !== "archived" ? last.from : "seed");
+    } else {
+      changeStage(doc, "archived");
+      notify("ideia arquivada", () => { const now = ideas.get(doc.id); if (now) changeStage(now, doc.stage); });
+    }
+  };
+  const create = (doc) => {
+    ideas.save(doc);
+    if (view !== "list") changeView("list");
+    openIdea(doc.id);
+  };
+
+  /* ---------- saidas: mapa e cliente ---------- */
+  const toMap = (d) => {
+    const maps = collection("maps");
+    const mapId = newId(), now = Date.now();
+    maps.save({
+      id: mapId, name: d.title || "sem título", idea: d.id, front: d.front || "", client: d.client || "",
+      root: { id: newId(), title: d.title || "sem título", note: "", color: 0, collapsed: false, children: [] },
+      createdAt: now, updatedAt: now
+    });
+    recordOutput(d, "map", mapId);
+    location.href = "maps.html#" + mapId;
+  };
+  const toClient = (d) => {
+    recordOutput(d, "client", "");
+    location.href = "clients.html#new?idea=" + encodeURIComponent(d.id);
+  };
+
+  /* ---------- ramificar: o Merlin le a ideia e sugere perguntas, caminhos e passos ---------- */
+  const expand = async (d) => {
+    if (thinking) return;
+    const targetId = d.id;
+    const f = d.front && fronts().get(d.front);
+    setThinking(true);
+    try {
+      const r = await api("/merlin", {
+        method: "POST",
+        body: JSON.stringify({
+          task: "expand",
+          context: {
+            title: d.title || "", body: d.body || "", stage: d.stage || "",
+            steps: d.steps.map((s) => s.text),
+            front: f ? f.name : "", client: clientName(d.client) || ""
+          }
+        })
+      });
+      if (r.ok) openSuggestions(targetId, Array.isArray(r.body.suggestions) ? r.body.suggestions.slice(0, 12) : []);
+      else if (r.status === 401) notify("entre para usar o Merlin");
+      else notify(r.body.error || "o Merlin não respondeu");
+    } catch (e) {
+      notify("não consegui falar com o Merlin");
+    } finally { setThinking(false); }
+  };
+  /* as sugestoes nunca gravam direto: passam pelo dialogo, marcadas por
+     padrao, porque o modelo erra tom e contexto de vez em quando — uma
+     pergunta ruim virando passo sozinha polui o checklist mais rapido do que
+     ajuda. o filtro e a leitura de quem pediu, antes de qualquer gravacao. */
+  const openSuggestions = (targetId, list) => setSuggestions({
+    targetId,
+    items: list.filter((s) => s && s.title && SUGGESTION_GROUPS[s.type])
+      .map((s) => ({ type: s.type, title: String(s.title), note: String(s.note || ""), checked: true }))
+  });
+  const toggleSuggestion = (i, checked) => setSuggestions((s) => ({ ...s, items: s.items.map((it, j) => j === i ? { ...it, checked } : it) }));
+  /* pergunta e passo viram passo (pergunta ganha "? " na frente, para nao se
+     confundir com um passo de execucao); caminho vira uma secao de markdown no
+     corpo — e o unico dos tres que e prosa, nao checklist. */
+  const addSuggestions = () => {
+    const d = ideas.get(suggestions.targetId);
+    if (!d) { setSuggestions(null); return; }
+    const chosen = suggestions.items.filter((s) => s.checked);
+    const newSteps = chosen.filter((s) => s.type === "question" || s.type === "step")
+      .map((s) => ({ id: newId(), text: (s.type === "question" ? "? " : "") + s.title, done: false }));
+    const paths = chosen.filter((s) => s.type === "path");
+    let body = d.body || "";
+    if (paths.length) {
+      body = body.replace(/\s+$/, "");
+      body += (body ? "\n\n" : "") + "## caminhos\n" + paths.map((s) => "- **" + s.title + "**" + (s.note ? " — " + s.note : "")).join("\n");
+    }
+    const targetId = suggestions.targetId;
+    saveIdea({ ...d, steps: d.steps.concat(newSteps), body });
+    setSuggestions(null);
+    /* refresca o painel se ainda for a mesma ideia aberta: isto e uma acao
+       explicita (nao digitacao), entao pode reler o documento inteiro sem
+       medo de atropelar o que o usuario esta escrevendo */
+    if (openId === targetId) setPanelSync((n) => n + 1);
+  };
+
+  /* ---------- setas percorrem a lista como numa caixa de entrada ----------
+     a ideia abre ao lado sem tirar o foco da lista, entao da para ler varias
+     so com o teclado */
+  const goTo = (delta) => {
+    if (!listItems.length) return;
+    const i = listItems.findIndex((d) => d.id === openId);
+    const target = listItems[i < 0 ? (delta > 0 ? 0 : listItems.length - 1) : Math.max(0, Math.min(listItems.length - 1, i + delta))];
+    openIdea(target.id, { noFocus: true });
+    const el = listRef.current && listRef.current.querySelector('[data-id="' + target.id + '"]');
+    if (el) { el.focus({ preventScroll: true }); el.scrollIntoView({ block: "nearest" }); }
+  };
+
+  /* ---------- atalhos ----------
+     o dialogo de sugestoes e a caixa de ideia nova fecham o proprio Esc em
+     captura (ui.jsx), antes de chegar aqui. */
+  useKeydown((e) => {
+    if (e.key === "Escape") {
+      if (isTyping()) { document.activeElement.blur(); return; }   // primeiro Esc sai do campo; o segundo fecha
+      if (openId) closePanel();
+      return;
+    }
+    if (suggestions || form || isTyping()) return;
+    if (e.key === "n" || e.key === "/") { e.preventDefault(); setForm(true); }
+    else if (view === "list" && (e.key === "ArrowDown" || e.key === "j")) { e.preventDefault(); goTo(1); }
+    else if (view === "list" && (e.key === "ArrowUp" || e.key === "k")) { e.preventDefault(); goTo(-1); }
+  });
+
+  const actions = {
+    open: (id) => openIdea(id), close: () => closePanel(),
+    pull, archive: archiveOrRestore, remove: removeIdea, save: saveIdea, changeStage, toMap, toClient, expand,
+    toggleSection: (k) => setSections((s) => ({ ...s, [k]: !s[k] }))
+  };
+
+  return (
+    <>
+      <div className="top">
+        <h1>ideias</h1>
+        <span className="count">{live + (live === 1 ? " ideia" : " ideias")}</span>
+        <button className="pill pill--green pill--mini top__new" type="button" title="nova ideia (n)" onClick={() => setForm(true)}>{icon("plus")}ideia</button>
+        <div className="views" role="tablist" aria-label="Visão">
+          <button className="action" type="button" role="tab" aria-selected={String(view === "list")} title="lista" onClick={() => changeView("list")}><ListIcon /></button>
+          <button className="action" type="button" role="tab" aria-selected={String(view === "board")} title="quadro por estágio" onClick={() => changeView("board")}><BoardIcon /></button>
+        </div>
+      </div>
+
+      <div className="screen" data-mobile={open ? "panel" : "list"}>
+        {view === "list" ? (
+          <>
+            <IdeaList items={listItems} openId={openId} listRef={listRef} actions={actions} />
+            {open
+              ? <IdeaPanel key={open.id} idea={open} ideas={ideas} sync={panelSync} thinking={thinking} focusTitle={focusTitle} sections={sections} actions={actions} />
+              : <EmptyPanel />}
+          </>
+        ) : <Board items={all} onDrop={(id, stage) => changeStage(ideas.get(id), stage)} onOpen={(id) => { changeView("list"); openIdea(id); }} />}
+      </div>
+
+      {form && <IdeaForm onCreate={create} onClose={() => setForm(false)} />}
+      {suggestions && <SuggestionsDialog items={suggestions.items} onToggle={toggleSuggestion} onAdd={addSuggestions} onClose={() => setSuggestions(null)} />}
+    </>
+  );
+}
+
+/* ---------- a lista, agrupada por dia ---------- */
+function IdeaList({ items, openId, listRef, actions }) {
+  const rows = [];
+  let group = "";
+  items.forEach((d) => {
+    const day = dayOfStamp(d.updatedAt || d.createdAt);
+    if (day !== group) { group = day; rows.push(<p key={"day:" + day} className="group">{groupLabel(day)}</p>); }
+    rows.push(<IdeaItem key={d.id} d={d} active={d.id === openId} actions={actions} />);
+  });
+  return (
+    <section className="list-col">
+      <div className="list-col__scroll">
+        <div role="list" ref={listRef}>{rows}</div>
+        {!items.length && <p className="list-empty">Nada aqui. O "+" em cima guarda o que ainda não é tarefa; o quadro mostra as arquivadas.</p>}
+      </div>
+    </section>
+  );
+}
+
+/* a linha: clicar fora dos icones abre; Enter e espaco tambem */
+function IdeaItem({ d, active, actions }) {
+  const total = d.steps.length, done = stepsDone(d);
+  const text = preview(d);
+  const stop = (f) => (e) => { e.stopPropagation(); f(); };
+  return (
+    <div className={"item" + (active ? " is-active" : "")} role="listitem" tabIndex="0" data-id={d.id}
+         onClick={() => actions.open(d.id)}
+         onKeyDown={(e) => { if (e.target !== e.currentTarget) return; if (e.key === "Enter" || e.key === " ") { e.preventDefault(); actions.open(d.id); } }}>
+      <Initial front={d.front} />
+      <div className="item__text">
+        <div className="item__line1">
+          <span className="item__title">{d.title || "sem título"}</span>
+          <span className="item__when">{shortWhen(d.updatedAt || d.createdAt)}</span>
+        </div>
+        <div className="item__preview">
+          <span className={"stage" + (d.stage === "executing" ? " is-green" : "")}>{stageLabel(d.stage)}</span>
+          {total > 0 && <span className="stage">{done + "/" + total}</span>}
+          {text ? <span className="phrase">{text}</span> : null}
+        </div>
+      </div>
+      {isUntouched(d) && <span className="item__new" title="ainda não mexida"></span>}
+      <span className="item__actions">
+        <button className="action" type="button" title="puxar para o dia" onClick={stop(() => actions.pull(d))}>{icon("clock")}</button>
+        <button className="action" type="button" title={d.stage === "archived" ? "desarquivar" : "arquivar"} onClick={stop(() => actions.archive(d))}>{icon("archive")}</button>
+        <button className="action" type="button" title="apagar" onClick={stop(() => actions.remove(d.id))}>{icon("trash")}</button>
+      </span>
+    </div>
+  );
+}
+
+/* ---------- o quadro por estagio: arrastar entre colunas muda o estagio ---------- */
+function Board({ items, onDrop, onOpen }) {
+  const [dragging, setDragging] = useState(null);
+  const [over, setOver] = useState("");
+  if (!items.length) return <section className="board-col"><p className="list-empty">Nada aqui. Escreve na lista o que ainda não é tarefa.</p></section>;
+  return (
+    <section className="board-col">
+      <div className="board">
+        {STAGES.map((st) => {
+          const inStage = items.filter((d) => d.stage === st.id).sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+          return (
+            <div key={st.id} className="board__col">
+              <p className="board__title"><span className="t-mono">{st.label}</span><span className="board__count">{inStage.length}</span></p>
+              <div className={"board__drop" + (over === st.id ? " is-over" : "")} data-stage={st.id}
+                   onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; setOver(st.id); }}
+                   onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setOver(""); }}
+                   onDrop={(e) => { e.preventDefault(); setOver(""); onDrop(e.dataTransfer.getData("text/plain"), st.id); }}>
+                {inStage.length
+                  ? inStage.map((d) => (
+                      <BoardCard key={d.id} d={d} dragging={dragging === d.id}
+                        onDragStart={(e) => {
+                          e.dataTransfer.setData("text/plain", d.id);
+                          e.dataTransfer.effectAllowed = "move";
+                          /* a classe entra depois do quadro, senao a imagem arrastada ja nasce apagada */
+                          requestAnimationFrame(() => setDragging(d.id));
+                        }}
+                        onDragEnd={() => setDragging(null)} onOpen={() => onOpen(d.id)} />))
+                  : <p className="board__empty">nada aqui</p>}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+function BoardCard({ d, dragging, onDragStart, onDragEnd, onOpen }) {
+  const total = d.steps.length, done = stepsDone(d);
+  return (
+    <div className={"block block--flat board__card" + (dragging ? " is-dragging" : "")} draggable="true" data-id={d.id}
+         onDragStart={onDragStart} onDragEnd={onDragEnd} onClick={onOpen}>
+      <div className="board__card-top">
+        <p className="board__card-title">{d.title || "sem título"}</p>
+        <span className="board__grip" aria-hidden="true">{icon("grip")}</span>
+      </div>
+      <div className="row">
+        <Initial front={d.front} small />
+        {total > 0 && <span className="small weak">{done + "/" + total}</span>}
+        <span className="small weak board__when">{longWhen(d.updatedAt || d.createdAt)}</span>
+      </div>
+    </div>
+  );
+}
+
+/* ---------- o painel vazio ---------- */
+function EmptyPanel() {
+  return (
+    <section className="panel">
+      <div className="panel__empty">
+        <BulbIcon />
+        <p>escolha uma ideia ao lado, ou escreva uma nova.<br /><span className="small"><kbd>/</kbd> foca o campo · <kbd>↑</kbd><kbd>↓</kbd> percorrem a lista</span></p>
+      </div>
+    </section>
+  );
+}
+
+/* ---------- o painel da ideia aberta ----------
+   e montado de novo a cada ideia (key pelo id): o rascunho de titulo e corpo
+   nasce do documento e dali em diante e so da tela — uma sincronizacao que
+   chega no meio da digitacao nao apaga nada. os outros pedacos (ficha,
+   passos, atividade) leem o documento fresco a cada render. */
+function IdeaPanel({ idea, ideas, sync, thinking, focusTitle, sections, actions }) {
+  const [draft, setDraft] = useState({ title: idea.title, body: idea.body });
+  const [viewing, setViewing] = useState(!!idea.body);   // ideia com corpo abre lendo; vazia abre escrevendo
+  const [saved, setSaved] = useState(false);
+  const titleRef = useRef(null), bodyRef = useRef(null);
+  const draftRef = useRef(draft); draftRef.current = draft;
+  const saveTimer = useRef(null), savedTimer = useRef(null), wantBodyFocus = useRef(false), lastSync = useRef(sync);
+
+  const total = idea.steps.length, done = stepsDone(idea);
+
+  /* antes da pintura: quem abriu uma ideia sem titulo ja esta com o dedo no teclado */
+  useLayoutEffect(() => {
+    if (focusTitle.current) { focusTitle.current = false; if (titleRef.current) titleRef.current.focus(); }
+  }, []);
+
+  const showSaved = () => {
+    setSaved(true);
+    clearTimeout(savedTimer.current);
+    savedTimer.current = setTimeout(() => setSaved(false), 1400);
+  };
+
+  /* titulo e corpo salvam com debounce (digitar nao pode gravar a cada tecla);
+     estagio/frente/cliente salvam na hora, porque "change" ja e um gesto so */
+  const flush = () => {
+    clearTimeout(saveTimer.current); saveTimer.current = null;
+    const now = ideas.get(idea.id);
+    if (!now) return;
+    actions.save({ ...now, title: draftRef.current.title.trim().slice(0, 300), body: draftRef.current.body });
+  };
+  const scheduleSave = () => {
+    clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => { flush(); showSaved(); }, 500);
+  };
+  /* ao sair (outra ideia, fechar, quadro) o que ficou pendente e gravado na ideia certa */
+  useEffect(() => () => { if (saveTimer.current) flush(); clearTimeout(savedTimer.current); }, []);
+
+  /* uma acao explicita (as sugestoes do merlin) mudou o documento: rele tudo e abre lendo */
+  useEffect(() => {
+    if (sync === lastSync.current) return;
+    lastSync.current = sync;
+    const now = ideas.get(idea.id);
+    if (!now) return;
+    clearTimeout(saveTimer.current); saveTimer.current = null;
+    setDraft({ title: now.title, body: now.body });
+    setViewing(true);
+    setSaved(false);
+  }, [sync]);
+
+  /* o corpo cresce com o texto */
+  useLayoutEffect(() => {
+    const ta = bodyRef.current;
+    if (!viewing && ta) { ta.style.height = "auto"; ta.style.height = ta.scrollHeight + "px"; }
+  }, [viewing, draft.body]);
+  /* sair do modo ver para escrever: o foco entra no corpo assim que ele aparece */
+  useLayoutEffect(() => {
+    if (!viewing && wantBodyFocus.current) { wantBodyFocus.current = false; if (bodyRef.current) bodyRef.current.focus(); }
+  }, [viewing]);
+  const editBody = () => {
+    if (!viewing) { if (bodyRef.current) bodyRef.current.focus(); return; }
+    wantBodyFocus.current = true;
+    setViewing(false);
+  };
+  const toggleViewing = () => { if (viewing) editBody(); else setViewing(true); };
+
+  const onTitleInput = (e) => { const title = e.currentTarget.value; setDraft((v) => ({ ...v, title })); scheduleSave(); };
+  const onBodyInput = (e) => { const body = e.currentTarget.value; setDraft((v) => ({ ...v, body })); scheduleSave(); };
+
+  /* ---------- a ficha ---------- */
+  const frontValue = fronts().get(idea.front) ? idea.front : "";
+  const visibleClients = listClients().filter((c) => !idea.front || c.front === idea.front);
+  const clientValue = visibleClients.some((c) => c.id === idea.client) ? idea.client : "";
+  const onStageChange = (e) => { actions.changeStage(ideas.get(idea.id), e.currentTarget.value); showSaved(); };
+  const onFrontChange = (e) => {
+    const front = e.currentTarget.value;
+    const now = ideas.get(idea.id);
+    if (!now) return;
+    /* o cliente pode nao pertencer a nova frente: se sumiu da lista, o valor
+       volta para "" — e e exatamente esse valor que gravamos */
+    const inFront = listClients().filter((c) => !front || c.front === front);
+    actions.save({ ...now, front, client: inFront.some((c) => c.id === clientValue) ? clientValue : "" });
+    showSaved();
+  };
+  const onClientChange = (e) => {
+    const now = ideas.get(idea.id);
+    if (!now) return;
+    actions.save({ ...now, client: e.currentTarget.value });
+    showSaved();
+  };
+
+  /* ---------- passos ---------- */
+  const addStep = (text) => {
+    const now = ideas.get(idea.id);
+    if (!now) return;
+    actions.save({ ...now, steps: now.steps.concat([{ id: newId(), text: text.slice(0, 200), done: false }]) });
+  };
+  const toggleStep = (stepId) => {
+    const now = ideas.get(idea.id);
+    if (!now) return;
+    actions.save({ ...now, steps: now.steps.map((s) => s.id === stepId ? { ...s, done: !s.done } : s) });
+  };
+  const pullStep = (step) => {
+    const now = ideas.get(idea.id);
+    if (!now) return;
+    sendToDay({ title: step.text, front: now.front || "", client: now.client || "", origin: { type: "idea", id: now.id } });
+  };
+  const removeStep = (stepId) => {
+    const now = ideas.get(idea.id);
+    if (!now) return;
+    const before = now.steps;
+    actions.save({ ...now, steps: before.filter((s) => s.id !== stepId) });
+    notify("passo apagado", () => { const again = ideas.get(now.id); if (again) actions.save({ ...again, steps: before }); });
+  };
+
+  return (
+    <section className="panel">
+      <div className="panel__bar">
+        <button className="action back-btn" type="button" title="voltar para a lista" aria-label="Voltar" onClick={actions.close}><BackIcon /></button>
+        <button className="pill" type="button" title="puxar para o dia" onClick={() => actions.pull(idea)}>{icon("clock")}<span>puxar para o dia</span></button>
+        <button className="pill" type="button" title="abrir como mapa mental" onClick={() => actions.toMap(idea)}>{icon("map")}<span>mapa</span></button>
+        <button className="pill" type="button" title="virar projeto de cliente" onClick={() => actions.toClient(idea)}><PersonIcon /><span>cliente</span></button>
+        <span className="sep"></span>
+        <button className="pill" type="button" id="expand-btn" title="o Merlin sugere perguntas, caminhos e passos" disabled={thinking} onClick={() => actions.expand(idea)}><SparkIcon /><span>{thinking ? "pensando…" : "ramificar"}</span></button>
+        <span className="spacer"></span>
+        <span className={"saved" + (saved ? " is-visible" : "")} aria-live="polite">salvo</span>
+        <button className="link" type="button" onClick={toggleViewing}>{viewing ? "editar" : "ver"}</button>
+        <span className="sep"></span>
+        <button className="action" type="button" title={idea.stage === "archived" ? "desarquivar" : "arquivar"} onClick={() => actions.archive(idea)}>{icon("archive")}</button>
+        <button className="action" type="button" title="apagar ideia" onClick={() => actions.remove(idea.id)}>{icon("trash")}</button>
+      </div>
+
+      <div className="panel__scroll">
+        <div className="panel__body">
+          <input ref={titleRef} className="title-input" maxLength="300" placeholder="título da ideia" aria-label="Título da ideia"
+                 value={draft.title} onChange={onTitleInput}
+                 onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); editBody(); } }} />
+          <textarea ref={bodyRef} className="body-input" rows="2" placeholder="o que é essa ideia… (markdown simples)" aria-label="Corpo da ideia"
+                    hidden={viewing} value={draft.body} onChange={onBodyInput}></textarea>
+          {viewing && (
+            <div className="body-md" onClick={(e) => { if (e.target.closest("a")) return; editBody(); }}>
+              {draft.body ? <Markdown text={draft.body} /> : <p className="weak">sem corpo — clique em editar para escrever.</p>}
+            </div>
+          )}
+
+          <div className="sheet">
+            <span className="k">estágio</span>
+            <span className="v v--stage" data-stage={idea.stage}>
+              <i className="stage-dot" aria-hidden="true"></i>
+              <select className="pill-select pill-select--stage" aria-label="Estágio" value={idea.stage} onChange={onStageChange}>
+                {STAGES.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
+              </select>
+            </span>
+            <span className="k">frente</span>
+            <span className="v"><select className="pill-select" aria-label="Frente" value={frontValue} onChange={onFrontChange}>{frontOptionList("sem frente")}</select></span>
+            <span className="k">cliente</span>
+            <span className="v"><select className="pill-select" aria-label="Cliente" value={clientValue} onChange={onClientChange}>{clientOptionList("sem cliente", idea.front || undefined)}</select></span>
+            <span className="k">criada</span>
+            <span className="v"><span className="weak" title={stampLabel(idea.createdAt)}>{longWhen(idea.createdAt)}</span></span>
+            <span className="k">passos</span>
+            <span className="v"><span className="t-mono">{total ? done + " de " + total : "nenhum"}</span></span>
+          </div>
+
+          <div className={"section" + (sections.steps ? "" : " is-closed")}>
+            <div className="section__head" onClick={() => actions.toggleSection("steps")}>
+              <ChevronIcon />
+              <span className="title">passos</span>
+              <span className="count">{total ? done + "/" + total : ""}</span>
+              {total > 0 && <span className="bar"><i style={{ width: Math.round(100 * done / total) + "%" }}></i></span>}
+            </div>
+            <div className="section__body">
+              <div>{idea.steps.map((s) => <Step key={s.id} step={s} onToggle={() => toggleStep(s.id)} onPull={() => pullStep(s)} onRemove={() => removeStep(s.id)} />)}</div>
+              <NewStep onAdd={addStep} />
+            </div>
+          </div>
+
+          <div className={"section" + (sections.activity ? "" : " is-closed")}>
+            <div className="section__head" onClick={() => actions.toggleSection("activity")}>
+              <ChevronIcon />
+              <span className="title">atividade</span>
+            </div>
+            <div className="section__body"><Activity idea={idea} /></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function Step({ step, onToggle, onPull, onRemove }) {
+  return (
+    <div className={"step" + (step.done ? " is-done" : "")} data-id={step.id}>
+      <button className="step__check" type="button" title="marcar feito" onClick={onToggle}>{icon("check")}</button>
+      <span className="step__text">{step.text}</span>
+      <span className="step__actions">
+        <button className="action" type="button" title="puxar para o dia" onClick={onPull}>{icon("clock")}</button>
+        <button className="action" type="button" title="apagar" onClick={onRemove}>{icon("trash")}</button>
+      </span>
+    </div>
+  );
+}
+function NewStep({ onAdd }) {
+  const [text, setText] = useState("");
+  return (
+    <form className="step step--new" autoComplete="off" onSubmit={(e) => { e.preventDefault(); const t = text.trim(); if (!t) return; onAdd(t); setText(""); }}>
+      <span className="step__check" aria-hidden="true"></span>
+      <input maxLength="200" placeholder="um próximo passo… (Enter adiciona)" aria-label="Novo passo" value={text} onChange={(e) => setText(e.currentTarget.value)} />
+    </form>
+  );
+}
+
+/* a atividade e a linha do tempo da ideia: quando nasceu, por onde passou,
+   para onde saiu. tudo que ja esta no documento, so contado em ordem. */
+const OUTPUT_LABELS = { day: "puxada para o dia", map: "virou mapa mental", client: "virou projeto de cliente", funnel: "virou funil" };
+function Activity({ idea }) {
+  const events = [{ at: idea.createdAt, key: "created", node: <b>criada</b> }]
+    .concat(idea.history.filter((h) => h.type === "stage").map((h, i) => ({
+      at: h.at, key: "stage:" + i,
+      node: <>passou de <span className="tag">{stageLabel(h.from)}</span> para <span className="tag">{stageLabel(h.to)}</span></>
+    })))
+    .concat(idea.outputs.map((o, i) => ({ at: o.at, key: "output:" + i, node: <b>{OUTPUT_LABELS[o.type] || o.type}</b> })))
+    .sort((a, b) => b.at - a.at);
+  return (
+    <ul className="activity">
+      {events.map((ev) => (
+        <li key={ev.key}>
+          <Initial front={idea.front} small />
+          <span className="txt">{ev.node}</span>
+          <span className="when" title={stampLabel(ev.at)}>{longWhen(ev.at)}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/* ---------- criar ideia (botao + caixa) ----------
+   o titulo aceita "@frente" e "@cliente" como o resto do sistema; os
+   campos ao lado ganham quando preenchidos. a ideia nasce semente e ja
+   abre no painel, para ganhar corpo se for o caso. */
+function IdeaForm({ onCreate, onClose }) {
+  const [v, bind, set] = useFields({ title: "", front: "", client: "" });
+  const submit = () => {
+    const found = parseMentions(v.title);   // @frente / @cliente no texto viram os campos, e somem do titulo
+    const title = found.title.slice(0, 300);
+    if (!title) { notify("a ideia precisa de um título"); return false; }
+    const now = Date.now();
+    onCreate({
+      id: newId(), title, body: "", stage: "seed",
+      front: v.front || found.front || "", client: v.client || found.client || "",
+      steps: [], outputs: [], history: [], createdAt: now, updatedAt: now
+    });
+  };
+  return (
+    <Form title="nova ideia" submit="guardar" onClose={onClose} onSubmit={submit}>
+      <Field label="título" full>
+        <input className="input" maxLength="300" required placeholder="o que ainda não é tarefa · @frente" {...bind("title")} />
+      </Field>
+      <Field label="frente">
+        <select className="select" {...bind("front")} onChange={(e) => { set("front", e.currentTarget.value); set("client", ""); }}>{frontOptionList("sem frente")}</select>
+      </Field>
+      <Field label="cliente"><select className="select" {...bind("client")}>{clientOptionList("sem cliente", v.front || undefined)}</select></Field>
+    </Form>
+  );
+}
+
+/* ---------- as sugestoes do merlin, em grupos, para marcar antes de gravar ---------- */
+const SUGGESTION_GROUPS = { question: "perguntas", path: "caminhos", step: "passos" };
+const SUGGESTION_ORDER = ["question", "path", "step"];
+function SuggestionsDialog({ items, onToggle, onAdd, onClose }) {
+  const n = items.filter((s) => s.checked).length;
+  const groups = SUGGESTION_ORDER
+    .map((type) => ({ type, items: items.map((s, i) => ({ ...s, i })).filter((s) => s.type === type) }))
+    .filter((g) => g.items.length);
+  return (
+    <Dialog title="sugestões do merlin" sub="escolha o que vira passo ou entra no corpo — nada muda sem confirmar" label="Sugestões do Merlin" onClose={onClose}
+        actions={<>
+          <button className="link" type="button" onClick={onClose}>descartar</button>
+          <button className="pill pill--green" type="button" id="suggestions-add" disabled={n === 0} onClick={onAdd}>{"adicionar" + (n ? " " + n : "")}</button>
+        </>}>
+      {groups.length ? groups.map((g) => (
+        <div key={g.type} className="mt">
+          <p className="heading"><span className="t-mono">{SUGGESTION_GROUPS[g.type]}</span></p>
+          <div className="suggestion-list">
+            {g.items.map((s) => (
+              <label key={s.i} className="suggestion">
+                <input type="checkbox" checked={s.checked} onChange={(e) => onToggle(s.i, e.currentTarget.checked)} />
+                <span className="suggestion__text"><b>{s.title}</b>{s.note ? <span className="suggestion__note">{s.note}</span> : null}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+      )) : <p className="empty">o Merlin não achou nada por aqui.</p>}
+    </Dialog>
+  );
+}
+
+mount(<Ideas />, "app");

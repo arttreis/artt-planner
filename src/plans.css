@@ -1,0 +1,49 @@
+/* merlin · o CSS desta pagina
+   sai do <style> do HTML para ca porque o Vite injeta o CSS do bundle no fim
+   do <head>, depois do <style> — o que invertia quem vence empate de
+   especificidade. importado logo depois do base.css, a ordem volta a ser a de
+   sempre: primeiro o comum, depois o da pagina. */
+
+/* ---------- tres colunas, tres horizontes ----------
+   trimestre, mes e semana lado a lado: e assim que "o que esta aberto no meu
+   trimestre" e "na minha semana" se leem de um lugar so. no celular vira uma
+   coluna, e a semana vem primeiro porque e a mais usada. */
+.horizons{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--pd);align-items:start}
+@media (max-width:1000px){.horizons{grid-template-columns:1fr}.horizon--week{order:-1}}
+.horizon{padding:var(--pd)}
+.horizon__head{display:flex;align-items:flex-start;justify-content:space-between;gap:var(--pd2);margin:0 0 var(--pd2)}
+.horizon__kind{margin:0}
+.horizon__period{margin:2px 0 0;font-size:15px;font-weight:600;letter-spacing:-.02em;color:var(--ink)}
+.horizon__open{margin:2px 0 0;font-size:12px;color:var(--ink-50)}
+.horizon__nav{display:flex;align-items:center;gap:2px;flex:none}
+.horizon__nav .action{width:24px;height:24px}
+.horizon__nav .action svg{width:13px;height:13px}
+.horizon__body{display:flex;flex-direction:column;gap:var(--pd2)}
+.horizon .empty{padding:var(--pd2) 0}
+
+/* objetivos agrupados por frente, como os cartoes da semana */
+.goal-group{display:flex;flex-direction:column;gap:4px}
+.goal-group__label{margin:0}
+.goal{padding:6px 6px 6px 10px;gap:8px;align-items:flex-start}
+.goal__check{flex:0 0 auto;width:14px;height:14px;margin-top:2px;accent-color:var(--green);cursor:pointer}
+.goal__main{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:3px}
+.goal__text{font-size:13px;color:var(--ink);white-space:normal;line-height:1.35}
+.goal.is-done .goal__text{color:var(--ink-30);text-decoration:line-through}
+.goal__meta{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.goal__meta .badge{height:17px;padding:0 6px;font-size:9px}
+.goal__parent{font-family:var(--mono);font-size:10px;letter-spacing:.04em;color:var(--ink-30);overflow:hidden;white-space:nowrap;text-overflow:ellipsis;max-width:100%}
+.goal__children{font-family:var(--mono);font-size:10px;letter-spacing:.04em;color:var(--ink-50)}
+.goal .row-actions{align-self:center}
+@media (hover:none){.goal .row-actions{opacity:1}}
+
+/* a revisao: tres campos livres no pe da coluna. e do arthur, o merlin so sugere. */
+.review{border-top:1px solid var(--line-soft);padding-top:var(--pd2);display:flex;flex-direction:column;gap:6px}
+.review__head{display:flex;align-items:center;justify-content:space-between;gap:var(--pd2)}
+.review__head .t-mono{color:var(--ink-30)}
+.review .textarea{min-height:44px;font-size:12.5px;padding:6px 10px}
+.review .field-label{margin-bottom:2px}
+#merlin-btn:disabled,.merlin-btn:disabled{opacity:.6;cursor:default}
+.merlin-body{font-size:13px;line-height:1.55;color:var(--ink-70);max-height:52vh;overflow-y:auto}
+.merlin-body p{margin:0 0 10px}
+.merlin-body ul,.merlin-body ol{margin:0 0 10px;padding-left:20px}
+.merlin-body h3,.merlin-body h4,.merlin-body h5{margin:14px 0 6px;color:var(--ink);font-size:13.5px}

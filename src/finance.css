@@ -1,0 +1,76 @@
+/* merlin · o CSS desta pagina
+   sai do <style> do HTML para ca porque o Vite injeta o CSS do bundle no fim
+   do <head>, depois do <style> — o que invertia quem vence empate de
+   especificidade. importado logo depois do base.css, a ordem volta a ser a de
+   sempre: primeiro o comum, depois o da pagina. */
+
+/* financeiro: so o que base.css ainda nao cobre. o resto (bloco, medidor,
+   tabela, dialogo, selo, barra, abas) e o mesmo vocabulario de sempre. */
+
+/* a linha do dia expande em vez de navegar: cursor de mao avisa que ela
+   responde a clique sem precisar de um icone so pra isso */
+.day-row{cursor:pointer}
+.day-detail td{background:var(--surface-2);padding:var(--pd)}
+
+/* convite discreto: mesma familia do .note, mas com uma acao — por isso
+   fica em pilula tracejada, nao em texto solto, senao ninguem clica */
+.invite{
+  display:flex;align-items:center;justify-content:space-between;gap:var(--pd);
+  padding:9px 14px;margin:0 0 var(--pd);flex-wrap:wrap;
+  border:1px dashed var(--line);border-radius:var(--br2);
+  color:var(--ink-50);font-size:12.5px;
+}
+
+/* o numero do medidor nunca quebra em duas linhas: menor que o clamp de
+   base.css, que foi feito para dois ou tres numeros por linha, nao seis */
+.meter .num{white-space:nowrap;font-size:clamp(18px,2vw,28px)}
+.meters{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+
+/* ---------- painel: as quatro tabelas da planilha ----------
+   cada bloco e uma tabela com o total no rotulo e o "+" ao lado — a linha
+   inteira abre a edicao, entao ela tem cursor de mao e nenhum lapis. */
+.panel-block .heading{margin-bottom:4px}
+.panel-block .heading .total{font-family:var(--mono);font-size:12.5px;color:var(--ink)}
+.panel-block .heading .row{gap:6px}
+.table tr.editable{cursor:pointer}
+.table td.weak{color:var(--ink-30)}
+.table .bar{width:72px;display:inline-block;vertical-align:middle}
+.table .row-actions{justify-content:flex-end}
+.table tr:hover .row-actions{opacity:1}
+
+/* ---------- ano: doze meses lado a lado, como a aba anual da planilha ----------
+   cada mes e uma coluna estreita com o saldo de cada dia; positivo leva
+   um tom de verde, negativo leva hachura — nunca vermelho. rola por
+   dentro do proprio envoltorio para o body nunca ganhar barra horizontal. */
+.year-scroll{overflow-x:auto;padding-bottom:6px;margin:0 -2px}
+.year{display:grid;grid-template-columns:repeat(12,minmax(118px,1fr));gap:6px;padding:0 2px}
+.year__month{background:var(--surface);border:1px solid var(--line-soft);border-radius:var(--br3);overflow:hidden}
+.year__month.is-current{border-color:var(--ink-30)}
+.year__head{
+  display:flex;justify-content:space-between;align-items:baseline;gap:6px;
+  padding:8px 9px 7px;border-bottom:1px solid var(--line-soft);cursor:pointer;
+  transition:background var(--t);
+}
+.year__head:hover{background:var(--fill)}
+.year__head b{font-size:12.5px;font-weight:600;letter-spacing:-.01em}
+.year__month.is-current .year__head b{color:var(--green-ink)}
+.year__head span{font-family:var(--mono);font-size:10.5px;color:var(--ink-50);white-space:nowrap}
+.year__day{
+  display:flex;justify-content:space-between;gap:4px;padding:1px 8px;
+  font-family:var(--mono);font-size:10.5px;line-height:1.7;color:var(--ink-50);white-space:nowrap;
+}
+.year__day i{font-style:normal;color:var(--ink-30)}
+.year__day.has-moves{color:var(--ink)}
+.year__day.is-positive{background:color-mix(in srgb,var(--green) 9%,transparent)}
+.year__day.is-negative{background:repeating-linear-gradient(135deg,var(--line-soft) 0 2px,transparent 2px 6px)}
+.year__day.is-today{box-shadow:inset 0 0 0 1px var(--green)}
+.year__day.is-empty{visibility:hidden}
+
+/* categorias dentro da config: chips com o x, e um campo para a nova */
+.cfg-categories{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.cfg-new{display:flex;gap:6px}
+.cfg-new .input{flex:1 1 auto}
+
+@media (max-width:640px){
+  .year{grid-template-columns:repeat(12,124px)}
+}

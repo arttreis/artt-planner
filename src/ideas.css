@@ -1,0 +1,235 @@
+/* merlin · o CSS desta pagina
+   sai do <style> do HTML para ca porque o Vite injeta o CSS do bundle no fim
+   do <head>, depois do <style> — o que invertia quem vence empate de
+   especificidade. importado logo depois do base.css, a ordem volta a ser a de
+   sempre: primeiro o comum, depois o da pagina. */
+
+/* ideas.html — uma caixa de entrada.
+   a ideia chega como uma mensagem chega: vira uma linha na lista da
+   esquerda, agrupada por dia, e abre no painel da direita sem sair da
+   tela. nada de modal — o painel e a tela. a pagina ocupa a altura toda e
+   cada coluna rola sozinha, como um cliente de e-mail. */
+.page--inbox{padding:0;height:100dvh;display:flex;flex-direction:column;overflow:hidden}
+@media (max-width:899px){.page--inbox{padding-top:var(--nav-h)}}
+
+/* ---------- cabecalho fino ---------- */
+.top{
+  flex:0 0 auto;display:flex;align-items:center;gap:var(--pd2);
+  height:56px;padding:0 var(--pd) 0 clamp(16px,2.5vw,28px);
+  border-bottom:1px solid var(--line-soft);
+}
+.top h1{margin:0;font-size:18px;font-weight:600;letter-spacing:-.02em}
+.top .count{font-family:var(--mono);font-size:11px;color:var(--ink-30);letter-spacing:.06em}
+.top .count::before{content:"·";margin:0 8px;color:var(--ink-30)}
+.top__new{margin-left:auto}
+.views{display:flex;gap:2px}
+
+/* ---------- as duas colunas ---------- */
+.screen{flex:1 1 auto;min-height:0;display:flex}
+.list-col{
+  flex:0 0 min(440px,46%);display:flex;flex-direction:column;min-width:0;
+  border-right:1px solid var(--line-soft);
+}
+.panel{flex:1 1 auto;min-width:0;display:flex;flex-direction:column}
+
+.list-col__scroll{flex:1 1 auto;min-height:0;overflow-y:auto;padding:4px 8px 24px}
+.group{margin:12px 6px 6px;font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-30)}
+.group:first-child{margin-top:8px}
+
+/* a linha: avatar da frente, titulo + previa, hora que vira acoes no hover */
+.item{
+  display:flex;align-items:flex-start;gap:12px;padding:10px 10px;border-radius:var(--br3);
+  cursor:pointer;position:relative;transition:background var(--t);
+}
+.item:hover{background:var(--fill)}
+.item.is-active{background:var(--fill-hover)}
+.item.is-active::before{
+  content:"";position:absolute;left:-8px;top:12px;bottom:12px;width:3px;border-radius:0 2px 2px 0;
+  background:var(--green);box-shadow:0 0 10px var(--green-glow);
+}
+.initial{
+  width:32px;height:32px;flex:0 0 auto;border-radius:50%;display:grid;place-items:center;
+  font-family:var(--mono);font-size:12px;font-weight:500;text-transform:uppercase;
+  color:var(--ink-50);background:var(--fill-hover);margin-top:1px;
+}
+.initial[data-color]{background:color-mix(in srgb,currentColor 16%,transparent)}
+.initial[data-color="1"]{color:#6bb8ff}.initial[data-color="2"]{color:#ffb35c}.initial[data-color="3"]{color:#ff7a9a}
+.initial[data-color="4"]{color:#c58bff}.initial[data-color="5"]{color:var(--green-ink)}.initial[data-color="6"]{color:#5ce0d8}
+html.light .initial[data-color="1"]{color:#1c6fc4}html.light .initial[data-color="2"]{color:#b8600a}html.light .initial[data-color="3"]{color:#c4234f}
+html.light .initial[data-color="4"]{color:#7a3bd8}html.light .initial[data-color="6"]{color:#127f79}
+.initial--sm{width:22px;height:22px;font-size:9.5px;margin:0}
+.item__text{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:2px}
+.item__line1{display:flex;align-items:baseline;gap:8px}
+.item__title{flex:1 1 auto;min-width:0;font-size:13.5px;font-weight:500;color:var(--ink);overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.item__when{flex:0 0 auto;font-size:11.5px;color:var(--ink-30);white-space:nowrap;font-variant-numeric:tabular-nums}
+.item__preview{font-size:12.5px;color:var(--ink-50);overflow:hidden;white-space:nowrap;text-overflow:ellipsis;display:flex;align-items:center;gap:6px}
+.item__preview .stage{flex:0 0 auto;color:var(--ink-30);font-family:var(--mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase}
+.item__preview .stage.is-green{color:var(--green-ink)}
+.item__preview .phrase{min-width:0;overflow:hidden;text-overflow:ellipsis}
+/* a bolinha verde: ideia que ainda e semente sem corpo nem passo — chegou e
+   ninguem mexeu, como uma mensagem nao lida */
+.item__new{width:7px;height:7px;border-radius:50%;background:var(--green);flex:0 0 auto;align-self:center;box-shadow:0 0 8px var(--green-glow)}
+.item__actions{
+  position:absolute;right:8px;top:8px;display:flex;gap:2px;opacity:0;
+  background:var(--surface-2);border:1px solid var(--line-soft);border-radius:var(--br2);padding:1px;
+  transition:opacity var(--t);
+}
+.item:hover .item__actions,.item:focus-within .item__actions{opacity:1}
+.item:hover .item__when{visibility:hidden}
+.item__actions .action{width:26px;height:26px}
+@media (hover:none){.item__actions{display:none}}
+
+.list-empty{padding:40px 20px;text-align:center;color:var(--ink-30);font-size:13px}
+
+/* ---------- painel ---------- */
+.panel__empty{
+  flex:1 1 auto;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;
+  color:var(--ink-30);font-size:13px;text-align:center;padding:var(--pd);
+}
+.panel__empty svg{width:36px;height:36px;opacity:.5}
+.panel__empty kbd{margin:0 2px}
+.panel__bar{
+  flex:0 0 auto;display:flex;align-items:center;gap:4px;height:48px;padding:0 12px;
+  border-bottom:1px solid var(--line-soft);
+}
+.panel__bar .sep{width:1px;height:18px;background:var(--line-soft);margin:0 6px}
+.panel__bar .pill{height:28px;padding:0 10px;font-size:12px}
+.panel__bar .pill:disabled{opacity:.5;cursor:default}
+.back-btn{display:none}
+.panel__scroll{flex:1 1 auto;min-height:0;overflow-y:auto;padding:clamp(16px,2.5vw,28px) clamp(16px,3vw,36px) 60px}
+.panel__body{max-width:760px}
+
+.title-input{
+  width:100%;background:none;border:0;padding:0;margin:0 0 14px;
+  font-size:clamp(20px,2.4vw,26px);font-weight:600;letter-spacing:-.03em;line-height:1.2;color:var(--ink);
+}
+.title-input:focus{outline:none}
+.title-input::placeholder{color:var(--ink-30)}
+.body-input{
+  width:100%;background:none;border:0;padding:0;margin:0;resize:none;overflow:hidden;
+  font-size:13.5px;line-height:1.55;color:var(--ink-70);min-height:44px;
+}
+.body-input:focus{outline:none;color:var(--ink)}
+.body-input::placeholder{color:var(--ink-30)}
+.body-md{font-size:13.5px;line-height:1.55;color:var(--ink-70);min-height:44px}
+.body-md :first-child{margin-top:0}
+.body-md p{margin:0 0 8px}
+.body-md ul,.body-md ol{margin:0 0 8px;padding-left:20px}
+.body-md h3,.body-md h4,.body-md h5{margin:0 0 6px;font-size:13.5px;font-weight:600;color:var(--ink)}
+.body-md li.chk{list-style:none;margin-left:-20px}
+.body-md li.chk::before{content:"☐ ";color:var(--ink-30)}
+.body-md li.chk.is-done::before{content:"☑ ";color:var(--green-ink)}
+.body-md li.chk.is-done{color:var(--ink-30);text-decoration:line-through}
+.saved{font-size:11.5px;color:var(--ink-30);opacity:0;transition:opacity .3s var(--ease);margin-right:8px}
+.panel__bar .link{padding:0 6px}
+.saved.is-visible{opacity:1}
+
+/* a ficha: rotulo a esquerda, valor a direita, como a tabela de metadados
+   de uma tarefa. os selects sao pilulas, nao campos: aqui se le mais do que
+   se escreve. */
+.sheet{display:grid;grid-template-columns:100px 1fr;gap:8px 12px;align-items:center;margin:20px 0 0;padding:16px 0;border-top:1px solid var(--line-soft);border-bottom:1px solid var(--line-soft)}
+.sheet .k{font-size:12.5px;color:var(--ink-50)}
+.sheet .v{display:flex;align-items:center;gap:6px;min-width:0;flex-wrap:wrap}
+.pill-select{
+  appearance:none;-webkit-appearance:none;height:26px;padding:0 24px 0 10px;
+  border-radius:var(--br-pill);background:var(--fill);border:1px solid var(--line-soft);
+  font-size:12px;color:var(--ink);cursor:pointer;max-width:100%;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 7px center;background-size:12px;
+  transition:background var(--t),border-color var(--t);
+}
+.pill-select:hover{background-color:var(--fill-hover);border-color:var(--line)}
+.pill-select:focus{outline:none;border-color:var(--ink-30)}
+.pill-select option{background:var(--surface);color:var(--ink)}
+.pill-select--stage{font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;padding-left:22px;position:relative}
+.v--stage{position:relative}
+.v--stage .stage-dot{position:absolute;left:9px;top:50%;transform:translateY(-50%);width:8px;height:8px;border-radius:50%;border:1.5px solid var(--ink-50);pointer-events:none}
+.v--stage[data-stage="seed"] .stage-dot{border-color:var(--ink-30)}
+.v--stage[data-stage="exploring"] .stage-dot{background:linear-gradient(90deg,var(--ink-50) 50%,transparent 50%)}
+.v--stage[data-stage="defined"] .stage-dot{background:var(--ink-50)}
+.v--stage[data-stage="executing"] .stage-dot{border-color:var(--green);background:var(--green);box-shadow:0 0 8px var(--green-glow)}
+.v--stage[data-stage="archived"] .stage-dot{border-style:dashed;border-color:var(--ink-30)}
+.sheet .v .weak{font-size:12.5px}
+.sheet .v .t-mono{font-size:10.5px;color:var(--ink-50)}
+
+/* ---------- secoes: passos e atividade ---------- */
+.section{margin-top:20px}
+.section__head{display:flex;align-items:center;gap:8px;margin:0 0 6px;cursor:pointer;user-select:none;color:var(--ink)}
+.section__head svg{width:14px;height:14px;color:var(--ink-30);transition:transform var(--t)}
+.section__head .title{font-size:13.5px;font-weight:500}
+.section__head .count{font-family:var(--mono);font-size:11px;color:var(--ink-30)}
+.section.is-closed .section__head svg{transform:rotate(-90deg)}
+.section.is-closed .section__body{display:none}
+.section__head .bar{flex:0 0 90px;margin-left:auto;height:4px}
+
+.step{display:flex;align-items:center;gap:10px;padding:6px 4px;border-radius:var(--br2);transition:background var(--t)}
+.step:hover{background:var(--fill)}
+.step__check{
+  flex:0 0 auto;width:20px;height:20px;border-radius:50%;
+  border:1.5px solid var(--line);display:grid;place-items:center;color:transparent;
+  transition:background var(--t),border-color var(--t),color var(--t);
+}
+.step__check:hover{border-color:var(--ink-50)}
+.step__check svg{width:11px;height:11px}
+.step.is-done .step__check{background:var(--green);border-color:var(--green);color:var(--on-green)}
+.step__text{flex:1 1 auto;min-width:0;font-size:13.5px;overflow-wrap:anywhere}
+.step.is-done .step__text{color:var(--ink-30);text-decoration:line-through}
+.step__actions{flex:0 0 auto;display:flex;gap:2px;opacity:0;transition:opacity var(--t)}
+.step:hover .step__actions,.step:focus-within .step__actions{opacity:1}
+@media (hover:none){.step__actions{opacity:1}}
+.step--new{padding-left:4px}
+.step--new .step__check{border-style:dashed;color:var(--ink-30);cursor:default}
+.step--new .step__check svg{width:10px;height:10px}
+.step--new input{flex:1 1 auto;min-width:0;background:none;border:0;padding:0;font-size:13.5px;color:var(--ink)}
+.step--new input:focus{outline:none}
+.step--new input::placeholder{color:var(--ink-30)}
+
+.activity{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+.activity li{display:flex;align-items:center;gap:10px;padding:5px 4px;font-size:12.5px;color:var(--ink-50);min-width:0}
+.activity li b{font-weight:500;color:var(--ink)}
+.activity li .when{margin-left:auto;flex:0 0 auto;font-size:11.5px;color:var(--ink-30);white-space:nowrap}
+.activity li .txt{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.activity li .tag{display:inline-flex;align-items:center;height:18px;padding:0 7px;border-radius:var(--br-pill);border:1px solid var(--line-soft);background:var(--fill);font-family:var(--mono);font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-50);margin:0 2px}
+
+/* ---------- quadro por estagio (visao alternativa) ---------- */
+.board-col{flex:1 1 auto;min-width:0;overflow:auto;padding:var(--pd)}
+.board{display:flex;gap:var(--pd2);align-items:flex-start;min-width:min-content;min-height:100%}
+.board__col{
+  flex:0 0 240px;display:flex;flex-direction:column;gap:6px;
+  background:var(--fill);border:1px solid var(--line-soft);border-radius:var(--br3);
+  padding:var(--pd2);
+}
+.board__title{display:flex;align-items:center;justify-content:space-between;gap:var(--pd2);margin:2px 4px;color:var(--ink-50)}
+.board__count{font-family:var(--mono);font-size:10px;color:var(--ink-30)}
+.board__drop{display:flex;flex-direction:column;gap:6px;min-height:48px;border-radius:var(--br2);transition:background var(--t)}
+.board__drop.is-over{background:var(--fill-hover)}
+.board__empty{margin:0;padding:8px 4px;font-size:11.5px;color:var(--ink-30)}
+.board__card{cursor:grab}
+.board__card.is-dragging{opacity:.4}
+.board__card-top{display:flex;align-items:flex-start;justify-content:space-between;gap:6px;margin:0 0 6px}
+.board__card-title{margin:0;font-size:13px;color:var(--ink);overflow-wrap:anywhere}
+.board__grip{flex:0 0 auto;color:var(--ink-30)}
+.board__grip svg{width:13px;height:13px;display:block}
+.board__when{margin-left:auto}
+@media (max-width:640px){.board__col{flex-basis:78vw}}
+
+/* ---------- sugestoes do merlin ---------- */
+.suggestion-list{display:flex;flex-direction:column;gap:2px}
+.suggestion{display:flex;align-items:flex-start;gap:var(--pd2);padding:6px 4px;border-radius:var(--br2);cursor:pointer;transition:background var(--t)}
+.suggestion:hover{background:var(--fill)}
+.suggestion input[type="checkbox"]{flex:0 0 auto;width:16px;height:16px;margin-top:2px;accent-color:var(--green)}
+.suggestion__text{flex:1 1 auto;min-width:0;font-size:13px;display:flex;flex-direction:column;gap:2px}
+.suggestion__text b{font-weight:600;color:var(--ink)}
+.suggestion__note{color:var(--ink-50);font-size:12px}
+
+/* ---------- celular: lista OU painel ---------- */
+@media (max-width:880px){
+  .list-col{flex:1 1 auto;border-right:0}
+  .screen[data-mobile="panel"] .list-col{display:none}
+  .screen[data-mobile="list"] .panel{display:none}
+  .back-btn{display:inline-grid}
+  .panel__bar{overflow-x:auto;scrollbar-width:none}
+  .panel__bar .pill span{display:none}
+  .panel__bar .pill{width:28px;padding:0;justify-content:center}
+  .sheet{grid-template-columns:84px 1fr}
+}
