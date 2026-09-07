@@ -3,10 +3,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "site": "node site.mjs",
     "test": "node test.mjs",
-    "dev": "npm run site && wrangler dev",
-    "deploy": "npm run test && npm run site && wrangler deploy"
+    "build": "npm --prefix .. run build",
+    "dev": "npm run build && wrangler dev",
+    "deploy": "npm run test && npm run build && wrangler deploy"
   },
   "devDependencies": {
     "wrangler": "^4.129.0"

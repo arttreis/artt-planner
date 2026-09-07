@@ -1,25 +1,27 @@
-# shared/ · como um módulo do Merlin é feito
+# src/shared/ · como um módulo do Merlin é feito
 
-Cada módulo é **uma página HTML** na raiz (`ideas.html`, `clients.html`…), com CSS e JS
-inline, legível inteira, sem build e sem CDN. A tela é desenhada com o Preact (com `htm` no
-lugar de JSX), que mora aqui dentro. O que é comum vive aqui:
+Cada módulo é **uma página**: um HTML na raiz (`ideas.html`, `clients.html`…) com o CSS dela
+inline, e um módulo `src/<nome>.jsx` com a tela, em **React 19 com JSX**. O HTML é a entrada do
+Vite; o build sai em `server/site/`. O que é comum vive aqui:
 
 - `base.css` — tokens dos dois temas (escuro no `:root`, claro em `html.light`), a sidebar
   (via `shell.css`), e os componentes: `.block`, `.pill`, `.chip`, `.badge`, `.input`,
   `.line`, `.table`, `.dialog`, `.notice`, `.meter`, `.bar`, `.tabs`, `.grid`/`.col-*`.
 - `core.js` — os **dados**: tema, sidebar, sessão/nuvem, coleções sincronizadas, frentes,
-  caixa de entrada do dia, aviso com desfazer, markdown. Não desenha tela de módulo.
-- `preact.js` — Preact + hooks + htm num arquivo só, copiado do `node_modules` por
-  `npm run preact` (na raiz). Não se edita.
-- `ui.js` — a **tela**: hooks que ligam a página às coleções, componentes comuns, ícones
-  como vnode e a **casca** (sidebar, busca, tema, nuvem, entrar, aviso). É o que uma página
-  importa para desenhar. Ele se registra no core com `setShellRenderer`, e é por isso que
-  `initPage(id)` — que vem do core — já monta a casca.
+  caixa de entrada do dia, aviso com desfazer, markdown. **JavaScript puro, sem React**: dá
+  para testar sem navegador. Não desenha tela de módulo.
+- `icons.jsx` — os SVGs comuns como elementos React. `icon("plus")` devolve um deles.
+- `ui.jsx` — a **tela**: hooks que ligam a página às coleções, componentes comuns e a
+  **casca** (sidebar, busca, tema, nuvem, entrar, aviso). É o que uma página importa para
+  desenhar. Ele se registra no core com `setShellRenderer`, e é por isso que `initPage(id)` —
+  que vem do core — já monta a casca.
 
 Identificadores, chaves, campos e classes são em inglês; texto de tela e comentários, em
 português. O dicionário completo está em [`MIGRATION.md`](../MIGRATION.md).
 
 ## Esqueleto de uma página
+
+O HTML é só a casca: o CSS da página, o anti-flash do tema e o ponto de montagem.
 
 ```html
 <!doctype html>
@@ -33,43 +35,55 @@ português. O dicionário completo está em [`MIGRATION.md`](../MIGRATION.md).
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="shared/base.css">
 <script>/* anti-flash do tema: antes de qualquer pintura */
 try{var t=localStorage.getItem("merlin:theme");if(t?t==="light":matchMedia("(prefers-color-scheme: light)").matches)document.documentElement.classList.add("light")}catch(e){}</script>
-<style>/* só o que é deste módulo */</style>
+<style>/* só o que é desta página */</style>
 </head>
 <body>
 <main class="page" id="app"></main>
-<script type="module">
-import { initPage, newId, today, notify, sendToDay } from "./shared/core.js";
-import { html, mount, useState, useCollection, useFronts, useHash, useFields,
-         Form, Field, Dialog, Markdown, FrontBadge, ClientBadge, frontOptionList, clientOptionList, icon }
-  from "./shared/ui.js";
+<script type="module" src="/src/ideas.jsx"></script>
+</body>
+</html>
+```
 
-initPage("ideas");   // monta a sidebar, carrega frentes e clientes, retoma a sessão
+E `src/ideas.jsx` é a tela:
+
+```jsx
+import "./shared/base.css";                 // o dia importa "./shared/shell.css" no lugar
+import { initPage, newId, today, notify, sendToDay } from "./shared/core.js";
+import { useState } from "react";
+import { mount, useCollection, useFronts, useHash, useFields,
+         Form, Field, Dialog, Markdown, FrontBadge, ClientBadge,
+         frontOptionList, clientOptionList, icon } from "./shared/ui.jsx";
+
+initPage("ideas");   // monta a casca, carrega frentes e clientes, retoma a sessão
 
 const normalize = (d) => ({ ...d, title: String(d.title || "") });
 
 function Ideas() {
   const ideas = useCollection("ideas", { normalize });   // redesenha a cada mudança
   const [form, setForm] = useState(null);
-  return html`
-    <div class="header">
-      <div><h1>ideias</h1><p class="sub">o que ainda não é tarefa</p></div>
-      <div class="actions"><button class="pill pill--green" type="button" onClick=${() => setForm({})}>${icon("plus")}ideia</button></div>
-    </div>
-    ${ideas.all().length ? html`<ul>${ideas.all().map((d) => html`<li key=${d.id}>${d.title}</li>`)}</ul>`
-                         : html`<p class="empty">Nada aqui. O "+" abre uma ideia nova.</p>`}
-    ${form && html`<${IdeaForm} ideas=${ideas} onClose=${() => setForm(null)}/>`}`;
+  return (
+    <>
+      <div className="header">
+        <div><h1>ideias</h1><p className="sub">o que ainda não é tarefa</p></div>
+        <div className="actions">
+          <button className="pill pill--green" type="button" onClick={() => setForm({})}>{icon("plus")}ideia</button>
+        </div>
+      </div>
+      {ideas.all().length
+        ? <ul>{ideas.all().map((d) => <li key={d.id}>{d.title}</li>)}</ul>
+        : <p className="empty">Nada aqui. O "+" abre uma ideia nova.</p>}
+      {form && <IdeaForm ideas={ideas} onClose={() => setForm(null)} />}
+    </>
+  );
 }
-mount(html`<${Ideas}/>`, "app");
-</script>
-</body>
-</html>
+mount(<Ideas />, "app");
 ```
 
-O `html` é o `htm`: parece HTML, é JavaScript. `${x}` é sempre texto (escapado); componente
-é `<${Comp} prop=${v}>…<//>`; atributos espalhados são `...${obj}`; `class` funciona.
+Os hooks do React vêm de `"react"`; só o que é do Merlin vem de `ui.jsx`. Nada de
+`React.StrictMode`: ele roda os efeitos duas vezes, e há efeitos que não podem acontecer duas
+vezes numa montagem (esvaziar a caixa de entrada, gerar a recorrência da semana).
 
 ## `core.js` — o que uma página importa
 
@@ -85,7 +99,7 @@ O `html` é o `htm`: parece HTML, é JavaScript. `${x}` é sempre texto (escapad
 | `notify(text, undo?)` | aviso com desfazer |
 | `sendToDay({title, min, front, client, origin:{type, id}})` | manda para o dia |
 | `api(route, options) → {ok, status, body}` | fala com o worker |
-| `md(text)` | markdown mínimo (use `<${Markdown}>`) |
+| `md(text)` | markdown mínimo (use `<Markdown/>`) |
 | `listFronts()`, `listClients()`, `clientName(id)`, `frontColor(id)`, `foldKey(text)` | leitura |
 | `ICONS` | fonte dos ícones (use `icon("plus")`) |
 
@@ -93,24 +107,24 @@ O `html` é o `htm`: parece HTML, é JavaScript. `${x}` é sempre texto (escapad
 
 | o quê | para quê |
 | --- | --- |
-| `mount(vnode, "app")` | desenha a raiz dentro do elemento |
+| `mount(<Pagina />, "app")` | desenha a raiz dentro do elemento |
 | `useCollection(type, {normalize})` | a coleção, redesenhando a cada mudança (local, nuvem, outra aba) |
 | `useFronts()`, `useClients()` | as listas, redesenhando quando mudam |
 | `useCloud()` | `signedIn`, `email`, `status` |
 | `useHash()` | o `#id` da URL, acompanhando o `hashchange` |
 | `useKeydown(handler)` | atalho no documento; o handler é sempre o atual, sem deps. Use `isTyping()` para não disparar dentro de um campo |
 | `setHash(id)` | troca o `#id` sem empilhar histórico, avisando o `useHash` |
-| `useFields(initial)` → `[values, bind, set]` | formulário controlado: `<input ...${bind("title")}>`, checkbox com `bind("x", "check")` |
-| `<${Form} title sub? wide? submit? remove? onSubmit onRemove? onClose>` | todo "criar X" e "editar X". `onSubmit(form)` devolvendo `false` mantém aberta |
-| `<${Field} label full?>` | um campo com rótulo dentro do formulário |
-| `<${Dialog} title wide? onClose actions?>` | caixa modal para o que não é formulário |
-| `<${Markdown} text class? tag? …>` | markdown mínimo do core; o único lugar com `innerHTML` |
-| `<${Meter} label value class?>` | o número grande com legenda |
-| `<${MoneyInput} value onChange>` | dinheiro em centavos; só reformata ao sair do campo |
-| `<${NewItemRow} placeholder button onAdd>` | "novo item" no pé de uma lista, Enter adiciona |
-| `<${FrontBadge} id>`, `<${ClientBadge} id>` | os selos |
+| `useFields(initial)` → `[values, bind, set]` | formulário controlado: `<input {...bind("title")}/>`, checkbox com `bind("x", "check")` |
+| `<Form title sub? wide? submit? remove? onSubmit onRemove? onClose>` | todo "criar X" e "editar X". `onSubmit(form)` devolvendo `false` mantém aberta |
+| `<Field label full?>` | um campo com rótulo dentro do formulário |
+| `<Dialog title wide? onClose actions?>` | caixa modal para o que não é formulário |
+| `<Markdown text className? tag? …/>` | markdown mínimo do core; o único lugar com `innerHTML` |
+| `<Meter label value className?>` | o número grande com legenda |
+| `<MoneyInput value onChange/>` | dinheiro em centavos; só reformata ao sair do campo |
+| `<NewItemRow placeholder button onAdd/>` | "novo item" no pé de uma lista, Enter adiciona |
+| `<FrontBadge id/>`, `<ClientBadge id/>` | os selos |
 | `frontOptionList("sem frente")`, `clientOptionList("sem cliente", front?)` | `<option>`s; o escolhido vai no `value` do `<select>` |
-| `icon("plus")`, `svg(text)` | ícone como vnode |
+| `icon("plus")` | um ícone de `icons.jsx` como elemento. SVG só desta página vira um componente no topo do arquivo dela |
 
 Ícones em `ICONS`: `trash, arrow, plus, check, pencil, link, grip, x, clock, map, spark,
 archive, arrowLeft, chevronLeft, chevronRight, unfold`.
@@ -163,8 +177,8 @@ página lê o hash (`useHash()`) e abre o item, se existir.
 
 ## Criar é um botão e uma caixa
 
-Todo "novo X" é um `<${Form}>` que só existe enquanto há estado para ele
-(`form && html\`<${XForm} …/>\``). Dentro, `useFields` guarda os valores e `bind(name)`
+Todo "novo X" é um `<Form>` que só existe enquanto há estado para ele
+(`form && <XForm …/>`). Dentro, `useFields` guarda os valores e `bind(name)`
 espalha `value`/`onInput` nos campos. `onSubmit` lê os valores do estado, grava na coleção e
 devolve `false` para manter a caixa aberta (reclamando com `notify`). `Esc`, o ✕,
 "cancelar" e o clique fora fecham. Criar e editar são a mesma caixa.
@@ -183,12 +197,12 @@ toca no documento do dia. O aviso já é mostrado pelo core.
   como o resto do sistema ("ideias", "puxar para o dia"). Sem emoji na interface.
 - **Inglês em todo identificador**: variável, função, componente, prop, chave, campo, classe
   de CSS, id de elemento, nome de arquivo.
-- Sem build, sem CDN. O Preact local é a única dependência de tela.
-- Nada de `innerHTML` nem de HTML por string: `${x}` no `html\`\`` já é texto. O markdown
-  passa por `<${Markdown}>`. Se sentiu falta de `escapeHtml()`, o caminho está errado.
+- React 19 e Vite. `npm run dev` para trabalhar, `npm run build` para gerar `server/site/`.
+- Nada de `innerHTML` nem de HTML por string: no JSX, `{x}` já é texto. O markdown passa por
+  `<Markdown/>`, que é a única exceção. Se sentiu falta de `escapeHtml()`, o caminho está errado.
 - Estado de tela é `useState`; nada de variável de módulo com `render()` depois.
 - `key` em toda lista, com o `id` do documento.
-- Eventos nos elementos (`onClick=${…}`). Arrastar e soltar é a exceção aceita para
+- Eventos nos elementos (`onClick={…}`). Arrastar e soltar é a exceção aceita para
   `closest()`.
 - Canvas e SVG desenhados à mão ficam num componente com `useRef`; o desenho continua
   imperativo por dentro.

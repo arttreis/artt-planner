@@ -5,12 +5,19 @@ de tarefas de um dia — e virou um conjunto de frentes ligadas entre si: o dia,
 ideias, os clientes (com frentes e canais), os funis, os mapas mentais, o financeiro, os
 hábitos e os planos. A visão completa e as decisões estão em [VISAO.md](VISAO.md).
 
-Cada frente é **uma página HTML** na raiz, com CSS e JS inline, sem build e sem CDN —
-legível inteira, como o `index.html` sempre foi. A tela é desenhada com o Preact (com `htm`,
-sem JSX), copiado para dentro de `shared/preact.js`; a migração das páginas para ele
-está em [MIGRATION.md](MIGRATION.md). O que é comum vive em
-[`shared/`](shared/README.md): tokens dos dois temas (escuro e claro), a barra de
-navegação, a sessão e as coleções que sincronizam por documento.
+Cada frente é **uma página**: um HTML na raiz, com o CSS dela inline, e um módulo em
+[`src/`](src/) com a tela. A tela é **React 19 com JSX**, e o build é o **Vite**, que cospe as
+páginas prontas em `server/site/` — a mesma pasta que o Worker serve. O que é comum vive em
+[`src/shared/`](src/shared/README.md): os tokens dos dois temas, a barra de navegação, a
+sessão, as coleções que sincronizam por documento e os componentes de tela.
+
+```bash
+npm run dev      # servidor de desenvolvimento, com recarga na hora
+npm run build    # gera server/site/
+```
+
+A história de como o sistema chegou aqui (de HTML por string a Preact, e de Preact a React)
+está em [MIGRATION.md](MIGRATION.md).
 
 | página | o que é |
 | --- | --- |
