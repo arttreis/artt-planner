@@ -12,7 +12,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="shared/shell.css">
 <script>/* o tema antes da primeira pintura, para nao piscar escuro no claro */
-try{var t=localStorage.getItem("merlin:tema");if(t?t==="claro":matchMedia("(prefers-color-scheme: light)").matches)document.documentElement.classList.add("light")}catch(e){}</script>
+try{var t=localStorage.getItem("merlin:theme");if(t?t==="light":matchMedia("(prefers-color-scheme: light)").matches)document.documentElement.classList.add("light")}catch(e){}</script>
 <style>
 /* ---------------------------------------------------------------
    design system arttreis.com.br — lado escuro dos tokens, repetido aqui
@@ -74,6 +74,10 @@ input{font:inherit;color:inherit}
   letter-spacing:.08em;text-transform:uppercase;
 }
 
+/* a raiz do preact ocupa o body inteiro e repete a grade que ele tinha:
+   e nela que o aparelho e os trilhos do bento se arrumam */
+#app{display:grid;place-items:center;width:100%;align-self:stretch;justify-self:stretch}
+
 /* ---------- a luz ----------
    o mesmo movimento do .funil do arttreis.com.br: um radial largo de
    --green-glow ancorado fora da tela, em opacidade baixa. a luz entra pela
@@ -98,7 +102,7 @@ body::after{
 }
 
 /* ---------- o aparelho ---------- */
-.fone{
+.device{
   position:relative;z-index:1;
   width:100%;max-width:496px;
   height:min(880px,calc(100dvh - var(--nav-h) - clamp(40px,11vh,136px)));
@@ -111,112 +115,112 @@ body::after{
 }
 /* a mesma luz atravessa o aparelho — e por isso que ele parece aceso, e nao
    recortado. fica atras do conteudo, que sobe pro z-index 1. */
-.fone::before{
+.device::before{
   content:"";position:absolute;inset:0;pointer-events:none;z-index:0;
   background:radial-gradient(128% 56% at -4% 16%,var(--green-glow),transparent 58%);
   opacity:.3;
 }
-.topo,.rolagem,.pilula-area{position:relative;z-index:1}
+.top,.scroll,.composer{position:relative;z-index:1}
 
-.topo{
+.top{
   flex:0 0 auto;
   display:flex;justify-content:space-between;align-items:center;gap:var(--pd);
   padding:calc(var(--pd) * 1.25) calc(var(--pd) * 1.5) var(--pd3);
   color:var(--ink-30);
 }
-.janela{
+.window{
   font-family:var(--mono);font-size:11px;letter-spacing:.04em;color:var(--ink-30);
   border-bottom:1px dashed var(--line);padding-bottom:1px;
   transition:color var(--t);
 }
-.janela:hover{color:var(--ink-70)}
+.window:hover{color:var(--ink-70)}
 
 /* a area que rola; a pilula fica parada no pe */
-.rolagem{
+.scroll{
   flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;
   padding:var(--pd) calc(var(--pd) * 1.5) var(--pd2);
   scrollbar-width:thin;scrollbar-color:var(--line) transparent;
 }
-.rolagem::-webkit-scrollbar{width:6px}
-.rolagem::-webkit-scrollbar-thumb{background:var(--line);border-radius:3px}
+.scroll::-webkit-scrollbar{width:6px}
+.scroll::-webkit-scrollbar-thumb{background:var(--line);border-radius:3px}
 
-.logo-selo{
+.logo-tile{
   width:52px;height:52px;border-radius:var(--br3);
   background:var(--fill);border:1px solid var(--line);
   display:grid;place-items:center;margin-bottom:calc(var(--pd) * 1.5);
 }
-.logo-selo svg{width:23px;height:23px;color:var(--green)}
+.logo-tile svg{width:23px;height:23px;color:var(--green)}
 /* frente e cliente na linha da tarefa: o selo vem da casca, aqui so encolhe.
    ficam na mesma linha da duracao, e nao numa terceira — o projeto e parte
    da leitura rapida da tarefa, nao um rodape. */
-.rodape{display:flex;align-items:center;gap:var(--pd2);flex-wrap:wrap;min-width:0}
-.t-selos{display:flex;gap:4px;flex-wrap:wrap;min-width:0}
-.t-selos .selo{height:18px;font-size:9.5px;padding:0 7px}
-.t-selos .selo--cliente{color:var(--ink-70)}
-.tarefa.feita .t-selos{display:none}
+.task__foot{display:flex;align-items:center;gap:var(--pd2);flex-wrap:wrap;min-width:0}
+.task__badges{display:flex;gap:4px;flex-wrap:wrap;min-width:0}
+.task__badges .badge{height:18px;font-size:9.5px;padding:0 7px}
+.task__badges .badge:not([data-color]){color:var(--ink-70)}
+.task.is-done .task__badges{display:none}
 /* o friso: a cor da frente na borda da tarefa, para o projeto ser visto
    antes mesmo de ler o selo. curto e dentro do cartao, como uma aba. */
-.tarefa{position:relative}
-.tarefa[data-cor]::before{
+.task{position:relative}
+.task[data-color]::before{
   content:"";position:absolute;left:0;top:14px;bottom:14px;width:3px;
-  border-radius:0 3px 3px 0;background:var(--cor);
+  border-radius:0 3px 3px 0;background:var(--color);
 }
-.tarefa.feita[data-cor]::before{opacity:.35}
+.task.is-done[data-color]::before{opacity:.35}
 
 /* ---------- chamada ---------- */
-.chamada{
+.headline{
   margin:0 0 var(--pd2);font-size:30px;font-weight:600;line-height:1.14;
   letter-spacing:-.038em;
 }
-.chamada .c1{display:block;color:var(--ink)}
-.chamada .c2{display:block;color:var(--ink)}
+.headline .headline__l1{display:block;color:var(--ink)}
+.headline .headline__l2{display:block;color:var(--ink)}
 /* se e medida, e mono — o .n do sistema */
-.chamada .medida{
+.headline .measure{
   font-family:var(--mono);font-weight:500;letter-spacing:-.03em;
   color:var(--green);
 }
 /* nao ha vermelho neste sistema: quando nao cabe, o verde simplesmente some */
-.chamada[data-tom="estouro"] .medida{color:var(--ink)}
-.contexto{margin:0 0 calc(var(--pd) * 1.25);font-size:13px;color:var(--ink-50);min-height:18px}
+.headline[data-tone="overflow"] .measure{color:var(--ink)}
+.context{margin:0 0 calc(var(--pd) * 1.25);font-size:13px;color:var(--ink-50);min-height:18px}
 
 /* ---------- trilho do dia ---------- */
-.trilho{
+.track{
   display:flex;height:12px;border-radius:var(--br2);overflow:hidden;
   background:var(--bg);border:1px solid var(--line-soft);
 }
-.faixa{min-width:0;transition:background var(--t)}
-.faixa+.faixa{box-shadow:inset 1px 0 0 var(--bg)}
-.gasto{background:var(--bg)}
+.band{min-width:0;transition:background var(--t)}
+.band+.band{box-shadow:inset 1px 0 0 var(--bg)}
+.spent{background:var(--bg)}
 /* reservado: ocupado, mas nao por voce — tinta mais fraca que a banda de trabalho */
-.reservado{background:repeating-linear-gradient(90deg,var(--fill) 0 2px,var(--bg) 2px 5px)}
-.banda{background:var(--fill-hover)}
-.banda.destaque{background:var(--ink)}
+.reserved{background:repeating-linear-gradient(90deg,var(--fill) 0 2px,var(--bg) 2px 5px)}
+.slot{background:var(--fill-hover)}
+.slot.is-highlight{background:var(--ink)}
 /* banda de palpite: ocupa o mesmo espaco, mas nao finge ser medida */
-.banda.palpite{
+.slot.guess{
   background:repeating-linear-gradient(45deg,var(--fill-hover) 0 4px,transparent 4px 8px);
 }
-.livre{background:var(--green);flex:1 1 auto}
-.livre.recibo{background:var(--ink)}
-.estouro{
+.free{background:var(--green);flex:1 1 auto}
+.free.receipt{background:var(--ink)}
+.overflow{
   /* com estouro pequeno a barra vira um respingo de 3px e parece sujeira */
   height:6px;min-width:18px;margin-top:var(--pd3);border-radius:3px;
   background:repeating-linear-gradient(45deg,var(--ink-30) 0 3px,transparent 3px 6px);
 }
-.nota{
+.note{
   display:block;margin-top:var(--pd2);text-align:right;
   color:var(--ink-30);min-height:15px;font-size:10px;
 }
-.editor-dia{
+.window-editor{
   display:flex;align-items:center;gap:var(--pd2);flex-wrap:wrap;margin-top:var(--pd2);
   font-family:var(--mono);font-size:11px;color:var(--ink-50);
 }
-.editor-dia input{
+.window-editor input{
   background:var(--fill);border:1px solid var(--line);border-radius:var(--br2);
   padding:5px 8px;font-family:var(--mono);font-size:11px;color:var(--ink);
 }
-.editor-dia button{color:var(--green);text-decoration:underline;text-underline-offset:3px}
+.window-editor button{color:var(--green);text-decoration:underline;text-underline-offset:3px}
 
-.rotulo{
+.section-label{
   margin:calc(var(--pd) * 1.25) 0 var(--pd2);color:var(--ink-50);
   display:flex;justify-content:space-between;align-items:center;gap:var(--pd);
 }
@@ -231,224 +235,173 @@ body::after{
 .pill svg{width:11px;height:11px;transition:transform var(--t)}
 
 /* ---------- lista ---------- */
-.lista{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:var(--pd2)}
-.tarefa{
+.queue{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:var(--pd2)}
+.task{
   display:flex;align-items:center;gap:var(--pd);
   padding:10px 12px;border-radius:var(--br);
   background:var(--fill);border:1px solid var(--line-soft);
   transition:background var(--t),border-color var(--t),opacity var(--t),transform var(--t);
 }
-.tarefa:hover,.tarefa:focus-within{background:var(--fill-hover);border-color:var(--line)}
-.tarefa.saindo{opacity:0;transform:translateX(12px)}
-.tarefa.arrastando{
+.task:hover,.task:focus-within{background:var(--fill-hover);border-color:var(--line)}
+.task.is-leaving{opacity:0;transform:translateX(12px)}
+.task.is-dragging{
   position:relative;z-index:2;cursor:grabbing;
   background:var(--surface-2);border-color:var(--line);
   box-shadow:0 14px 30px rgba(0,0,0,.55);transition:none;
 }
 
 /* alca de arrastar: fica sempre visivel, senao ninguem descobre que da pra reordenar */
-.pega{
+.grip{
   flex:0 0 auto;width:30px;height:30px;display:grid;place-items:center;
   border-radius:var(--br2);color:var(--ink-30);cursor:grab;
   touch-action:none;transition:color var(--t),background var(--t);
 }
-.pega:hover{color:var(--ink-70);background:var(--fill-hover)}
-.pega svg{width:15px;height:15px}
+.grip:hover{color:var(--ink-70);background:var(--fill-hover)}
+.grip svg{width:15px;height:15px}
 
 /* o corte: daqui pra baixo nao da tempo hoje */
-.corte{
+.cut{
   display:flex;align-items:center;gap:var(--pd2);
   margin:var(--pd2) 2px var(--pd3);color:var(--ink-30);
 }
-.corte::after{content:"";flex:1 1 auto;height:1px;background:var(--line)}
-.tarefa[data-cabe="nao"]{opacity:.45}
-.tarefa[data-cabe="nao"] .marca{border-style:dashed}
+.cut::after{content:"";flex:1 1 auto;height:1px;background:var(--line)}
+.task[data-fits="no"]{opacity:.45}
+.task[data-fits="no"] .mark{border-style:dashed}
 
 /* o ladrilho de icone e o proprio botao de concluir */
-.marca{
+.mark{
   flex:0 0 auto;width:44px;height:44px;border-radius:var(--br3);
   background:var(--fill);border:1px solid var(--line);
   display:grid;place-items:center;color:var(--ink);
   transition:background var(--t),color var(--t),border-color var(--t);
 }
-.marca svg{width:18px;height:18px;opacity:.18;transition:opacity var(--t)}
-.marca:hover{background:var(--green);border-color:var(--green);color:var(--on-green)}
-.marca:hover svg,.tarefa:focus-within .marca svg{opacity:1}
+.mark svg{width:18px;height:18px;opacity:.18;transition:opacity var(--t)}
+.mark:hover{background:var(--green);border-color:var(--green);color:var(--on-green)}
+.mark:hover svg,.task:focus-within .mark svg{opacity:1}
 
-.miolo{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:2px}
-.nome{
+.task__body{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:2px}
+.task__title{
   font-size:14.5px;font-weight:500;color:var(--ink);letter-spacing:-.015em;
   background:none;border:0;outline:0;padding:0;width:100%;
   text-overflow:ellipsis;cursor:text;
 }
-.sub{
+.task__time{
   align-self:flex-start;display:flex;align-items:center;gap:6px;
   font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;
   color:var(--ink-30);padding:1px 0;text-align:left;transition:color var(--t);
 }
-.sub:hover{color:var(--ink-70)}
-.sub svg{width:11px;height:11px;flex:0 0 auto}
+.task__time:hover{color:var(--ink-70)}
+.task__time svg{width:11px;height:11px;flex:0 0 auto}
 /* a tarefa cuja duracao se perdeu no caminho: cobra, em vez de sumir da conta */
-.sub[data-falta="sim"]{color:var(--ink-70);text-decoration:underline;text-underline-offset:3px}
+.task__time[data-missing="yes"]{color:var(--ink-70);text-decoration:underline;text-underline-offset:3px}
 /* editar duracao na propria linha, no lugar exato onde ela e lida */
-.sub-edit{
+.task__time-input{
   align-self:flex-start;width:104px;
   background:var(--fill);border:1px solid var(--green-glow);border-radius:var(--br2);
   padding:2px 7px;font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;
   color:var(--ink);
 }
 
-.acoes{flex:0 0 auto;display:flex;align-items:center;gap:2px;opacity:0;transition:opacity var(--t)}
-.tarefa:hover .acoes,.tarefa:focus-within .acoes{opacity:1}
-.acao{
+.actions{flex:0 0 auto;display:flex;align-items:center;gap:2px;opacity:0;transition:opacity var(--t)}
+.task:hover .actions,.task:focus-within .actions{opacity:1}
+.action{
   width:30px;height:30px;display:grid;place-items:center;border-radius:var(--br2);
   color:var(--ink-30);transition:color var(--t),background var(--t);
 }
-.acao:hover{color:var(--ink);background:var(--fill-hover)}
-/* o vinculo do ClickUp e o unico .acao que e <a>: sem isto ele viria azul e
+.action:hover{color:var(--ink);background:var(--fill-hover)}
+/* o vinculo do ClickUp e o unico .action que e <a>: sem isto ele viria azul e
    sublinhado, fora do sistema */
-a.acao{color:var(--ink-30);text-decoration:none}
-.acao svg{width:15px;height:15px}
+a.action{color:var(--ink-30);text-decoration:none}
+.action svg{width:15px;height:15px}
 /* ---------- a fila e de outro dia ----------
    nao e erro nem alarme: e um fato com duas saidas. por isso tinta neutra e
    nenhum vermelho — o sistema nao tem um, e isso aqui nao pediria. */
-.faixa-ontem{
+.stale{
   margin:calc(var(--pd) * 1.25) 0 0;
   padding:var(--pd);
   background:var(--fill);
   border:1px solid var(--line);
   border-radius:var(--br3);
 }
-.fo-texto{margin:0 0 var(--pd2);font-size:13px;color:var(--ink-70)}
-.fo-texto b{color:var(--ink);font-weight:600}
-.fo-acoes{display:flex;gap:var(--pd2);flex-wrap:wrap}
+.stale__text{margin:0 0 var(--pd2);font-size:13px;color:var(--ink-70)}
+.stale__text b{color:var(--ink);font-weight:600}
+.stale__actions{display:flex;gap:var(--pd2);flex-wrap:wrap}
 
 /* ---------- dia vazio ---------- */
-.vazio{padding:var(--pd3) 0}
-.vazio-sub{margin:0 0 var(--pd);font-size:13.5px;color:var(--ink-50)}
-.exemplos{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:var(--pd2)}
-.exemplos li{
+.empty{padding:var(--pd3) 0}
+.empty__sub{margin:0 0 var(--pd);font-size:13.5px;color:var(--ink-50)}
+.examples{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:var(--pd2)}
+.examples li{
   display:flex;align-items:center;gap:var(--pd);
   padding:10px 12px;border-radius:var(--br);
   border:1px dashed var(--line);color:var(--ink-30);
 }
-.exemplos .e-marca{
+.examples .examples__mark{
   flex:0 0 auto;width:44px;height:44px;border-radius:var(--br3);
   border:1px dashed var(--line);
 }
-.exemplos .e-miolo{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:2px}
-.exemplos .e-nome{font-size:14.5px;font-weight:500;color:var(--ink-50)}
-.exemplos .e-sub{font-family:var(--mono);font-size:10.5px;letter-spacing:.06em}
-.exemplos .e-sub b{font-weight:400;color:var(--green)}
-.vazio-rodape{margin:var(--pd) 0 0;font-size:12.5px;color:var(--ink-30)}
+.examples .examples__body{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:2px}
+.examples .examples__name{font-size:14.5px;font-weight:500;color:var(--ink-50)}
+.examples .examples__sub{font-family:var(--mono);font-size:10.5px;letter-spacing:.06em}
+.examples .examples__sub b{font-weight:400;color:var(--green)}
+.empty__foot{margin:var(--pd) 0 0;font-size:12.5px;color:var(--ink-30)}
 
 /* ---------- concluidas ---------- */
-.lista-feitas{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:var(--pd3)}
-.feitas[data-aberto="nao"] .lista-feitas{display:none}
-.feitas[data-aberto="nao"] .pill svg{transform:rotate(-90deg)}
-.feita{
+.done-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:var(--pd3)}
+.done[data-open="no"] .done-list{display:none}
+.done[data-open="no"] .pill svg{transform:rotate(-90deg)}
+.done-item{
   display:flex;align-items:center;gap:var(--pd);padding:6px 12px;border-radius:var(--br2);
   color:var(--ink-30);transition:background var(--t);
 }
-.feita:hover{background:var(--fill)}
-.feita .marca{width:30px;height:30px;border-radius:var(--br2);color:var(--green);background:var(--fill)}
-.feita .marca svg{width:13px;height:13px;opacity:1}
-.feita .f-nome{
+.done-item:hover{background:var(--fill)}
+.done-item .mark{width:30px;height:30px;border-radius:var(--br2);color:var(--green);background:var(--fill)}
+.done-item .mark svg{width:13px;height:13px;opacity:1}
+.done-item .done-item__name{
   flex:1 1 auto;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;
   font-size:13.5px;text-decoration:line-through;text-decoration-color:var(--line);
 }
-.feita .f-tempo{flex:0 0 auto;font-family:var(--mono);font-size:10.5px;letter-spacing:.06em}
+.done-item .done-item__time{flex:0 0 auto;font-family:var(--mono);font-size:10.5px;letter-spacing:.06em}
 
 /* ---------- o que ocupa o dia sem ser trabalho ----------
    fica acima da fila porque acontece antes dela na conta: e o dia que voce
    ja nao tem. sem check, porque nao se conclui almoco para ganhar tempo. */
-.lista-reservas{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:var(--pd3)}
-.reserva{
+.reserve-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:var(--pd3)}
+.reserve{
   display:flex;align-items:center;gap:var(--pd2);padding:7px 12px;border-radius:var(--br2);
   color:var(--ink-50);background:var(--fill);transition:background var(--t);
 }
-.reserva:hover{background:var(--fill-hover)}
-.reserva .r-marca{
+.reserve:hover{background:var(--fill-hover)}
+.reserve .reserve__mark{
   flex:0 0 auto;width:22px;height:22px;display:grid;place-items:center;color:var(--ink-30);
 }
-.reserva .r-marca svg{width:13px;height:13px}
-.reserva .r-nome{
+.reserve .reserve__mark svg{width:13px;height:13px}
+.reserve .reserve__name{
   flex:1 1 auto;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:13px;
 }
-.reserva .r-tempo{flex:0 0 auto;font-family:var(--mono);font-size:10.5px;letter-spacing:.06em}
-.reserva .acao{width:26px;height:26px}
-.reserva .acoes{opacity:0}
-.reserva:hover .acoes,.reserva:focus-within .acoes{opacity:1}
+.reserve .reserve__time{flex:0 0 auto;font-family:var(--mono);font-size:10.5px;letter-spacing:.06em}
+.reserve .action{width:26px;height:26px}
+.reserve .actions{opacity:0}
+.reserve:hover .actions,.reserve:focus-within .actions{opacity:1}
 
-/* ---------- a nuvem ----------
-   fica no pe da rolagem, em tinta baixa: e infraestrutura, nao assunto do dia. */
-.arquivo{margin-top:calc(var(--pd) * 1.5);padding-top:var(--pd);border-top:1px solid var(--line-soft)}
-.arq-linha{
-  margin:0;display:flex;align-items:center;justify-content:space-between;
-  gap:var(--pd2);flex-wrap:wrap;color:var(--ink-30);
-}
-.arq-acoes{display:flex;gap:var(--pd);flex:0 0 auto}
-.arq-link{
+/* link em texto, tinta baixa: "todas" na caixa de ideias, "descartar" na matriz */
+.text-link{
   font-size:11.5px;color:var(--ink-50);
   text-decoration:underline;text-underline-offset:3px;text-decoration-color:var(--line);
   transition:color var(--t);
 }
-.arq-link:hover{color:var(--ink)}
-/* sincronizado e o unico estado que ganha o verde: e o unico em que o dia
-   existe fora deste navegador */
-#nuvem-estado[data-e="ligada"]{color:var(--green)}
-#nuvem-estado[data-e="erro"],#nuvem-estado[data-e="offline"]{color:var(--ink-70)}
-
-/* ---------- entrar ----------
-   uma folha sobre o aparelho, nao uma pagina a parte: voce nao sai do dia
-   para entrar na conta. */
-.entrada{
-  position:absolute;inset:0;z-index:20;
-  display:grid;place-items:center;padding:var(--pd);
-  background:var(--scrim);backdrop-filter:blur(3px);
-}
-.ent-caixa{
-  position:relative;width:100%;max-width:330px;
-  background:var(--surface-2);border:1px solid var(--line);border-radius:var(--br);
-  padding:calc(var(--pd) * 1.5);
-}
-.ent-fechar{
-  position:absolute;top:10px;right:12px;
-  width:26px;height:26px;border-radius:var(--br2);
-  color:var(--ink-30);font-size:13px;transition:color var(--t),background var(--t);
-}
-.ent-fechar:hover{color:var(--ink);background:var(--fill)}
-.ent-titulo{margin:0 0 var(--pd3);font-size:15px;font-weight:600;letter-spacing:-.02em}
-.ent-sub{margin:0 0 var(--pd);font-size:12.5px;color:var(--ink-50)}
-.ent-form{margin:0}
-.ent-campo{
-  width:100%;height:44px;padding:0 14px;margin-bottom:var(--pd2);
-  background:var(--fill);border:1px solid var(--line);border-radius:var(--br2);
-  font-size:14px;color:var(--ink);
-}
-.ent-campo:focus{outline:none;border-color:var(--green-glow);background:var(--fill-hover)}
-/* o codigo e medida, entao e mono e espacado — como todo numero deste sistema */
-.ent-codigo{
-  font-family:var(--mono);font-size:22px;letter-spacing:.32em;text-align:center;
-}
-.ent-botao{
-  width:100%;height:44px;border-radius:var(--br-pill);
-  background:var(--green);color:var(--on-green);
-  font-size:13.5px;font-weight:600;transition:opacity var(--t);
-}
-.ent-botao:hover{opacity:.88}
-.ent-recado{margin:var(--pd2) 0 0;font-size:12px;color:var(--ink-50);min-height:16px}
+.text-link:hover{color:var(--ink)}
 
 /* ---------- pilula do composer ---------- */
-.pilula-area{flex:0 0 auto;padding:var(--pd2) calc(var(--pd) * 1.25) calc(var(--pd) * 1.25)}
-.fantasma{
+.composer{flex:0 0 auto;padding:var(--pd2) calc(var(--pd) * 1.25) calc(var(--pd) * 1.25)}
+.ghost{
   display:flex;align-items:center;gap:var(--pd2);
   margin:0 var(--pd3) var(--pd2);padding:9px 12px;
   border:1px dashed var(--line);border-radius:var(--br);color:var(--ink-30);
 }
-.fantasma .g-nome{flex:1 1 auto;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:13.5px}
-.fantasma .g-tempo{flex:0 0 auto;font-family:var(--mono);font-size:10.5px;letter-spacing:.06em}
-.fantasma[data-cabe="nao"]{border-style:solid;border-color:var(--line);color:var(--ink-70)}
+.ghost .ghost__name{flex:1 1 auto;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:13.5px}
+.ghost .ghost__time{flex:0 0 auto;font-family:var(--mono);font-size:10.5px;letter-spacing:.06em}
+.ghost[data-fits="no"]{border-style:solid;border-color:var(--line);color:var(--ink-70)}
 
 /* ---------- os chips de duracao ----------
    toda tarefa tem duracao: quando o texto nao traz uma, ela e perguntada aqui
@@ -457,12 +410,12 @@ a.acao{color:var(--ink-30);text-decoration:none}
   margin:0 var(--pd3) var(--pd2);padding:10px 12px;
   background:var(--surface-2);border:1px solid var(--line);border-radius:var(--br);
 }
-.chips-txt{
+.chips__text{
   margin:0 0 var(--pd2);font-size:12px;color:var(--ink-50);
   overflow:hidden;white-space:nowrap;text-overflow:ellipsis;
 }
-.chips-txt b{color:var(--ink-70);font-weight:500}
-.chips-fila{display:flex;gap:6px;flex-wrap:wrap}
+.chips__text b{color:var(--ink-70);font-weight:500}
+.chips__row{display:flex;gap:6px;flex-wrap:wrap}
 .chip{
   height:30px;padding:0 13px;border-radius:var(--br-pill);
   background:var(--fill);border:1px solid var(--line);
@@ -470,40 +423,40 @@ a.acao{color:var(--ink-30);text-decoration:none}
   transition:background var(--t),color var(--t),border-color var(--t);
 }
 .chip:hover{background:var(--fill-hover);color:var(--ink)}
-.chip[data-cabe="nao"]{color:var(--ink-30)}
-.chip.outro{font-family:var(--sans);font-size:12px;color:var(--ink-50)}
+.chip[data-fits="no"]{color:var(--ink-30)}
+.chip--other{font-family:var(--sans);font-size:12px;color:var(--ink-50)}
 
-.pilula{
+.entry{
   display:flex;align-items:center;gap:var(--pd2);
   height:56px;padding:0 var(--pd2);
   background:var(--fill);border:1px solid var(--line);
   border-radius:var(--br-pill);transition:border-color var(--t),background var(--t);
 }
-.pilula:focus-within{border-color:var(--green-glow);background:var(--fill-hover)}
-.mais{
+.entry:focus-within{border-color:var(--green-glow);background:var(--fill-hover)}
+.entry__plus{
   flex:0 0 auto;width:38px;height:38px;border-radius:50%;
   background:var(--fill-hover);border:1px solid var(--line);
   display:grid;place-items:center;color:var(--ink-50);
   transition:background var(--t),color var(--t),border-color var(--t);
 }
-.mais svg{width:16px;height:16px}
-.pilula:focus-within .mais{background:var(--green);border-color:var(--green);color:var(--on-green)}
-.pilula input{
+.entry__plus svg{width:16px;height:16px}
+.entry:focus-within .entry__plus{background:var(--green);border-color:var(--green);color:var(--on-green)}
+.entry input{
   flex:1 1 auto;min-width:0;background:none;border:0;outline:0;
   font-size:14.5px;caret-color:var(--green);
 }
-.pilula input::placeholder{color:var(--ink-30)}
-.enviar{
+.entry input::placeholder{color:var(--ink-30)}
+.entry__send{
   flex:0 0 auto;width:38px;height:38px;border-radius:50%;
   display:grid;place-items:center;color:var(--ink-30);
   transition:color var(--t),background var(--t);
 }
-.enviar svg{width:16px;height:16px}
-.enviar:hover{color:var(--ink);background:var(--fill-hover)}
-.aviso-storage{margin:var(--pd2) 6px 0;font-size:11.5px;color:var(--ink-70)}
+.entry__send svg{width:16px;height:16px}
+.entry__send:hover{color:var(--ink);background:var(--fill-hover)}
+.storage-warning{margin:var(--pd2) 6px 0;font-size:11.5px;color:var(--ink-70)}
 
 /* ---------- desfazer ---------- */
-.aviso{
+.toast{
   position:absolute;left:var(--pd);right:var(--pd);bottom:86px;z-index:5;
   display:flex;align-items:center;justify-content:space-between;gap:var(--pd);
   padding:11px 14px;border-radius:var(--br);
@@ -511,8 +464,8 @@ a.acao{color:var(--ink-30);text-decoration:none}
   font-size:13px;color:var(--ink);
   box-shadow:var(--sombra-2);
 }
-.aviso span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.aviso button{
+.toast span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.toast button{
   flex:0 0 auto;color:var(--green);font-size:12.5px;
   text-decoration:underline;text-underline-offset:3px;padding:var(--pd3) 2px;
 }
@@ -523,12 +476,12 @@ a.acao{color:var(--ink-30);text-decoration:none}
    abre trilho AO LADO dele para os blocos novos (ideias, matriz, etc).
    trilho vazio nao existe — :empty tira do fluxo, entao ate o primeiro bloco
    nascer a tela e exatamente a de hoje. */
-.lado{display:flex;flex-direction:column;gap:var(--pd);width:100%;max-width:496px}
-.lado:empty{display:none}
+.side{display:flex;flex-direction:column;gap:var(--pd);width:100%;max-width:496px}
+.side:empty{display:none}
 
 /* o ladrilho dos blocos novos: mesma superficie e mesma sombra do aparelho,
    um raio abaixo — o dia continua sendo o objeto principal da tela. */
-.bloco{
+.block{
   position:relative;
   background:var(--surface);border:1px solid var(--line);
   border-radius:var(--br);padding:calc(var(--pd) * 1.25);
@@ -539,32 +492,32 @@ a.acao{color:var(--ink-30);text-decoration:none}
    linha mais leve que a da tarefa de proposito: ideia nao tem duracao, entao
    ela nao tem a coluna de medida que toda tarefa tem. a diferenca de peso na
    tela e a mesma diferenca que existe no dia. */
-.ideias-nota{margin:0 0 var(--pd2);font-size:12px;color:var(--ink-30)}
-.ideias-vazio{margin:0 0 var(--pd2);font-size:13px;color:var(--ink-30)}
-.lista-ideias{list-style:none;margin:0 0 var(--pd2);padding:0;display:flex;flex-direction:column;gap:var(--pd3)}
-.ideia{
+.ideas__note{margin:0 0 var(--pd2);font-size:12px;color:var(--ink-30)}
+.ideas__empty{margin:0 0 var(--pd2);font-size:13px;color:var(--ink-30)}
+.idea-list{list-style:none;margin:0 0 var(--pd2);padding:0;display:flex;flex-direction:column;gap:var(--pd3)}
+.idea{
   display:flex;align-items:center;gap:var(--pd2);padding:6px 6px 6px 12px;
   border-radius:var(--br2);background:var(--fill);border:1px solid var(--line-soft);
 }
-.ideia .i-nome{
+.idea .idea__name{
   flex:1 1 auto;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;
   font-size:13px;color:var(--ink-70);
 }
-.ideia .i-acoes{flex:0 0 auto;display:flex;align-items:center;gap:2px;opacity:0;transition:opacity var(--t)}
-.ideia:hover .i-acoes,.ideia:focus-within .i-acoes{opacity:1}
-.i-acao{
+.idea .idea__actions{flex:0 0 auto;display:flex;align-items:center;gap:2px;opacity:0;transition:opacity var(--t)}
+.idea:hover .idea__actions,.idea:focus-within .idea__actions{opacity:1}
+.idea__action{
   width:26px;height:26px;display:grid;place-items:center;border-radius:var(--br2);
   color:var(--ink-30);transition:color var(--t),background var(--t);
 }
-.i-acao:hover{color:var(--ink);background:var(--fill-hover)}
-.i-acao svg{width:14px;height:14px}
+.idea__action:hover{color:var(--ink);background:var(--fill-hover)}
+.idea__action svg{width:14px;height:14px}
 /* sem hover no toque, as acoes ficam sempre visiveis */
-@media (hover:none){.ideia .i-acoes{opacity:1}}
-.form-ideia input{
+@media (hover:none){.idea .idea__actions{opacity:1}}
+.idea-form input{
   width:100%;background:var(--fill);border:1px solid var(--line);
   border-radius:var(--br-pill);padding:8px 14px;font-size:13px;color:var(--ink);
 }
-.form-ideia input::placeholder{color:var(--ink-30)}
+.idea-form input::placeholder{color:var(--ink-30)}
 
 /* ---------- matriz de eisenhower ----------
    ela e um instrumento do medidor, nao um painel ao lado dele: por isso a
@@ -572,54 +525,54 @@ a.acao{color:var(--ink-30);text-decoration:none}
    anda junto com o arrasto. sem ela os quadrantes teriam capacidade infinita
    e priorizar voltaria a ser de graca — que e exatamente o que a ordem da
    fila existe para impedir. */
-.m-nota{margin:0 0 var(--pd2);font-size:12px;color:var(--ink-30)}
-.m-rot{display:block;color:var(--ink-30);margin-bottom:var(--pd3);font-size:9.5px}
-.m-campo{display:flex;flex-direction:column;gap:var(--pd2)}
+.matrix__note{margin:0 0 var(--pd2);font-size:12px;color:var(--ink-30)}
+.matrix__label{display:block;color:var(--ink-30);margin-bottom:var(--pd3);font-size:9.5px}
+.matrix__field{display:flex;flex-direction:column;gap:var(--pd2)}
 /* minmax(0,1fr), e nao 1fr: trilha de grid tem min-width auto, entao o chip
    mais longo alargaria o quadrante em vez de ser cortado com reticencias */
-.m-grade{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:var(--pd2)}
-.m-zona{
+.matrix__grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:var(--pd2)}
+.zone{
   border:1px dashed var(--line);border-radius:var(--br2);padding:var(--pd2);
   min-height:64px;min-width:0;transition:border-color var(--t),background var(--t);
 }
-.m-zona[data-alvo="sim"]{border-color:var(--green);background:var(--fill)}
-.m-pool{min-height:44px}
-.m-chips{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:3px;min-height:20px;min-width:0}
-.m-chip{
+.zone[data-target="yes"]{border-color:var(--green);background:var(--fill)}
+.zone--pool{min-height:44px}
+.zone__chips{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:3px;min-height:20px;min-width:0}
+.matrix-chip{
   display:flex;align-items:center;gap:6px;padding:5px 8px;
   border-radius:var(--br2);background:var(--fill-hover);
   font-size:12px;color:var(--ink-70);cursor:grab;touch-action:none;min-width:0;
 }
-.m-chip .m-nome{flex:1 1 auto;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
-.m-chip .m-min{flex:0 0 auto;font-family:var(--mono);font-size:9.5px;color:var(--ink-30)}
-.m-chip.arrastando{opacity:.45;cursor:grabbing;pointer-events:none}
+.matrix-chip .matrix-chip__name{flex:1 1 auto;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.matrix-chip .matrix-chip__min{flex:0 0 auto;font-family:var(--mono);font-size:9.5px;color:var(--ink-30)}
+.matrix-chip.is-dragging{opacity:.45;cursor:grabbing;pointer-events:none}
 
-.m-previa-rot{margin:var(--pd) 0 var(--pd3)}
-.m-previa{list-style:none;margin:0;padding:0;counter-reset:p}
-.m-previa li{
+.preview-label{margin:var(--pd) 0 var(--pd3)}
+.preview{list-style:none;margin:0;padding:0;counter-reset:p}
+.preview li{
   display:flex;align-items:center;gap:6px;padding:3px 0;
   font-size:12px;color:var(--ink-70);
 }
-.m-previa li::before{
+.preview li::before{
   counter-increment:p;content:counter(p);
   flex:0 0 auto;width:14px;font-family:var(--mono);font-size:9.5px;color:var(--ink-30);
 }
-.m-previa .p-nome{flex:1 1 auto;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.preview .preview__name{flex:1 1 auto;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
 /* daqui pra baixo o dia nao alcanca — a mesma frase que a fila ja usa */
-.m-previa li[data-cabe="nao"]{color:var(--ink-30)}
-.m-previa li[data-corte="sim"]{
+.preview li[data-fits="no"]{color:var(--ink-30)}
+.preview li[data-cut="yes"]{
   border-top:1px solid var(--line);margin-top:var(--pd3);padding-top:var(--pd2);
 }
-.m-previa li[data-corte="sim"]::after{
+.preview li[data-cut="yes"]::after{
   content:"daqui não dá tempo";
   font-family:var(--mono);font-size:9px;letter-spacing:.08em;
   text-transform:uppercase;color:var(--ink-30);flex:0 0 auto;
 }
-.m-vazia{font-size:12px;color:var(--ink-30);margin:0}
-.m-acoes{display:flex;align-items:center;gap:var(--pd);margin-top:var(--pd)}
+.preview__empty{font-size:12px;color:var(--ink-30);margin:0}
+.matrix__actions{display:flex;align-items:center;gap:var(--pd);margin-top:var(--pd)}
 
 @media (min-width:1200px){
-  body{
+  #app{
     /* o aparelho fica na coluna do meio, no tamanho que sempre teve.
        os trilhos so existem se tiverem bloco dentro. */
     grid-template-columns:minmax(272px,340px) 496px minmax(300px,380px);
@@ -627,27 +580,27 @@ a.acao{color:var(--ink-30);text-decoration:none}
     align-items:start;
     gap:var(--pd);
   }
-  .fone{grid-column:2;grid-row:1}
-  #lado-esq{grid-column:1;grid-row:1}
-  #lado-dir{grid-column:3;grid-row:1}
+  .device{grid-column:2;grid-row:1}
+  #side-left{grid-column:1;grid-row:1}
+  #side-right{grid-column:3;grid-row:1}
   /* alinha o topo dos blocos com o topo do aparelho */
-  .lado{max-width:none}
+  .side{max-width:none}
 }
 
 @media (max-width:480px){
   body{padding:var(--nav-h) 0 0}
-  .fone{max-width:none;height:calc(100dvh - var(--nav-h));border-radius:0;border:0;box-shadow:none}
-  .topo{padding-top:max(18px,env(safe-area-inset-top))}
-  .pilula-area{padding-bottom:max(var(--pd),env(safe-area-inset-bottom))}
-  .chamada{font-size:27px}
+  .device{max-width:none;height:calc(100dvh - var(--nav-h));border-radius:0;border:0;box-shadow:none}
+  .top{padding-top:max(18px,env(safe-area-inset-top))}
+  .composer{padding-bottom:max(var(--pd),env(safe-area-inset-bottom))}
+  .headline{font-size:27px}
   /* sem hover no toque, as acoes ficam sempre visiveis — entao elas precisam
      custar menos largura, senao comem o titulo */
-  .acoes{opacity:1}
-  .tarefa{gap:10px;padding:10px}
-  .marca{width:40px;height:40px}
-  .acao{width:28px;height:28px}
-  .exemplos li{gap:10px;padding:10px}
-  .exemplos .e-marca{width:40px;height:40px}
+  .actions{opacity:1}
+  .task{gap:10px;padding:10px}
+  .mark{width:40px;height:40px}
+  .action{width:28px;height:28px}
+  .examples li{gap:10px;padding:10px}
+  .examples .examples__mark{width:40px;height:40px}
 }
 @media (prefers-reduced-motion:reduce){
   *{transition-duration:.01ms !important;animation-duration:.01ms !important}
@@ -655,1913 +608,1531 @@ a.acao{color:var(--ink-30);text-decoration:none}
 </style>
 </head>
 <body>
-
-<main class="fone">
-
-  <div class="topo">
-    <span class="t-mono" id="data"></span>
-    <button class="janela" id="janela" title="Mudar o começo e o fim do seu dia"></button>
-  </div>
-
-  <div class="rolagem">
-
-    <div class="logo-selo" aria-hidden="true">
-      <svg viewBox="0 0 472.5 472.5" fill="currentColor">
-        <path d="M236.31,236.23c-3.63,128.42,107.71,238.95,236.22,236.22v-118.11c-64.78,2.88-121-53.42-118.11-118.11h-118.11Z"/>
-        <path d="M236.22,0C239.85,128.42,128.52,238.95,0,236.22v-118.11C64.78,120.99,121,64.69,118.11,0h118.11Z"/>
-        <path d="M315.07,0h77.61c44.09,0,79.89,35.8,79.89,79.89v77.61h-157.5V0h0Z"/>
-        <path d="M79.96,315H.07v78.75h78.75v78.75h78.75v-79.89c0-42.86-34.75-77.61-77.61-77.61Z"/>
-      </svg>
-    </div>
-
-    <h1 class="chamada" id="chamada">
-      <span class="c1" id="c1"></span>
-      <span class="c2"><span class="medida" id="medida"></span> <span id="resto"></span></span>
-    </h1>
-    <p class="contexto" id="contexto"></p>
-
-    <div class="trilho" id="trilho" aria-hidden="true"></div>
-    <div class="estouro" id="estouro" hidden aria-hidden="true"></div>
-    <span class="nota t-mono" id="nota"></span>
-    <div class="editor-dia" id="editor-dia" hidden>
-      <label>de <input type="time" id="inicio" step="300"></label>
-      <label>até <input type="time" id="fim" step="300"></label>
-      <button type="button" id="salvar-dia">salvar</button>
-    </div>
-
-    <div class="faixa-ontem" id="faixa-ontem" hidden>
-      <p class="fo-texto" id="fo-texto"></p>
-      <div class="fo-acoes">
-        <button class="pill" type="button" id="fo-trazer">trazer pra hoje</button>
-        <button class="pill" type="button" id="fo-fechar"><span id="fo-quando"></span></button>
-      </div>
-    </div>
-
-    <section class="reservas" id="reservas" hidden>
-      <p class="rotulo"><span class="t-mono" id="reservas-rotulo"></span></p>
-      <ul class="lista-reservas" id="lista-reservas"></ul>
-    </section>
-
-    <p class="rotulo" id="rotulo-fila"><span class="t-mono" id="rotulo-texto"></span></p>
-
-    <ul class="lista" id="lista"></ul>
-
-    <div class="vazio" id="vazio" hidden>
-      <p class="vazio-sub" id="vazio-sub"></p>
-      <ul class="exemplos" id="exemplos" aria-hidden="true">
-        <li>
-          <span class="e-marca"></span>
-          <span class="e-miolo">
-            <span class="e-nome">fechar o relatório da Vibra</span>
-            <span class="e-sub"><b>1h30</b></span>
-          </span>
-        </li>
-        <li>
-          <span class="e-marca"></span>
-          <span class="e-miolo">
-            <span class="e-nome">ligar pro contador</span>
-            <span class="e-sub"><b>15m</b></span>
-          </span>
-        </li>
-      </ul>
-      <p class="vazio-rodape" id="vazio-rodape">Escreve assim, com a duração no fim: ela sai do título e entra na barra do dia.</p>
-    </div>
-
-    <section class="feitas" id="feitas" data-aberto="nao" hidden>
-      <p class="rotulo">
-        <button class="pill" id="alternar-feitas" aria-expanded="false">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
-          <span id="feitas-rotulo"></span>
-        </button>
-        <button class="pill" id="limpar">limpar</button>
-      </p>
-      <ul class="lista-feitas" id="lista-feitas"></ul>
-    </section>
-
-  </div>
-
-  <div class="pilula-area">
-    <div class="fantasma" id="fantasma" hidden aria-hidden="true">
-      <span class="g-nome"></span>
-      <span class="g-tempo"></span>
-    </div>
-    <div class="chips" id="chips" hidden>
-      <p class="chips-txt" id="chips-txt"></p>
-      <div class="chips-fila" id="chips-fila" role="group" aria-label="Quanto tempo isso leva"></div>
-    </div>
-    <form class="pilula" id="form" autocomplete="off">
-      <span class="mais" aria-hidden="true">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
-      </span>
-      <input id="campo" placeholder="o que precisa caber?" aria-label="Nova tarefa">
-      <button class="enviar" type="submit" aria-label="Adicionar tarefa">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h13M12 5l7 7-7 7"/></svg>
-      </button>
-    </form>
-    <p class="aviso-storage" id="aviso-storage" hidden></p>
-  </div>
-
-  <div class="aviso" id="aviso" hidden role="status" aria-live="polite">
-    <span id="aviso-texto"></span>
-    <button type="button" id="aviso-desfazer">desfazer</button>
-  </div>
-
-</main>
-
-<!-- os trilhos do bento. ficam depois do aparelho no DOM de proposito: no
-     celular a coluna e uma so, e bloco novo tem que cair EMBAIXO do dia, nao
-     na frente dele. no desktop a grade joga o primeiro para a esquerda. -->
-<div class="lado" id="lado-esq">
-  <section class="bloco" id="ideias">
-    <p class="rotulo"><span class="t-mono" id="ideias-rotulo"></span><a class="arq-link" href="ideias.html">todas</a></p>
-    <p class="ideias-nota">não custam minuto nenhum até virarem tarefa</p>
-    <p class="ideias-vazio" id="ideias-vazio" hidden>Nada aqui. Escreve embaixo o que ainda não é tarefa.</p>
-    <ul class="lista-ideias" id="lista-ideias"></ul>
-    <form class="form-ideia" id="form-ideia" autocomplete="off">
-      <input id="campo-ideia" maxlength="300" placeholder="uma ideia" aria-label="Nova ideia">
-    </form>
-  </section>
-</div>
-<div class="lado" id="lado-dir">
-  <section class="bloco" id="matriz">
-    <p class="rotulo">
-      <span class="t-mono" id="matriz-rotulo">ordenar</span>
-      <button class="pill" type="button" id="matriz-abrir" aria-expanded="false">abrir</button>
-    </p>
-    <p class="m-nota" id="matriz-nota">Arruma a fila por urgência e importância. O que sair daqui vira a ordem do dia.</p>
-
-    <div id="matriz-corpo" hidden>
-      <div class="m-campo" id="matriz-campo">
-        <div class="m-zona m-pool" data-zona="pool">
-          <span class="t-mono m-rot">na fila, sem classificar</span>
-          <ul class="m-chips"></ul>
-        </div>
-        <div class="m-grade">
-          <div class="m-zona" data-zona="q1"><span class="t-mono m-rot">faz agora</span><ul class="m-chips"></ul></div>
-          <div class="m-zona" data-zona="q2"><span class="t-mono m-rot">agenda</span><ul class="m-chips"></ul></div>
-          <div class="m-zona" data-zona="q3"><span class="t-mono m-rot">delega</span><ul class="m-chips"></ul></div>
-          <div class="m-zona" data-zona="q4"><span class="t-mono m-rot">fica pra depois</span><ul class="m-chips"></ul></div>
-        </div>
-      </div>
-
-      <p class="m-rot t-mono m-previa-rot">a fila que sai daqui</p>
-      <ol class="m-previa" id="matriz-previa"></ol>
-
-      <div class="m-acoes">
-        <button class="pill" type="button" id="matriz-aplicar">aplicar</button>
-        <button class="arq-link" type="button" id="matriz-descartar">descartar</button>
-      </div>
-    </div>
-  </section>
-</div>
+<!-- a raiz do preact: o aparelho e os trilhos do bento nascem aqui dentro. ficam
+     depois do aparelho no DOM de proposito: no celular a coluna e uma so, e bloco
+     novo tem que cair EMBAIXO do dia. no desktop a grade joga o primeiro para a esquerda. -->
+<div id="app"></div>
 
 <script type="module">
-import { colecao, nuvem, api, iniciarPagina, lerEntrada, gravarEntrada,
-         listarFrentes, seloFrente, corFrente, nomeCliente, lerArrobas, segundaDe }
-  from "./shared/core.js";
-(() => {
-  "use strict";
+import {
+  initPage, newId, today, isDay, mondayOf, api, cloud,
+  readInbox, writeInbox, parseMentions, listFronts, clientName, frontColor
+} from "./shared/core.js";
+import {
+  html, mount, useState, useEffect, useLayoutEffect, useRef,
+  useCollection, useFronts, useClients, useKeydown, isTyping,
+  FrontBadge, ClientBadge, icon, svg
+} from "./shared/ui.js";
 
-  const CHAVE = "merlin:dia";
-  /* o nome anterior do produto: quem abrir o mesmo navegador nao perde o dia */
-  const CHAVE_ANTIGA = "artt-planner:v2";
-  const DIA = 1440;
+initPage("day");
 
-  /* a data como o estado a guarda: YYYY-MM-DD no fuso local, nunca ISO/UTC —
-     toISOString() em Sao Paulo joga tudo depois das 21h para o dia seguinte. */
-  function diaDe(d) {
-    return d.getFullYear() + "-" +
-      String(d.getMonth() + 1).padStart(2, "0") + "-" +
-      String(d.getDate()).padStart(2, "0");
-  }
-  const hoje = () => diaDe(new Date());
-  const ehDia = (v) => typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v);
+const DAY_KEY = "merlin:day";
+const MINUTES = 1440;
+const CLICKUP_ID = /^[A-Za-z0-9]{1,32}$/;
 
-  /* prefixo por aba: duas abas abertas no mesmo milissegundo nao podem gerar o mesmo id */
-  const SESSAO = Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
-  let contador = 0;
-  const proximoId = () => SESSAO + "-" + (++contador);
+/* ---------- o documento do dia ---------- */
 
-  /* ---------- estado ---------- */
+function normalizeTask(t) {
+  t = t || {};
+  /* de onde a tarefa veio (o cartao da semana), para o cartao ser marcado
+     feito quando a tarefa for concluida aqui. so id: nada e copiado. */
+  const origin = t.origin && typeof t.origin === "object" && t.origin.type && t.origin.id
+    ? { type: String(t.origin.type).slice(0, 32), id: String(t.origin.id).slice(0, 64) }
+    : null;
+  return {
+    id: t.id ? String(t.id) : newId(),
+    title: String(t.title || "").slice(0, 300),
+    min: Number.isFinite(+t.min) && +t.min > 0 ? Math.min(Math.round(+t.min), MINUTES) : 0,
+    done: !!t.done,
+    /* reserva ocupa a janela sem ser trabalho: almoco, reuniao, bloco fixo.
+       nao se conclui, nao devolve tempo, nao entra na fila — so encolhe o dia. */
+    reserved: !!t.reserved,
+    /* id da tarefa no ClickUp, nao a URL: o href se monta na tela, e assim
+       nao existe caminho para um "javascript:" entrar por um titulo. o
+       formato e conferido aqui porque documento vindo do disco ou da nuvem
+       nao e confiavel so por ter chegado. */
+    clickup: CLICKUP_ID.test(String(t.clickup || "")) ? String(t.clickup) : "",
+    /* de qual frente (empresa) e de qual cliente e o trabalho. so ids: o
+       nome vem do cadastro na hora de desenhar, e some se o cadastro sumir. */
+    front: String(t.front || "").slice(0, 64),
+    client: String(t.client || "").slice(0, 64),
+    origin
+  };
+}
 
-  const CLICKUP_ID = /^[A-Za-z0-9]{1,32}$/;
+const validMinute = (v, fallback) =>
+  Number.isFinite(+v) && +v >= 0 && +v <= MINUTES ? Math.round(+v) : fallback;
 
-  function normalizar(t) {
-    return {
-      id: t && t.id ? String(t.id) : proximoId(),
-      titulo: String((t && t.titulo) || "").slice(0, 300),
-      min: Number.isFinite(+(t && t.min)) && +t.min > 0 ? Math.min(Math.round(+t.min), DIA) : 0,
-      feito: !!(t && t.feito),
-      /* reserva ocupa a janela sem ser trabalho: almoco, reuniao, bloco fixo.
-         nao se conclui, nao devolve tempo, nao entra na fila — so encolhe o dia. */
-      reserva: !!(t && t.reserva),
-      /* id da tarefa no ClickUp, nao a URL: o href se monta no render, e assim
-         nao existe caminho para um "javascript:" entrar na tela por um titulo.
-         o formato e conferido aqui porque documento vindo do disco ou da nuvem
-         nao e confiavel so por ter chegado. */
-      clickup: CLICKUP_ID.test(String((t && t.clickup) || "")) ? String(t.clickup) : "",
-      /* de qual frente (empresa) e de qual cliente e o trabalho. so ids: o
-         nome vem do cadastro na hora de desenhar, e some se o cadastro sumir. */
-      frente: String((t && t.frente) || "").slice(0, 64),
-      cliente: String((t && t.cliente) || "").slice(0, 64),
-      /* o cartao da semana de onde ela veio, para o cartao ser marcado feito
-         quando a tarefa for concluida aqui */
-      semana: String((t && t.semana) || "").slice(0, 64)
-    };
-  }
+/* a mesma validacao para tudo que entra: localStorage e nuvem. nada chega ao
+   estado sem passar por aqui. */
+function loadFrom(raw) {
+  const empty = { tasks: [], start: 540, end: 1140, doneOpen: false, day: today(), v: 0 };
+  if (!raw || !Array.isArray(raw.tasks)) return empty;
+  const start = validMinute(raw.start, 540);
+  let end = validMinute(raw.end, 1140);
+  if (end <= start) end = Math.min(start + 600, MINUTES);
+  return {
+    tasks: raw.tasks.map(normalizeTask).filter((t) => t.title),
+    start,
+    end,
+    doneOpen: !!raw.doneOpen,
+    /* estado gravado sem o campo: tratar como hoje na primeira carga, em vez
+       de acusar um atraso inventado */
+    day: isDay(raw.day) ? raw.day : today(),
+    /* carimbo de escrita: e por ele que dois aparelhos decidem quem esta na
+       frente */
+    v: Number.isFinite(+raw.v) && +raw.v > 0 ? Math.round(+raw.v) : 0
+  };
+}
+function load() {
+  let raw = null;
+  try { raw = JSON.parse(localStorage.getItem(DAY_KEY)); }
+  catch (e) { /* storage bloqueado ou corrompido: comeca limpo */ }
+  return loadFrom(raw);
+}
 
-  const minutoValido = (v, padrao) =>
-    Number.isFinite(+v) && +v >= 0 && +v <= DIA ? Math.round(+v) : padrao;
+/* ---------- tempo ---------- */
 
-  function carregar() {
-    let bruto = null;
-    try {
-      bruto = JSON.parse(localStorage.getItem(CHAVE));
-      /* migra do nome antigo: mesmo formato, chave nova */
-      if (!bruto) bruto = JSON.parse(localStorage.getItem(CHAVE_ANTIGA));
-    } catch (e) { /* storage bloqueado ou corrompido: comeca limpo */ }
+/* escrito por extenso: so as formas que alguem realmente digita com pressa */
+const SPELLED = [
+  [/(?:^|\s)meia\s*hora(?=\s|$)/i, 30],
+  [/(?:^|\s)uma\s*hora\s*e\s*meia(?=\s|$)/i, 90],
+  [/(?:^|\s)(?:uma|1)\s*hora(?=\s|$)/i, 60],
+  [/(?:^|\s)duas\s*horas(?=\s|$)/i, 120],
+  [/(?:^|\s)tr[eê]s\s*horas(?=\s|$)/i, 180]
+];
 
-    return carregarDe(bruto);
-  }
-
-  /* a mesma validacao para tudo que entra: localStorage, arquivo importado e
-     arquivo sincronizado. nada chega ao estado sem passar por aqui. */
-  function carregarDe(bruto) {
-    const vazio = { tarefas: [], inicio: 540, fim: 1140, feitasAbertas: false, dia: hoje(), v: 0 };
-    if (!bruto || !Array.isArray(bruto.tarefas)) return vazio;
-    const inicio = minutoValido(bruto.inicio, 540);
-    let fim = minutoValido(bruto.fim, 1140);
-    if (fim <= inicio) fim = Math.min(inicio + 600, DIA);
-    return {
-      tarefas: bruto.tarefas.map(normalizar).filter((t) => t.titulo),
-      inicio,
-      fim,
-      feitasAbertas: !!bruto.feitasAbertas,
-      /* estado gravado antes do campo existir e a fila viva de quem ja usava:
-         tratar como hoje na primeira carga, em vez de acusar um atraso inventado */
-      dia: ehDia(bruto.dia) ? bruto.dia : hoje(),
-      /* carimbo de escrita: e por ele que dois aparelhos decidem quem esta na
-         frente. lastModified do arquivo nao serve — quem mexe nele e o cliente
-         de sync, nao nos. */
-      v: Number.isFinite(+bruto.v) && +bruto.v > 0 ? Math.round(+bruto.v) : 0
-    };
-  }
-
-  const estado = carregar();
-  let storageQuebrado = false;
-  /* declarado aqui, e nao junto do resto do desfazer, porque o listener de
-     storage abaixo o consulta e e registrado antes daquele bloco */
-  let paraDesfazer = null;
-
-  function salvar() {
-    /* o navegador continua sendo a fonte de verdade da sessao: o arquivo e
-       camada de sincronia, nao substituto. se ele falhar, o dia nao se perde. */
-    estado.v = Date.now();
-    try { localStorage.setItem(CHAVE, JSON.stringify(estado)); }
-    catch (e) {
-      if (!storageQuebrado) {
-        storageQuebrado = true;
-        elAvisoStorage.hidden = false;
-        elAvisoStorage.textContent = "não consegui salvar neste navegador — o que você fizer agora some ao fechar";
-      }
-    }
-    agendarGravacao();
+/* a duracao em qualquer ponto do texto. e mais estrita que o parseDuration
+   do core de proposito: "revisar 1h 20 slides" vira 1h e "revisar 20 slides",
+   porque minuto solto pode ser do titulo — o parser prefere nao entender a
+   entender errado. */
+function readDuration(text) {
+  /* por extenso primeiro: "meia hora" nao tem digito para os padroes abaixo pegarem */
+  for (const [re, value] of SPELLED) {
+    const m = text.match(re);
+    if (m) return sliceOut(text, m, value);
   }
 
-  /* outra aba gravou: recarrega em vez de sobrescrever o trabalho dela */
-  window.addEventListener("storage", (e) => {
-    if (e.key !== CHAVE) return;
-    Object.assign(estado, carregar());
-    /* o desfazer pendente virou lixo: ele restauraria um retrato anterior ao
-       que a outra aba acabou de gravar, apagando o trabalho dela — o oposto
-       do que este listener existe para evitar. (guardado porque este listener
-       e registrado antes das referencias de DOM existirem.) */
-    if (paraDesfazer) fecharAviso();
-    render();
+  /* decimal com virgula ou ponto: "1,5h" e "1.5h" sao a mesma coisa aqui */
+  const decimal = text.match(/(?:^|\s)(\d{1,2})[.,](\d{1,2})\s*h(?:oras?)?(?=\s|$)/i);
+  if (decimal) {
+    const fraction = +("0." + decimal[2]);
+    return sliceOut(text, decimal, Math.round(((+decimal[1]) + fraction) * 60));
+  }
+
+  /* minutos so contam colados na hora ("1h30") ou com unidade ("1h 30m"):
+     senao "revisar 1h 20 slides" viraria 1h20 e comeria o "20" do titulo.
+     "1h 30" tambem nao conta, pela mesma razao — o 30 pode ser do titulo. */
+  const withHour = text.match(/(?:^|\s)(\d{1,2})\s*h(?:oras?)?(?:(\d{1,2})|\s*(\d{1,2})\s*(?:m|min|mins|minutos?))?(?=\s|$)/i);
+  const m = withHour || text.match(/(?:^|\s)(\d{1,3})\s*(?:m|min|mins|minutos?)(?=\s|$)/i);
+  if (!m) return { min: 0, title: text.replace(/\s+/g, " ").trim() };
+  const min = withHour ? (+m[1]) * 60 + (+(m[2] || m[3] || 0)) : +m[1];
+  return sliceOut(text, m, min);
+}
+
+/* fatia pela posicao real do match: replace(string) apagaria a primeira
+   ocorrencia literal, que pode nao ser a que casou */
+function sliceOut(text, m, min) {
+  const clean = text.slice(0, m.index) + " " + text.slice(m.index + m[0].length);
+  return { min: Math.min(min, MINUTES), title: clean.replace(/\s+/g, " ").trim() };
+}
+
+/* link de tarefa do ClickUp colado junto do titulo. so a forma /t/<id> —
+   que e a unica que identifica uma tarefa — e a URL sai do titulo como a
+   duracao sai: o titulo fica sendo o que voce leria em voz alta. */
+const CLICKUP_URL = /(?:^|\s)https?:\/\/(?:[a-z0-9-]+\.)*clickup\.com\/t\/(?:\d+\/)?([A-Za-z0-9]{1,32})\S*(?=\s|$)/i;
+
+function readClickup(text) {
+  const m = text.match(CLICKUP_URL);
+  if (!m) return { clickup: "", title: text };
+  return {
+    clickup: m[1],
+    title: text.slice(0, m.index) + " " + text.slice(m.index + m[0].length)
+  };
+}
+
+/* o composer inteiro le a linha por aqui. a previa e o submit precisam
+   entender exatamente a mesma coisa: se so o submit tirasse a URL, a previa
+   mostraria o link cru como titulo e ainda acusaria "nao entendi o tempo"
+   por causa dos digitos do id. @frente e @cliente vem do core: e a mesma
+   leitura em todo modulo. */
+function readLine(text) {
+  const l = readClickup(text);
+  const m = parseMentions(l.title);
+  const d = readDuration(m.title);
+  /* noLink e o texto sem a URL: e sobre ele que a suspeita de tempo mal
+     escrito tem que ser avaliada. */
+  return { min: d.min, title: d.title, clickup: l.clickup, noLink: m.title, front: m.front, client: m.client };
+}
+
+/* o texto tem numero mas nada casou: provavelmente e tempo mal escrito.
+   serve so para a previa avisar em vez de criar uma tarefa muda. */
+const looksLikeBrokenTime = (text, min) =>
+  !min && /\d/.test(text) && !/^\s*\d+\s*$/.test(text);
+
+/* "—" para zero: e assim que a chamada diz "nao sobrou nada" sem um numero */
+function fmt(min) {
+  if (!min) return "—";
+  const h = Math.floor(min / 60), m = min % 60;
+  if (!h) return m + "m";
+  if (!m) return h + "h";
+  return h + "h" + String(m).padStart(2, "0");
+}
+
+function longFmt(min) {
+  if (!min) return "0m";
+  const h = Math.floor(min / 60), m = min % 60;
+  return (h ? h + "h" : "") + (h && m ? " " : "") + (m ? m + "m" : "");
+}
+
+const clock = (min) =>
+  String(Math.floor(min / 60) % 24).padStart(2, "0") + ":" + String(Math.round(min) % 60).padStart(2, "0");
+
+const nowMin = () => { const d = new Date(); return d.getHours() * 60 + d.getMinutes(); };
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+/* "2026-09-01" -> Date local ao meio-dia: sem hora, o parse de "YYYY-MM-DD"
+   e tratado como UTC e volta um dia em fusos negativos */
+const dateAtNoon = (day) => {
+  const [y, m, d] = day.split("-").map(Number);
+  return new Date(y, m - 1, d, 12);
+};
+
+const dateStamp = (day) =>
+  new Intl.DateTimeFormat("pt-BR", { weekday: "short", day: "2-digit", month: "short" })
+    .format(dateAtNoon(day)).replace(/\./g, "").replace(",", " ·").toUpperCase();
+
+/* so o dia da semana, para a faixa: "esta fila e de segunda" */
+const weekdayName = (day) =>
+  new Intl.DateTimeFormat("pt-BR", { weekday: "long" }).format(dateAtNoon(day));
+
+const isStale = (doc) => doc.day !== today();
+
+/* a fila e so trabalho: reserva ocupa a janela mas nunca e "coisa na fila" */
+const pendingOf = (doc) => doc.tasks.filter((t) => !t.done && !t.reserved);
+const doneOf = (doc) => doc.tasks.filter((t) => t.done && !t.reserved);
+const reservesOf = (doc) => doc.tasks.filter((t) => t.reserved);
+
+/* a conta inteira do produto, em minutos. nenhum pixel entra aqui. */
+/* toda tarefa ocupa espaco. o composer nao deixa nascer nenhuma sem duracao,
+   mas a que chega da semana pode nao ter — e essas custam um palpite visivel
+   em vez de zero: valer zero e o que fazia 20 tarefas reais exibirem folga. */
+const GUESS = 30;
+const costOf = (t) => t.min || GUESS;
+
+/* recebe a fila em vez de le-la quando alguem quer a conta de uma ordem que
+   ainda nao existe — e o que a matriz usa para mostrar, ao vivo, onde o dia
+   pararia se voce aplicasse aquela arrumacao. sem argumento, e a fila real. */
+function budget(doc, open) {
+  const window = doc.end - doc.start;
+  const now = nowMin();
+  const elapsed = clamp(now - doc.start, 0, window);
+  open = open || pendingOf(doc);
+  const committed = open.reduce((s, t) => s + costOf(t), 0);
+  /* reserva sai da janela ANTES de qualquer promessa de folga: a diferenca
+     entre "cabem 4h" e "cabem 4h se voce nao almocar" e o que separa um
+     medidor de um otimista. so a reserva que ainda nao passou e descontada. */
+  const reserved = reservesOf(doc).reduce((s, t) => s + t.min, 0);
+  const liveReserve = Math.max(0, Math.min(reserved, window - elapsed));
+  const remaining = window - elapsed - liveReserve;
+  return {
+    window, now, elapsed, remaining, open, committed,
+    reserved, liveReserve,
+    unestimated: open.filter((t) => !t.min).length,
+    slack: remaining - committed,
+    overflow: Math.max(0, committed - remaining),
+    overtime: now > doc.end
+  };
+}
+
+/* onde cada tarefa cai dentro do dia, e a partir de qual delas nao da mais tempo.
+   tarefa sem estimativa entra pelo palpite: ela desloca o cursor e pode
+   disparar o corte como qualquer outra — so aparece marcada como palpite. */
+function distribute(doc, open) {
+  const b = budget(doc, open);
+  const slots = new Map();
+  /* a reserva ocupa a frente do que resta: o trabalho comeca depois dela.
+     nao e o horario real do almoco — e o espaco que ele tira do dia. */
+  let cursor = b.elapsed + b.liveReserve;
+  let cut = -1;
+  b.open.forEach((t, i) => {
+    const cost = costOf(t);
+    const available = b.window - cursor;
+    if (available <= 0) { if (cut < 0) cut = i; return; }
+    const use = Math.min(cost, available);
+    const partial = use < cost;
+    if (partial && cut < 0) cut = i;
+    slots.set(t.id, { from: cursor, min: use, partial, guess: !t.min });
+    cursor += use;
   });
+  return { b, slots, cut };
+}
 
-  /* ---------- tempo ---------- */
+/* o que ocupa o dia sem ser trabalho seu. escrever "almoco 1h" nao deveria
+   virar uma tarefa que voce conclui para ganhar tempo de volta que nunca
+   esteve la — entao essas viram reserva, e o prefixo "-" forca qualquer uma. */
+const RESERVE_RE = /^(?:-\s*|(?:almo[çc]o|caf[ée]|janta(?:r)?|reuni[ãa]o|call|daily|1:1|dentista|m[ée]dico|academia|deslocamento|transito|tr[âa]nsito)\b)/i;
+const isReserve = (title) => RESERVE_RE.test(title.trim());
+const stripPrefix = (title) => title.replace(/^-\s*/, "").trim();
 
-  /* escrito por extenso: so as formas que alguem realmente digita com pressa */
-  const POREXTENSO = [
-    [/(?:^|\s)meia\s*hora(?=\s|$)/i, 30],
-    [/(?:^|\s)uma\s*hora\s*e\s*meia(?=\s|$)/i, 90],
-    [/(?:^|\s)(?:uma|1)\s*hora(?=\s|$)/i, 60],
-    [/(?:^|\s)duas\s*horas(?=\s|$)/i, 120],
-    [/(?:^|\s)tr[eê]s\s*horas(?=\s|$)/i, 180]
-  ];
+const shortTitle = (s) => (s.length > 28 ? s.slice(0, 28) + "…" : s);
+const reducedMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-  function lerDuracao(texto) {
-    /* por extenso primeiro: "meia hora" nao tem digito para os padroes abaixo pegarem */
-    for (const [re, valor] of POREXTENSO) {
-      const m = texto.match(re);
-      if (m) return fatiar(texto, m, valor);
-    }
+/* a tarefa nova no topo da fila, sem tocar no estado: quem chama grava.
+   toda tarefa tem duracao — menos a que chega da semana sem uma: ela entra
+   "contando o palpite" e pede o numero na propria linha, em vez de ficar de
+   fora do dia por um detalhe. */
+function withTask(doc, spec) {
+  const title = String(spec.title).replace(/\s+/g, " ").trim();
+  if (!title || (!spec.min && !spec.allowNoMin)) return null;
+  let tasks = doc.tasks, day = doc.day;
+  /* escrever numa fila de ontem ja e a decisao de comecar hoje: carimba o dia
+     e leva junto o que estava aberto, em vez de misturar em silencio */
+  if (isStale(doc)) { tasks = pendingOf(doc); day = today(); }
+  const task = normalizeTask({
+    id: newId(), title, min: spec.min, done: false, reserved: !!spec.reserved,
+    clickup: spec.clickup, front: spec.front, client: spec.client, origin: spec.origin
+  });
+  return { doc: { ...doc, day, tasks: [task, ...tasks] }, id: task.id };
+}
 
-    /* decimal com virgula ou ponto: "1,5h" e "1.5h" sao a mesma coisa aqui */
-    const decimal = texto.match(/(?:^|\s)(\d{1,2})[.,](\d{1,2})\s*h(?:oras?)?(?=\s|$)/i);
-    if (decimal) {
-      const fracao = +("0." + decimal[2]);
-      return fatiar(texto, decimal, Math.round(((+decimal[1]) + fracao) * 60));
-    }
+/* ---------- a caixa de ideias, vista daqui ----------
+   a caixa e a colecao "ideas" do merlin, a mesma de ideas.html: la a ideia
+   ganha corpo, estagio e passos; aqui so aparece a ponta — as nao
+   arquivadas, as mais recentes primeiro. */
+const MAX_IDEAS = 30;
+const normalizeIdea = (i) => ({ ...i, title: String(i.title || "").slice(0, 300), stage: i.stage || "seed" });
+const liveIdeas = (col) => col.all()
+  .filter((i) => i.title && i.stage !== "archived")
+  .sort((a, b) => (b.updatedAt || b.createdAt || 0) - (a.updatedAt || a.createdAt || 0))
+  .slice(0, MAX_IDEAS);
 
-    /* minutos so contam colados na hora ("1h30") ou com unidade ("1h 30m"):
-       senao "revisar 1h 20 slides" viraria 1h20 e comeria o "20" do titulo.
-       "1h 30" tambem nao conta, pela mesma razao — o 30 pode ser do titulo. */
-    const comHora = texto.match(/(?:^|\s)(\d{1,2})\s*h(?:oras?)?(?:(\d{1,2})|\s*(\d{1,2})\s*(?:m|min|mins|minutos?))?(?=\s|$)/i);
-    const m = comHora || texto.match(/(?:^|\s)(\d{1,3})\s*(?:m|min|mins|minutos?)(?=\s|$)/i);
-    if (!m) return { min: 0, titulo: texto.replace(/\s+/g, " ").trim() };
-    const min = comHora ? (+m[1]) * 60 + (+(m[2] || m[3] || 0)) : +m[1];
-    return fatiar(texto, m, min);
-  }
+/* ---------- os cartoes de hoje, da semana ---------- */
+const WEEKEND = "weekend:";
+function todayKey() {
+  const t = today();
+  const dow = new Date().getDay();
+  return (dow === 0 || dow === 6) ? WEEKEND + mondayOf(t) : t;
+}
 
-  /* fatia pela posicao real do match: replace(string) apagaria a primeira
-     ocorrencia literal, que pode nao ser a que casou */
-  function fatiar(texto, m, min) {
-    const limpo = texto.slice(0, m.index) + " " + texto.slice(m.index + m[0].length);
-    return { min: Math.min(min, DIA), titulo: limpo.replace(/\s+/g, " ").trim() };
-  }
+/* icones que nao moram no core por serem exclusivos desta tela */
+const LOGO = '<svg viewBox="0 0 472.5 472.5" fill="currentColor"><path d="M236.31,236.23c-3.63,128.42,107.71,238.95,236.22,236.22v-118.11c-64.78,2.88-121-53.42-118.11-118.11h-118.11Z"/><path d="M236.22,0C239.85,128.42,128.52,238.95,0,236.22v-118.11C64.78,120.99,121,64.69,118.11,0h118.11Z"/><path d="M315.07,0h77.61c44.09,0,79.89,35.8,79.89,79.89v77.61h-157.5V0h0Z"/><path d="M79.96,315H.07v78.75h78.75v78.75h78.75v-79.89c0-42.86-34.75-77.61-77.61-77.61Z"/></svg>';
+const CHEVRON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>';
+const PLUS_THIN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>';
+const SEND = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h13M12 5l7 7-7 7"/></svg>';
 
-  /* link de tarefa do ClickUp colado junto do titulo. so a forma /t/<id> —
-     que e a unica que identifica uma tarefa — e a URL sai do titulo como a
-     duracao sai: o titulo fica sendo o que voce leria em voz alta. */
-  const CLICKUP_URL = /(?:^|\s)https?:\/\/(?:[a-z0-9-]+\.)*clickup\.com\/t\/(?:\d+\/)?([A-Za-z0-9]{1,32})\S*(?=\s|$)/i;
+const CHIPS = [15, 30, 60, 120];
+const UNDO_DEPTH = 12;
 
-  function lerClickup(texto) {
-    const m = texto.match(CLICKUP_URL);
-    if (!m) return { clickup: "", titulo: texto };
-    return {
-      clickup: m[1],
-      titulo: texto.slice(0, m.index) + " " + texto.slice(m.index + m[0].length)
+
+/* ---------- a pagina ----------
+   o documento do dia mora num useState e num ref espelho: os handlers que
+   se registram uma vez (storage, nuvem, semana, arrasto) leem sempre o ref,
+   e assim nunca enxergam um dia velho. tudo que grava passa por commit(),
+   que carimba o v, salva no navegador e agenda a subida. o resto do estado
+   (aviso, chips, editor da janela, arrasto) e de tela: some ao recarregar. */
+function Day() {
+  const [doc, setDoc] = useState(load);
+  const docRef = useRef(doc);
+  const week = useCollection("week");
+  const ideasCol = useCollection("ideas", { normalize: normalizeIdea });
+  useFronts();
+  useClients();
+  const [, setTick] = useState(0);              /* o relogio: redesenha a cada 30s */
+  const [toast, setToast] = useState(null);     /* texto do aviso | null */
+  const [windowOpen, setWindowOpen] = useState(false);
+  const [storageBroken, setStorageBroken] = useState(false);
+  const [text, setText] = useState("");         /* o campo do composer */
+  const [pending, setPending] = useState(null); /* o pedagio de duracao aberto */
+  const [leaving, setLeaving] = useState(null); /* id da tarefa saindo (animacao) */
+  const [dragging, setDragging] = useState(null);
+  const [dragOrder, setDragOrder] = useState(null);
+  const undoStack = useRef([]);
+  const toastTimer = useRef(null);
+  const serverV = useRef(0);                    /* maior carimbo que ja vi vindo de la */
+  const uploadTimer = useRef(null);
+  const drag = useRef(null);
+  const dragOrderRef = useRef(null);
+  const listRef = useRef(null);
+  const fieldRef = useRef(null);
+  const trackRef = useRef(null);
+  const focusAfter = useRef(null);
+
+  /* ---------- gravar ----------
+     o navegador continua sendo a fonte de verdade da sessao: a nuvem e
+     camada de sincronia, nao substituto. se ela falhar, o dia nao se perde. */
+  const persist = (next) => {
+    try { localStorage.setItem(DAY_KEY, JSON.stringify(next)); }
+    catch (e) { setStorageBroken(true); }
+  };
+  const commit = (next) => {
+    next = { ...next, v: Date.now() };
+    docRef.current = next;
+    persist(next);
+    scheduleUpload();
+    setDoc(next);
+  };
+  /* troca sem carimbar nem subir: e o que veio de fora (outra aba, nuvem) */
+  const replace = (next) => { docRef.current = next; setDoc(next); };
+
+  /* ---------- desfazer ----------
+     uma pilha, e nao uma variavel unica: apagar duas coisas seguidas deixava
+     so a ultima recuperavel. cada acao volta sozinha, na ordem. o retrato
+     guarda tudo que uma acao desfazivel alcanca: a faixa de ontem mexe no
+     dia, o editor troca a janela, e puxar uma ideia tira ela da caixa. */
+  const showToast = (label) => {
+    setToast(label);
+    clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(closeToast, reducedMotion() ? 9000 : 6000);
+  };
+  const closeToast = () => {
+    setToast(null);
+    undoStack.current = [];
+    clearTimeout(toastTimer.current);
+  };
+  const withUndo = (label, action) => {
+    const d = docRef.current;
+    const before = {
+      tasks: d.tasks.map((t) => ({ ...t })),
+      day: d.day, start: d.start, end: d.end,
+      ideas: ideasCol.all().map((i) => ({ ...i })),
+      label
     };
-  }
-
-  /* o composer inteiro le a linha por aqui. o fantasma e o submit precisam
-     entender exatamente a mesma coisa: se so o submit tirasse a URL, a previa
-     mostraria o link cru como titulo e ainda acusaria "nao entendi o tempo"
-     por causa dos digitos do id. */
-  /* @frente e @cliente vem do nucleo: e a mesma leitura em todo modulo */
-  function lerLinha(texto) {
-    const l = lerClickup(texto);
-    const ar = lerArrobas(l.titulo);
-    const d = lerDuracao(ar.titulo);
-    /* semLink e o texto sem a URL: e sobre ele que a suspeita de tempo mal
-       escrito tem que ser avaliada. */
-    return { min: d.min, titulo: d.titulo, clickup: l.clickup, semLink: ar.titulo, frente: ar.frente, cliente: ar.cliente };
-  }
-
-  /* o texto tem numero mas nada casou: provavelmente e tempo mal escrito.
-     serve so para a previa avisar em vez de criar uma tarefa muda. */
-  const pareceTempoQuebrado = (texto, min) =>
-    !min && /\d/.test(texto) && !/^\s*\d+\s*$/.test(texto);
-
-  function formatar(min) {
-    if (!min) return "—";
-    const h = Math.floor(min / 60), m = min % 60;
-    if (!h) return m + "m";
-    if (!m) return h + "h";
-    return h + "h" + String(m).padStart(2, "0");
-  }
-
-  function longo(min) {
-    if (!min) return "0m";
-    const h = Math.floor(min / 60), m = min % 60;
-    return (h ? h + "h" : "") + (h && m ? " " : "") + (m ? m + "m" : "");
-  }
-
-  const relogio = (min) =>
-    String(Math.floor(min / 60) % 24).padStart(2, "0") + ":" + String(Math.round(min) % 60).padStart(2, "0");
-
-  const agoraMin = () => { const d = new Date(); return d.getHours() * 60 + d.getMinutes(); };
-  const limitar = (v, a, b) => Math.max(a, Math.min(b, v));
-
-  /* "2026-09-01" -> Date local ao meio-dia: sem hora, o parse de "YYYY-MM-DD"
-     e tratado como UTC e volta um dia em fusos negativos */
-  const dataDe = (dia) => {
-    const [a, m, d] = dia.split("-").map(Number);
-    return new Date(a, m - 1, d, 12);
+    action();
+    undoStack.current.push(before);
+    if (undoStack.current.length > UNDO_DEPTH) undoStack.current.shift();
+    showToast(label);
+  };
+  const undo = () => {
+    const stack = undoStack.current;
+    if (!stack.length) return;
+    const step = stack.pop();
+    commit({ ...docRef.current, tasks: step.tasks, day: step.day, start: step.start, end: step.end });
+    restoreIdeas(step.ideas);
+    /* ainda ha passos atras: o aviso continua, apontando para o proximo */
+    if (stack.length) showToast(stack[stack.length - 1].label);
+    else closeToast();
   };
 
-  const rotuloData = (dia) =>
-    new Intl.DateTimeFormat("pt-BR", { weekday: "short", day: "2-digit", month: "short" })
-      .format(dataDe(dia)).replace(/\./g, "").replace(",", " ·").toUpperCase();
-
-  /* so o dia da semana, para a faixa: "esta fila e de segunda" */
-  const diaDaSemana = (dia) =>
-    new Intl.DateTimeFormat("pt-BR", { weekday: "long" }).format(dataDe(dia));
-
-  const atrasada = () => estado.dia !== hoje();
-
-  /* a fila e so trabalho: reserva ocupa a janela mas nunca e "coisa na fila" */
-  const pendentes = () => estado.tarefas.filter((t) => !t.feito && !t.reserva);
-  const feitas = () => estado.tarefas.filter((t) => t.feito && !t.reserva);
-  const reservas = () => estado.tarefas.filter((t) => t.reserva);
-
-  /* a conta inteira do produto, em minutos. nenhum pixel entra aqui. */
-  /* toda tarefa ocupa espaco. o composer nao deixa nascer nenhuma sem duracao,
-     mas fila antiga (e importada) pode ter — e essas custam um palpite visivel
-     em vez de zero: valer zero e o que fazia 20 tarefas reais exibirem folga. */
-  const PALPITE = 30;
-  const custoDe = (t) => t.min || PALPITE;
-
-  /* recebe a fila em vez de le-la quando alguem quer a conta de uma ordem que
-     ainda nao existe — e o que a matriz usa para mostrar, ao vivo, onde o dia
-     pararia se voce aplicasse aquela arrumacao. sem argumento, e a fila real. */
-  function contas(abertas) {
-    const janela = estado.fim - estado.inicio;
-    const agora = agoraMin();
-    const decorrido = limitar(agora - estado.inicio, 0, janela);
-    abertas = abertas || pendentes();
-    const comprometido = abertas.reduce((s, t) => s + custoDe(t), 0);
-    /* reserva sai da janela ANTES de qualquer promessa de folga: a diferenca
-       entre "cabem 4h" e "cabem 4h se voce nao almocar" e o que separa um
-       medidor de um otimista. so a reserva que ainda nao passou e descontada. */
-    const reservado = reservas().reduce((s, t) => s + t.min, 0);
-    const reservaViva = Math.max(0, Math.min(reservado, janela - decorrido));
-    const restante = janela - decorrido - reservaViva;
-    return {
-      janela, agora, decorrido, restante, abertas, comprometido,
-      reservado, reservaViva,
-      semEstimativa: abertas.filter((t) => !t.min).length,
-      sobra: restante - comprometido,
-      estouro: Math.max(0, comprometido - restante),
-      horaExtra: agora > estado.fim
-    };
-  }
-
-  /* onde cada tarefa cai dentro do dia, e a partir de qual delas nao da mais tempo.
-     tarefa sem estimativa entra pelo palpite: ela desloca o cursor e pode
-     disparar o corte como qualquer outra — so aparece marcada como palpite. */
-  function distribuir(abertas) {
-    const c = contas(abertas);
-    const vagas = new Map();
-    /* a reserva ocupa a frente do que resta: o trabalho comeca depois dela.
-       nao e o horario real do almoco — e o espaco que ele tira do dia. */
-    let cursor = c.decorrido + c.reservaViva;
-    let corte = -1;
-    c.abertas.forEach((t, i) => {
-      const custo = custoDe(t);
-      const disponivel = c.janela - cursor;
-      if (disponivel <= 0) { if (corte < 0) corte = i; return; }
-      const usar = Math.min(custo, disponivel);
-      const cortada = usar < custo;
-      if (cortada && corte < 0) corte = i;
-      vagas.set(t.id, { de: cursor, min: usar, cortada, palpite: !t.min });
-      cursor += usar;
-    });
-    return { c, vagas, corte };
-  }
-
-  /* ---------- referencias ---------- */
-
-  const $ = (id) => document.getElementById(id);
-  const elLista = $("lista"), elFeitas = $("lista-feitas"), elVazio = $("vazio");
-  const elTrilho = $("trilho"), elEstouro = $("estouro");
-  const elC1 = $("c1"), elMedidaTxt = $("medida"), elResto = $("resto"), elChamada = $("chamada");
-  const elContexto = $("contexto"), elNota = $("nota"), elJanela = $("janela");
-  const elSecaoFeitas = $("feitas"), elRotuloFeitas = $("feitas-rotulo");
-  const elRotuloFila = $("rotulo-fila"), elRotuloTexto = $("rotulo-texto");
-  const elCampo = $("campo"), elFantasma = $("fantasma"), elAvisoStorage = $("aviso-storage");
-  const elAviso = $("aviso"), elAvisoTexto = $("aviso-texto");
-  const elEditorDia = $("editor-dia"), elInicio = $("inicio"), elFim = $("fim");
-  const elVazioSub = $("vazio-sub"), elExemplos = $("exemplos"), elVazioRodape = $("vazio-rodape");
-  const elFaixaOntem = $("faixa-ontem"), elFoTexto = $("fo-texto"), elFoQuando = $("fo-quando");
-  const elChips = $("chips");
-
-  /* titulo do usuario indo para innerHTML: escapa antes, sempre */
-  const escapar = (s) => String(s).replace(/[&<>"]/g, (c) =>
-    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-
-  const CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12.5l5.5 5.5L20 6.5"/></svg>';
-  const RELOGIO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7.5V12l3 2"/></svg>';
-  const PEGA = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>';
-  const LINK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13.5a4 4 0 006 .5l2.5-2.5a4 4 0 10-5.7-5.7L11.5 7"/><path d="M14 10.5a4 4 0 00-6-.5L5.5 12.5a4 4 0 105.7 5.7L12.5 17"/></svg>';
-
-  /* o vinculo e um <a> de verdade: abre em outra aba e e o meio do caminho
-     entre "eu sei que existe la" e "o planner virou cliente do ClickUp".
-     nada e lido de la, nada e escrito la. o href se monta aqui, a partir do
-     id — nunca de texto que alguem digitou. */
-  function eloClickup(t) {
-    if (!t.clickup) return null;
-    const a = document.createElement("a");
-    a.className = "acao";
-    a.href = "https://app.clickup.com/t/" + t.clickup;
-    a.target = "_blank";
-    a.rel = "noopener noreferrer";
-    a.innerHTML = LINK;
-    a.setAttribute("aria-label", "Abrir no ClickUp: " + t.titulo);
-    return a;
-  }
-
-  const LIXO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9.5 7V5h5v2M6.5 7l1 12.5h9L17.5 7"/></svg>';
-
-  const semMovimento = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-  /* ---------- render ---------- */
-
-  function render() {
-    const d = distribuir();
-    renderChamada(d);
-    renderTrilho(d);
-    renderFaixaOntem();
-    renderReservas();
-    renderPendentes(d);
-    renderFeitas();
-  }
-
-  function renderReservas() {
-    const lista = reservas();
-    const secao = $("reservas");
-    secao.hidden = lista.length === 0;
-    if (!lista.length) return;
-
-    const total = lista.reduce((s, t) => s + t.min, 0);
-    $("reservas-rotulo").textContent = longo(total) + " fora do trabalho";
-
-    const ul = $("lista-reservas");
-    ul.textContent = "";
-    lista.forEach((t) => {
-      const li = document.createElement("li");
-      li.className = "reserva";
-      li.dataset.id = t.id;
-
-      const marca = document.createElement("span");
-      marca.className = "r-marca";
-      marca.innerHTML = RELOGIO;
-
-      const nome = document.createElement("span");
-      nome.className = "r-nome";
-      nome.textContent = t.titulo;
-
-      const tempo = document.createElement("span");
-      tempo.className = "r-tempo";
-      tempo.textContent = formatar(t.min);
-
-      const lixo = document.createElement("button");
-      lixo.className = "acao";
-      lixo.dataset.acao = "excluir";
-      lixo.innerHTML = LIXO;
-      lixo.setAttribute("aria-label", "Remover reserva: " + t.titulo);
-
-      const acoes = document.createElement("div");
-      acoes.className = "acoes";
-      const elo = eloClickup(t);
-      if (elo) acoes.append(elo);
-      acoes.append(lixo);
-
-      li.append(marca, nome, tempo, acoes);
-      ul.appendChild(li);
-    });
-  }
-
-  /* nada acontece sozinho: a fila velha continua exatamente como ficou, e a
-     unica coisa que muda e a tela parar de chamar aquilo de hoje. */
-  function renderFaixaOntem() {
-    const velha = atrasada();
-    elFaixaOntem.hidden = !velha;
-    if (!velha) return;
-
-    const abertas = pendentes();
-    const total = abertas.reduce((s, t) => s + t.min, 0);
-    const quando = diaDaSemana(estado.dia);
-
-    elFoTexto.innerHTML = "Esta fila é de <b>" + quando + "</b>" +
-      (abertas.length
-        ? " · " + abertas.length + (abertas.length === 1 ? " aberta" : " abertas") +
-          (total ? " · " + longo(total) : "")
-        : " e não sobrou nada aberto");
-    elFoQuando.textContent = "fechar " + quando;
-  }
-
-  /* so o que depende do relogio, para o tick nao roubar o foco de quem digita */
-  function renderTempo() {
-    const d = distribuir();
-    renderChamada(d);
-    renderTrilho(d);
-    renderHorarios(d);
-  }
-
-  function renderChamada({ c }) {
-    /* o carimbo e a data DA FILA, nao a de hoje: enquanto o estado for de ontem,
-       dizer "hoje" aqui seria afirmar algo falso sobre o que esta na tela */
-    $("data").textContent = rotuloData(estado.dia);
-
-    elJanela.textContent = relogio(estado.inicio) + " → " + relogio(estado.fim);
-    elChamada.dataset.tom = "normal";
-
-    const prontas = feitas().length;
-
-    if (!c.abertas.length) {
-      elC1.textContent = prontas ? "Tudo fechado." : "Dia limpo.";
-      elMedidaTxt.textContent = formatar(Math.max(0, c.restante));
-      elResto.textContent = c.horaExtra ? "— o dia já acabou" : (prontas ? "ainda de dia" : "pela frente");
-      if (prontas) {
-        const total = feitas().reduce((s, t) => s + t.min, 0);
-        /* enquanto a fila for de ontem, "N fechadas" e trabalho de ontem:
-           dizer de quando sem tirar o credito do que foi feito */
-        elContexto.textContent = prontas + (prontas === 1 ? " fechada" : " fechadas") +
-          (total ? " · " + longo(total) + " de trabalho" : "") +
-          (atrasada() ? " — de " + diaDaSemana(estado.dia) : "");
-      } else {
-        elContexto.textContent = "o dia acaba às " + relogio(estado.fim) + ".";
-      }
-    } else if (c.sobra >= 0) {
-      elC1.textContent = "Ainda cabem";
-      /* "~" so aqui: a sobra e o unico numero que o palpite pode INFLAR.
-         no estouro ele e piso — palpite so pode aumentar o debito, nunca reduzi-lo. */
-      elMedidaTxt.textContent = (c.semEstimativa ? "~" : "") + formatar(c.sobra);
-      elResto.textContent = "no seu dia";
-      elContexto.textContent = longo(c.comprometido) + " na fila" +
-        (c.reservaViva ? " · " + longo(c.reservaViva) + " reservado" : "") +
-        " · o dia acaba às " + relogio(estado.fim);
-    } else {
-      /* passar das 19:00 qualifica o estouro, nao substitui a pergunta.
-         antes, as 19:01 a tela trocava "não cabe 2h48" por "1m de hora extra"
-         — o numero encolhia justamente quando cortar algo era mais urgente. */
-      elChamada.dataset.tom = "estouro";
-      elC1.textContent = "Não cabe.";
-      elMedidaTxt.textContent = formatar(c.estouro);
-      elResto.textContent = "além do que resta";
-      elContexto.textContent = c.horaExtra
-        ? "passou das " + relogio(estado.fim) + " · " + longo(c.comprometido) + " ainda na fila. Algo tem que sair."
-        : longo(c.comprometido) + " na fila para " + longo(c.restante) + " de dia. Algo tem que sair.";
-    }
-
-    elNota.textContent = c.semEstimativa
-      ? c.semEstimativa + (c.semEstimativa === 1 ? " sem duração · conta " : " sem duração · contam ") +
-        formatar(PALPITE) + (c.semEstimativa === 1 ? "" : " cada")
-      : "";
-  }
-
-  function renderTrilho({ c, vagas }) {
-    elTrilho.textContent = "";
-
-    const faixa = (classe, min) => {
-      const el = document.createElement("div");
-      el.className = "faixa " + classe;
-      /* tudo e % da mesma janela: sem px fixo, sem gap, sem min-width — e por isso
-         que o desenho nao pode divergir da conta */
-      el.style.flex = "0 0 " + ((min / c.janela) * 100) + "%";
-      el.style.minWidth = "0";
-      return el;
-    };
-
-    if (c.decorrido > 0) elTrilho.appendChild(faixa("gasto", c.decorrido));
-
-    /* a reserva antes do trabalho: e o que o dia ja nao tem para oferecer */
-    if (c.reservaViva > 0) {
-      const r = faixa("reservado", c.reservaViva);
-      r.title = "reservado · " + longo(c.reservaViva);
-      elTrilho.appendChild(r);
-    }
-
-    c.abertas.forEach((t) => {
-      const vaga = vagas.get(t.id);
-      if (!vaga) return;
-      const el = faixa("banda" + (vaga.palpite ? " palpite" : ""), vaga.min);
-      el.dataset.id = t.id;
-      el.title = t.titulo + " · " + (vaga.palpite ? "palpite de " + formatar(PALPITE) : formatar(t.min));
-      elTrilho.appendChild(el);
-    });
-
-    if (c.comprometido < c.restante) {
-      const livre = document.createElement("div");
-      livre.className = "faixa livre";
-      elTrilho.appendChild(livre);
-    }
-
-    /* a hachura acompanha o estouro, inclusive depois do fim do dia: sumir ali
-       era o produto abandonar a propria pergunta quando a resposta e mais dura */
-    elEstouro.hidden = c.estouro <= 0;
-    if (!elEstouro.hidden) elEstouro.style.width = Math.min(100, (c.estouro / c.janela) * 100) + "%";
-  }
-
-  /* o horario projetado nao cabe na linha: vive no title dela */
-  function renderHorarios({ vagas }) {
-    elLista.querySelectorAll(".tarefa").forEach((li) => {
-      const vaga = vagas.get(li.dataset.id);
-      if (!vaga) { li.removeAttribute("title"); return; }
-      li.title = relogio(estado.inicio + vaga.de) + "–" + relogio(estado.inicio + vaga.de + vaga.min);
-    });
-  }
-
-  function renderPendentes(d) {
-    const corte = d.corte;
-    const abertas = pendentes();
-    /* a tela vazia cobre tambem o "tudo concluido": nunca sobra um buraco */
-    elVazio.hidden = abertas.length > 0;
-    elRotuloFila.hidden = abertas.length === 0;
-    elRotuloTexto.textContent = abertas.length +
-      (abertas.length === 1 ? " coisa na fila" : " coisas na fila");
-    elLista.textContent = "";
-
-    if (!abertas.length) {
-      renderVazio(d);
-      return;
-    }
-
-    abertas.forEach((t, i) => {
-      /* a régua: daqui pra baixo o dia nao alcanca */
-      if (corte >= 0 && i === corte) {
-        const regua = document.createElement("li");
-        regua.className = "corte";
-        regua.innerHTML = '<span class="t-mono">daqui não dá tempo hoje</span>';
-        elLista.appendChild(regua);
-      }
-
-      const li = document.createElement("li");
-      li.className = "tarefa";
-      li.dataset.id = t.id;
-      if (corte >= 0 && i >= corte) li.dataset.cabe = "nao";
-      li.tabIndex = 0;
-
-      const marca = document.createElement("button");
-      marca.className = "marca";
-      marca.dataset.acao = "concluir";
-      marca.innerHTML = CHECK;
-      marca.setAttribute("aria-label", "Concluir: " + t.titulo);
-
-      const nome = document.createElement("input");
-      nome.className = "nome";
-      nome.value = t.titulo;
-      nome.dataset.acao = "renomear";
-      nome.setAttribute("aria-label", "Título da tarefa");
-
-      const sub = document.createElement("button");
-      sub.className = "sub";
-      sub.type = "button";
-      sub.dataset.acao = "tempo";
-      const vaga = d.vagas.get(t.id);
-      const parcial = vaga && vaga.cortada ? " · só " + formatar(vaga.min) + " hoje" : "";
-      /* sem duracao nao e um estado neutro: e uma pergunta em aberto que ja
-         esta custando PALPITE na conta. a linha diz isso e pede o numero. */
-      if (!t.min) sub.dataset.falta = "sim";
-      sub.innerHTML = RELOGIO + "<span>" +
-        (t.min ? formatar(t.min) : "definir duração · contando " + formatar(PALPITE)) +
-        parcial + "</span>";
-      sub.setAttribute("aria-label", t.min
-        ? "Duração: " + longo(t.min) + ". Alterar"
-        : "Sem duração, contando " + longo(PALPITE) + " como palpite. Definir");
-
-      const miolo = document.createElement("div");
-      miolo.className = "miolo";
-      const rodape = document.createElement("div");
-      rodape.className = "rodape";
-      rodape.append(sub);
-      if (t.frente || t.cliente) {
-        const selos = document.createElement("div");
-        selos.className = "t-selos";
-        selos.innerHTML = seloFrente(t.frente) +
-          (t.cliente && nomeCliente(t.cliente) ? '<span class="selo selo--cliente">' + escapar(nomeCliente(t.cliente)) + "</span>" : "");
-        if (selos.innerHTML) rodape.append(selos);
-        const cor = corFrente(t.frente);
-        if (cor) li.dataset.cor = cor;
-      }
-      miolo.append(nome, rodape);
-
-      const lixo = document.createElement("button");
-      lixo.className = "acao";
-      lixo.dataset.acao = "excluir";
-      lixo.innerHTML = LIXO;
-      lixo.setAttribute("aria-label", "Excluir: " + t.titulo);
-
-      const acoes = document.createElement("div");
-      acoes.className = "acoes";
-      const elo = eloClickup(t);
-      if (elo) acoes.append(elo);
-      acoes.append(lixo);
-
-      const pega = document.createElement("button");
-      pega.className = "pega";
-      pega.type = "button";
-      pega.innerHTML = PEGA;
-      pega.setAttribute("aria-label", "Arrastar para reordenar: " + t.titulo);
-
-      li.append(marca, miolo, acoes, pega);
-      elLista.appendChild(li);
-    });
-
-    renderHorarios(d);
-  }
-
-  function renderVazio({ c }) {
-    const estreia = estado.tarefas.length === 0;
-    /* os dois cartoes so na estreia — depois eles pareceriam fila de verdade.
-       o rodape, nao: ele e a unica explicacao de como a duracao e lida, e
-       sumir para sempre depois da primeira tarefa deixava quem esquecesse a
-       sintaxe alimentando a tela as cegas. volta toda vez que a fila esvazia. */
-    elExemplos.hidden = !estreia;
-    elVazioRodape.hidden = false;
-    elVazioRodape.textContent = estreia
-      ? "Escreve assim, com a duração no fim: ela sai do título e entra na barra do dia."
-      : "Com a duração no fim — “revisar proposta 45m”, “gravar 1h30”, “almoço 1h”. Sem ela, eu pergunto.";
-
-    if (c.horaExtra) {
-      elVazioSub.textContent = "Passou das " + relogio(estado.fim) + " e não sobrou nada na fila.";
-    } else if (!estreia) {
-      elVazioSub.textContent = "Nada na fila. Dá pra puxar mais alguma coisa, ou parar por aqui.";
-    } else {
-      elVazioSub.textContent = "Escreve embaixo a primeira coisa que precisa caber hoje.";
-    }
-  }
-
-  function renderFeitas() {
-    const prontas = feitas();
-    elSecaoFeitas.hidden = prontas.length === 0;
-    elSecaoFeitas.dataset.aberto = estado.feitasAbertas ? "sim" : "nao";
-    $("alternar-feitas").setAttribute("aria-expanded", String(!!estado.feitasAbertas));
-    elRotuloFeitas.textContent = prontas.length + (prontas.length === 1 ? " concluída" : " concluídas");
-    elFeitas.textContent = "";
-
-    prontas.forEach((t) => {
-      const li = document.createElement("li");
-      li.className = "feita";
-      li.dataset.id = t.id;
-
-      const marca = document.createElement("button");
-      marca.className = "marca";
-      marca.dataset.acao = "reabrir";
-      marca.innerHTML = CHECK;
-      marca.setAttribute("aria-label", "Reabrir: " + t.titulo);
-
-      const nome = document.createElement("span");
-      nome.className = "f-nome";
-      nome.textContent = t.titulo;
-
-      const tempo = document.createElement("span");
-      tempo.className = "f-tempo";
-      tempo.textContent = formatar(t.min);
-
-      li.append(marca, nome, tempo);
-      elFeitas.appendChild(li);
-    });
-  }
-
-  /* ---------- desfazer ---------- */
-
-  let timerAviso = null;
-  /* uma pilha, e nao uma variavel unica: apagar duas coisas seguidas deixava
-     so a ultima recuperavel, e o desfazer revertia junto tudo que tinha
-     acontecido no intervalo, em silencio. cada acao volta sozinha, na ordem. */
-  const PILHA = 12;
-
-  function comDesfazer(texto, acao) {
-    /* o retrato guarda tudo que uma acao desfazivel alcanca, nao so as
-       tarefas: a faixa de ontem mexe no dia, o editor troca a janela, e puxar
-       uma ideia tira ela da caixa. desfazer parcial deixaria a tela num
-       estado que nunca existiu */
-    const antes = {
-      tarefas: estado.tarefas.map((t) => ({ ...t })),
-      dia: estado.dia, inicio: estado.inicio, fim: estado.fim,
-      ideias: ideias.map((i) => ({ ...i })),
-      texto
-    };
-    acao();
-    paraDesfazer = paraDesfazer || [];
-    paraDesfazer.push(antes);
-    if (paraDesfazer.length > PILHA) paraDesfazer.shift();
-    mostrarAviso(texto);
-  }
-
-  function mostrarAviso(texto) {
-    elAvisoTexto.textContent = texto;
-    elAviso.hidden = false;
-    clearTimeout(timerAviso);
-    timerAviso = setTimeout(fecharAviso, semMovimento() ? 9000 : 6000);
-  }
-
-  function fecharAviso() {
-    elAviso.hidden = true;
-    paraDesfazer = null;
-    clearTimeout(timerAviso);
-  }
-
-  $("aviso-desfazer").addEventListener("click", () => {
-    if (!paraDesfazer || !paraDesfazer.length) return;
-    const passo = paraDesfazer.pop();
-    estado.tarefas = passo.tarefas;
-    estado.dia = passo.dia;
-    estado.inicio = passo.inicio;
-    estado.fim = passo.fim;
-    salvar();
-    render();
-    restaurarIdeias(passo.ideias);
-    /* ainda ha passos atras: o aviso continua, apontando para o proximo */
-    if (paraDesfazer.length) mostrarAviso(paraDesfazer[paraDesfazer.length - 1].texto);
-    else fecharAviso();
-  });
-
-  /* ---------- acoes ---------- */
-
-  const acharIndice = (id) => estado.tarefas.findIndex((t) => t.id === id);
-  const seletor = (id) => '[data-id="' + (window.CSS && CSS.escape ? CSS.escape(id) : id) + '"]';
+  /* ---------- acoes na fila ---------- */
+  const findIndex = (id) => docRef.current.tasks.findIndex((t) => t.id === id);
 
   /* titulo e duracao chegam ja resolvidos: quem decide o tempo e o composer,
      que nao deixa nascer tarefa sem ele */
-  function criar(titulo, min, reserva, clickup, frente, cliente, extra) {
-    const limpo = String(titulo).replace(/\s+/g, " ").trim();
-    /* toda tarefa tem duracao — menos a que chega da semana sem uma: ela entra
-       "contando o palpite" e pede o numero na propria linha, em vez de ficar
-       de fora do dia por um detalhe */
-    if (!limpo || (!min && !(extra && extra.semMin))) return false;
-    /* escrever numa fila de ontem ja e a decisao de comecar hoje: carimba o dia
-       e leva junto o que estava aberto, em vez de misturar em silencio */
-    if (atrasada()) {
-      estado.tarefas = pendentes();
-      estado.dia = hoje();
-    }
-    estado.tarefas.unshift({
-      id: proximoId(), titulo: limpo.slice(0, 300), min, feito: false, reserva: !!reserva,
-      clickup: CLICKUP_ID.test(String(clickup || "")) ? String(clickup) : "",
-      frente: String(frente || "").slice(0, 64),
-      cliente: String(cliente || "").slice(0, 64),
-      semana: String((extra && extra.semana) || "").slice(0, 64)
-    });
-    salvar();
-    render();
-    return estado.tarefas[0].id;
-  }
+  const create = (spec) => {
+    const r = withTask(docRef.current, spec);
+    if (!r) return false;
+    commit(r.doc);
+    return r.id;
+  };
 
-  function concluir(id) {
-    const i = acharIndice(id);
-    if (i < 0 || estado.tarefas[i].feito) return;
-    const t = estado.tarefas[i];
-    const aplicar = () => {
-      const j = acharIndice(id);
+  const complete = (id) => {
+    const i = findIndex(id);
+    if (i < 0 || docRef.current.tasks[i].done) return;
+    const t = docRef.current.tasks[i];
+    const apply = () => {
+      /* re-busca dentro da acao: entre capturar e aplicar, outra aba pode
+         ter gravado e mexido na lista */
+      const d = docRef.current;
+      const j = d.tasks.findIndex((x) => x.id === id);
       if (j < 0) return;
-      estado.tarefas[j].feito = true;
+      const done = { ...d.tasks[j], done: true };
       /* veio da semana: o cartao fecha junto. desfazer a conclusao aqui nao
          reabre o cartao — e um registro, nao um espelho, e reabrir na semana
          e um clique. */
-      if (estado.tarefas[j].semana) marcarNaSemana(estado.tarefas[j].semana);
-      const [x] = estado.tarefas.splice(j, 1);
-      estado.tarefas.push(x);
-      salvar();
-      render();
-      piscarRecibo();
+      if (done.origin && done.origin.type === "week") markWeek(done.origin.id);
+      const tasks = d.tasks.slice();
+      tasks.splice(j, 1);
+      tasks.push(done);
+      commit({ ...d, tasks });
+      flashReceipt();
     };
-    const texto = t.min ? "+" + longo(t.min) + " de volta pro dia" : "feita.";
-    const li = elLista.querySelector(seletor(id));
-    if (li && !semMovimento()) {
-      li.classList.add("saindo");
-      setTimeout(() => comDesfazer(texto, aplicar), 140);
-    } else {
-      comDesfazer(texto, aplicar);
-    }
-  }
+    const label = t.min ? "+" + longFmt(t.min) + " de volta pro dia" : "feita.";
+    if (!reducedMotion()) {
+      setLeaving(id);
+      setTimeout(() => { setLeaving(null); withUndo(label, apply); }, 140);
+    } else withUndo(label, apply);
+  };
 
   /* voce ve o dia devolvendo o tempo: e o unico recibo que importa */
-  function piscarRecibo() {
-    const livre = elTrilho.querySelector(".livre");
-    if (!livre || semMovimento()) return;
-    livre.classList.add("recibo");
-    setTimeout(() => livre.classList.remove("recibo"), 180);
-  }
-
-  function reabrir(id) {
-    const i = acharIndice(id);
-    if (i < 0) return;
-    estado.tarefas[i].feito = false;
-    const [t] = estado.tarefas.splice(i, 1);
-    estado.tarefas.unshift(t);
-    salvar();
-    render();
-  }
-
-  function excluir(id) {
-    const i = acharIndice(id);
-    if (i < 0) return;
-    const titulo = estado.tarefas[i].titulo;
-    comDesfazer("apaguei “" + curto(titulo) + "”", () => {
-      /* re-busca o indice dentro da acao: entre capturar e aplicar, outra aba
-         pode ter gravado e mexido na lista — com o indice velho, apagaria
-         a linha errada. concluir() ja fazia assim. */
-      const j = acharIndice(id);
-      if (j < 0) return;
-      estado.tarefas.splice(j, 1);
-      salvar();
-      render();
+  const flashReceipt = () => {
+    if (reducedMotion()) return;
+    requestAnimationFrame(() => {
+      const free = trackRef.current && trackRef.current.querySelector(".free");
+      if (!free) return;
+      free.classList.add("receipt");
+      setTimeout(() => free.classList.remove("receipt"), 180);
     });
-  }
+  };
 
-  /* editar duracao acontece na propria linha. prompt() era bloqueante, feio,
-     nao existe em PWA no iOS — e o gesto mais frequente depois de criar. */
-  function editarTempo(id) {
-    const t = estado.tarefas[acharIndice(id)];
-    if (!t) return;
-    const li = elLista.querySelector(seletor(id));
-    const botao = li && li.querySelector('[data-acao="tempo"]');
-    if (!botao) return;
+  const reopen = (id) => {
+    const d = docRef.current;
+    const i = d.tasks.findIndex((t) => t.id === id);
+    if (i < 0) return;
+    const tasks = d.tasks.slice();
+    const [t] = tasks.splice(i, 1);
+    tasks.unshift({ ...t, done: false });
+    commit({ ...d, tasks });
+  };
 
-    const campo = document.createElement("input");
-    campo.className = "sub-edit";
-    campo.value = t.min ? formatar(t.min) : "";
-    campo.setAttribute("aria-label", "Duração de " + t.titulo);
-    campo.placeholder = "45m, 1h30";
-    botao.replaceWith(campo);
-    campo.focus();
-    campo.select();
-
-    let encerrado = false;
-    const encerrar = (aplicar) => {
-      if (encerrado) return;
-      encerrado = true;
-      const min = aplicar ? lerDuracao(" " + campo.value.trim() + " ").min : 0;
-      /* so grava o que foi entendido: "45" sem unidade nao apaga a estimativa
-         que ja existia, ao contrario do prompt() que ela substituia em silencio */
-      if (aplicar && min && min !== t.min) {
-        comDesfazer("duração de “" + curto(t.titulo) + "” era " + formatar(t.min), () => {
-          const atual = estado.tarefas[acharIndice(id)];
-          if (atual) atual.min = min;
-          salvar();
-          render();
-        });
-      } else {
-        render();
-      }
-    };
-
-    campo.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") { e.preventDefault(); encerrar(true); }
-      else if (e.key === "Escape") { e.preventDefault(); encerrar(false); }
+  const remove = (id) => {
+    const i = findIndex(id);
+    if (i < 0) return;
+    const title = docRef.current.tasks[i].title;
+    withUndo("apaguei “" + shortTitle(title) + "”", () => {
+      const d = docRef.current;
+      if (!d.tasks.some((t) => t.id === id)) return;
+      commit({ ...d, tasks: d.tasks.filter((t) => t.id !== id) });
     });
-    campo.addEventListener("blur", () => encerrar(true));
-  }
+  };
 
-  const curto = (s) => (s.length > 28 ? s.slice(0, 28) + "…" : s);
-
-  /* usado pelo chip "outro": pergunta um tempo livre sem sair do fluxo */
-  function pedirTempo(titulo, atual, aoResponder) {
-    const r = prompt("Quanto tempo leva “" + titulo + "”? (ex: 45m, 1h30)", atual ? formatar(atual) : "");
-    if (r === null) { aoResponder(0); return; }
-    aoResponder(lerDuracao(" " + r.trim() + " ").min);
-  }
-
-  function renomear(id, valor) {
-    const t = estado.tarefas[acharIndice(id)];
+  const rename = (id, value) => {
+    const d = docRef.current;
+    const t = d.tasks.find((x) => x.id === id);
     if (!t) return;
-    const limpo = valor.replace(/\s+/g, " ").trim();
-    if (!limpo) { excluir(id); return; }
-    if (limpo === t.titulo) return;
-    t.titulo = limpo.slice(0, 300);
-    salvar();
-    /* redesenhar a lista roubaria o foco de quem digita: atualiza so o que depende do titulo */
-    const li = elLista.querySelector(seletor(id));
-    if (li) {
-      const rotular = (acao, texto) => {
-        const b = li.querySelector('[data-acao="' + acao + '"]');
-        if (b) b.setAttribute("aria-label", texto + t.titulo);
-      };
-      rotular("concluir", "Concluir: ");
-      rotular("excluir", "Excluir: ");
-    }
-    renderTempo();
-  }
+    const clean = value.replace(/\s+/g, " ").trim();
+    if (!clean) { remove(id); return; }
+    if (clean === t.title) return;
+    commit({ ...d, tasks: d.tasks.map((x) => (x.id === id ? { ...x, title: clean.slice(0, 300) } : x)) });
+  };
 
-  function reordenar(idOrigem, idDestino) {
-    const de = acharIndice(idOrigem), para = acharIndice(idDestino);
-    if (de < 0 || para < 0 || de === para) return;
-    const [t] = estado.tarefas.splice(de, 1);
-    estado.tarefas.splice(para, 0, t);
-    salvar();
-    render();
-  }
+  const reorder = (fromId, toId) => {
+    const d = docRef.current;
+    const from = d.tasks.findIndex((t) => t.id === fromId);
+    const to = d.tasks.findIndex((t) => t.id === toId);
+    if (from < 0 || to < 0 || from === to) return;
+    const tasks = d.tasks.slice();
+    const [t] = tasks.splice(from, 1);
+    tasks.splice(to, 0, t);
+    commit({ ...d, tasks });
+  };
 
-  function mover(id, passo) {
-    const abertas = pendentes();
-    const pos = abertas.findIndex((t) => t.id === id);
-    const destino = pos + passo;
-    if (pos < 0 || destino < 0 || destino >= abertas.length) return;
-    reordenar(id, abertas[destino].id);
-    const li = elLista.querySelector(seletor(id));
-    if (li) li.focus();
-  }
+  /* `part` diz o que recebe o foco depois: a linha (Alt+setas) ou a alca (setas) */
+  const move = (id, step, part) => {
+    const open = pendingOf(docRef.current);
+    const pos = open.findIndex((t) => t.id === id);
+    const dest = pos + step;
+    if (pos < 0 || dest < 0 || dest >= open.length) return;
+    reorder(id, open[dest].id);
+    focusAfter.current = '.task[data-id="' + cssEscape(id) + '"]' + (part === "grip" ? " .grip" : "");
+  };
 
-  /* ---------- composer ---------- */
+  const setDuration = (id, min) => {
+    const t = docRef.current.tasks.find((x) => x.id === id);
+    if (!t) return;
+    withUndo("duração de “" + shortTitle(t.title) + "” era " + fmt(t.min), () => {
+      const d = docRef.current;
+      commit({ ...d, tasks: d.tasks.map((x) => (x.id === id ? { ...x, min } : x)) });
+    });
+  };
 
-  /* toda tarefa tem duracao. quando o texto nao traz uma, o Enter nao cria:
+  /* uma ordem nova para a fila: o que nao esta na lista (feitas, reservas)
+     continua atras, na ordem em que estava */
+  const applyOrder = (ids) => {
+    const d = docRef.current;
+    const byId = new Map(d.tasks.map((t) => [t.id, t]));
+    const seen = new Set(ids);
+    commit({ ...d, tasks: ids.map((id) => byId.get(id)).filter(Boolean).concat(d.tasks.filter((t) => !seen.has(t.id))) });
+  };
+
+  const toggleDoneOpen = () => commit({ ...docRef.current, doneOpen: !docRef.current.doneOpen });
+
+  const clearDone = () => {
+    const n = doneOf(docRef.current).length;
+    if (!n) return;
+    withUndo("removi " + n + (n === 1 ? " concluída" : " concluídas"), () => {
+      commit({ ...docRef.current, tasks: pendingOf(docRef.current) });
+    });
+  };
+
+  /* ---------- a fila de outro dia ----------
+     trazer: as abertas passam a ser a fila de hoje, na mesma ordem. as
+     concluidas de ontem saem — elas sao registro daquele dia, nao deste.
+     fechar: o dia anterior acaba como ficou, aberto e tudo. comeca limpo. */
+  const bringYesterday = () => {
+    if (!isStale(docRef.current)) return;
+    const n = pendingOf(docRef.current).length;
+    withUndo(n ? "trouxe " + n + (n === 1 ? " tarefa" : " tarefas") + " pra hoje" : "dia começado", () => {
+      commit({ ...docRef.current, tasks: pendingOf(docRef.current), day: today() });
+    });
+  };
+  const closeYesterday = () => {
+    if (!isStale(docRef.current)) return;
+    const n = pendingOf(docRef.current).length;
+    withUndo(n ? "fechei o dia com " + n + (n === 1 ? " aberta" : " abertas") : "dia fechado", () => {
+      commit({ ...docRef.current, tasks: [], day: today() });
+    });
+  };
+
+  /* ---------- editor do dia ---------- */
+  const closeWindow = () => {
+    setWindowOpen(false);
+    const b = document.getElementById("window");
+    if (b) b.focus();
+  };
+  const saveWindow = (startText, endText) => {
+    const read = (v) => { const p = /^(\d{1,2}):(\d{2})$/.exec(v || ""); return p ? (+p[1]) * 60 + (+p[2]) : null; };
+    const s = read(startText), e = read(endText);
+    if (s !== null && e !== null && e > s) commit({ ...docRef.current, start: s, end: e });
+    closeWindow();
+  };
+
+  /* ---------- composer ----------
+     toda tarefa tem duracao. quando o texto nao traz uma, o Enter nao cria:
      ele pergunta. a tarefa so existe depois que o tempo dela existe. */
-  const CHIPS = [15, 30, 60, 120];
-  let pendenteDeTempo = null;
-  let pendenteEhReserva = false;
-  /* setado quando o pedagio de duracao foi aberto POR uma ideia, e nao pelo
-     campo: e o que faz a ideia sair da caixa no mesmo gesto em que a tarefa
-     nasce, para um desfazer so devolver os dois. */
-  let pendenteDaIdeia = null;
-  /* o vinculo colado junto do titulo tem que sobreviver ao pedagio de duracao:
-     a tarefa so nasce depois dos chips, e a URL ja saiu do campo. */
-  let pendenteDoClickup = "";
-  /* idem para a frente e o cliente lidos do @ */
-  let pendenteDaFrente = "", pendenteDoCliente = "";
-
-  /* o que ocupa o dia sem ser trabalho seu. escrever "almoco 1h" nao deveria
-     virar uma tarefa que voce conclui para ganhar tempo de volta que nunca
-     esteve la — entao essas viram reserva, e o prefixo "-" forca qualquer uma. */
-  const RESERVA = /^(?:-\s*|(?:almo[çc]o|caf[ée]|janta(?:r)?|reuni[ãa]o|call|daily|1:1|dentista|m[ée]dico|academia|deslocamento|transito|tr[âa]nsito)\b)/i;
-  const ehReserva = (titulo) => RESERVA.test(titulo.trim());
-  const semPrefixo = (titulo) => titulo.replace(/^-\s*/, "").trim();
-
-  $("form").addEventListener("submit", (e) => {
+  const submitLine = (e) => {
     e.preventDefault();
-    /* digitar no campo e uma intencao nova: se havia uma ideia esperando
-       duracao, ela nao tem nada a ver com o que esta sendo escrito agora. */
-    pendenteDaIdeia = null;
-    const bruto = elCampo.value.replace(/\s+/g, " ").trim();
-    if (!bruto) return;
-    const { min, titulo, clickup, frente, cliente } = lerLinha(elCampo.value);
-    const nome = titulo || bruto;
-    const reserva = ehReserva(nome);
-    if (min) {
-      pendenteDoClickup = clickup; pendenteDaFrente = frente; pendenteDoCliente = cliente;
-      criarEfechar(semPrefixo(nome), min, reserva); return;
-    }
-    abrirChips(semPrefixo(nome), reserva);
-    /* depois de abrirChips, que zera o pendente para quem abre o pedagio por
-       outro caminho nao herdar link nenhum */
-    pendenteDoClickup = clickup; pendenteDaFrente = frente; pendenteDoCliente = cliente;
-  });
+    const raw = text.replace(/\s+/g, " ").trim();
+    if (!raw) return;
+    const { min, title, clickup, front, client } = readLine(text);
+    const name = title || raw;
+    const reserved = isReserve(name);
+    if (min) { createAndClose({ title: stripPrefix(name), min, reserved, clickup, front, client, ideaId: null }); return; }
+    /* o link e o @ lidos do campo sobrevivem ao pedagio: a tarefa so nasce
+       depois dos chips, e a URL ja saiu do campo. digitar no campo e uma
+       intencao nova: uma ideia que esperava duracao nao tem a ver com isso. */
+    setPending({ title: stripPrefix(name), reserved, clickup, front, client, ideaId: null });
+  };
 
-  function criarEfechar(titulo, min, reserva) {
+  const createAndClose = (spec) => {
     /* promocao de ideia: sair da caixa e entrar na fila sao o mesmo gesto,
        entao um desfazer so devolve os dois. criar tarefa do zero continua sem
-       desfazer — o que ganha desfazer aqui e a ideia ter sumido. */
-    const daIdeia = pendenteDaIdeia, link = pendenteDoClickup;
-    const ideia = daIdeia && ideias.find((i) => i.id === daIdeia);
-    /* a ideia traz a frente e o cliente dela, se o @ nao disse outra coisa */
-    const frente = pendenteDaFrente || (ideia && ideia.frente) || "";
-    const cliente = pendenteDoCliente || (ideia && ideia.cliente) || "";
-    if (ideia) {
-      comDesfazer("puxei “" + curto(titulo) + "” pro dia", () => {
-        criar(titulo, min, reserva, link, frente, cliente);
-        colIdeias.apagar(daIdeia);
-        refrescarIdeias();
+       desfazer — o que ganha desfazer aqui e a ideia ter sumido. a ideia traz
+       a frente e o cliente dela, se o @ nao disse outra coisa. */
+    const idea = spec.ideaId ? ideasCol.get(spec.ideaId) : null;
+    const front = spec.front || (idea && idea.front) || "";
+    const client = spec.client || (idea && idea.client) || "";
+    const task = { title: spec.title, min: spec.min, reserved: spec.reserved, clickup: spec.clickup, front, client };
+    if (idea) {
+      withUndo("puxei “" + shortTitle(spec.title) + "” pro dia", () => {
+        create(task);
+        ideasCol.remove(idea.id);
       });
-    } else criar(titulo, min, reserva, link, frente, cliente);
-    elCampo.value = "";
-    elFantasma.hidden = true;
-    fecharChips();
-    elCampo.focus();
-  }
+    } else create(task);
+    setText("");
+    setPending(null);
+    if (fieldRef.current) fieldRef.current.focus();
+  };
 
-  function abrirChips(titulo, reserva) {
-    /* zerado aqui para que so quem abre o pedagio POR uma ideia carregue esse
-       estado — puxarIdeia grava logo depois desta chamada. */
-    pendenteDaIdeia = null;
-    pendenteDoClickup = ""; pendenteDaFrente = ""; pendenteDoCliente = "";
-    pendenteDeTempo = titulo;
-    pendenteEhReserva = !!reserva;
-    elFantasma.hidden = true;
-    $("chips-txt").innerHTML = "<b>" + escapar(titulo) + "</b> — " +
-      (reserva ? "quanto tempo isso tira do dia?" : "quanto tempo isso leva?");
-
-    const fila = $("chips-fila");
-    fila.textContent = "";
-    const c = contas();
-    CHIPS.forEach((min) => {
-      const b = document.createElement("button");
-      b.className = "chip";
-      b.type = "button";
-      b.textContent = formatar(min);
-      /* o chip que nao cabe hoje continua clicavel: a tela informa, nao proibe */
-      b.dataset.cabe = min <= c.sobra ? "sim" : "nao";
-      b.dataset.min = min;
-      fila.appendChild(b);
-    });
-    const outro = document.createElement("button");
-    outro.className = "chip outro";
-    outro.type = "button";
-    outro.dataset.min = "livre";
-    outro.textContent = "outro";
-    fila.appendChild(outro);
-
-    elChips.hidden = false;
-    const primeiro = fila.querySelector(".chip");
-    if (primeiro) primeiro.focus();
-  }
-
-  function fecharChips() {
-    elChips.hidden = true;
-    pendenteDeTempo = null;
-    pendenteEhReserva = false;
-    pendenteDaIdeia = null;
-    pendenteDoClickup = ""; pendenteDaFrente = ""; pendenteDoCliente = "";
-  }
-
-  $("chips-fila").addEventListener("click", (e) => {
-    const b = e.target.closest(".chip");
-    if (!b || !pendenteDeTempo) return;
-    const titulo = pendenteDeTempo, reserva = pendenteEhReserva;
-    if (b.dataset.min === "livre") {
-      elChips.hidden = true;
-      pedirTempo(titulo, 0, (min) => {
-        if (min) criarEfechar(titulo, min, reserva);
-        else { elChips.hidden = false; }
-      });
-      return;
-    }
-    criarEfechar(titulo, +b.dataset.min, reserva);
-  });
-
-  /* setas andam entre os chips; Esc volta pro campo sem criar nada */
-  $("chips-fila").addEventListener("keydown", (e) => {
-    if (e.key === "Escape") { e.preventDefault(); fecharChips(); elCampo.focus(); return; }
-    if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
-    e.preventDefault();
-    const todos = [...$("chips-fila").querySelectorAll(".chip")];
-    const i = todos.indexOf(e.target.closest(".chip"));
-    if (i < 0) return;
-    const proximo = todos[(i + (e.key === "ArrowRight" ? 1 : todos.length - 1)) % todos.length];
-    if (proximo) proximo.focus();
-  });
+  const pickChip = (min) => { if (pending) createAndClose({ ...pending, min }); };
+  /* o chip "outro": pergunta um tempo livre sem sair do fluxo */
+  const pickOther = () => {
+    if (!pending) return;
+    const r = prompt("Quanto tempo leva “" + pending.title + "”? (ex: 45m, 1h30)", "");
+    if (r === null) return;
+    const min = readDuration(" " + r.trim() + " ").min;
+    if (min) createAndClose({ ...pending, min });
+  };
+  const closeChips = () => {
+    setPending(null);
+    if (fieldRef.current) fieldRef.current.focus();
+  };
 
   /* ---------- caixa de ideias ----------
-     o que ainda nao e tarefa. entra sem duracao de proposito: ideia nao ocupa
-     minuto nenhum, e por isso nao aparece na chamada, no trilho nem na conta.
-     virar tarefa passa pelo mesmo pedagio de duracao do composer — e ai, sim,
-     ela custa espaco como qualquer outra. e assim que a caixa convive com
-     "toda tarefa tem duracao" em vez de furar a regra.
-
-     a caixa e a colecao "ideias" do merlin, a mesma de ideias.html: la a
-     ideia ganha corpo, estagio e passos; aqui so aparece a ponta — as nao
-     arquivadas, as mais recentes primeiro. por ser colecao por entidade, ela
-     sincroniza sem o risco que tinha dentro do documento do dia (um aparelho
-     com o dia velho sobrescrevendo a caixa). */
-  const MAX_IDEIAS = 30;
-  const colIdeias = colecao("ideias", {
-    normalizar: (i) => ({ ...i, titulo: String(i.titulo || "").slice(0, 300), estagio: i.estagio || "semente" })
-  });
-
-  let ideias = [];
-  function refrescarIdeias() {
-    ideias = colIdeias.todos()
-      .filter((i) => i.titulo && i.estagio !== "arquivada")
-      .sort((a, b) => (b.atualizada || b.criada || 0) - (a.atualizada || a.criada || 0))
-      .slice(0, MAX_IDEIAS);
-    renderIdeias();
-  }
-
-  /* o desfazer guarda um retrato da caixa; voltar e gravar de novo o que
-     sumiu e apagar o que nasceu depois — a colecao carimba tudo como novo. */
-  function restaurarIdeias(retrato) {
-    const agora = new Set(colIdeias.todos().map((i) => i.id));
-    const antes = new Set(retrato.map((i) => i.id));
-    retrato.forEach((i) => { if (!agora.has(i.id)) colIdeias.gravar(i); });
-    colIdeias.todos().forEach((i) => { if (!antes.has(i.id)) colIdeias.apagar(i.id); });
-    refrescarIdeias();
-  }
-
-  const SETA = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h13M12 5l7 7-7 7"/></svg>';
-
-  function renderIdeias() {
-    $("ideias-rotulo").textContent = ideias.length
-      ? ideias.length + (ideias.length === 1 ? " ideia" : " ideias")
-      : "ideias";
-    $("ideias-vazio").hidden = ideias.length > 0;
-
-    const ul = $("lista-ideias");
-    ul.textContent = "";
-    ideias.forEach((i) => {
-      const li = document.createElement("li");
-      li.className = "ideia";
-      li.dataset.id = i.id;
-      const nome = escapar(i.titulo);
-      li.innerHTML =
-        '<span class="i-nome">' + nome + '</span>' +
-        '<span class="i-acoes">' +
-          '<button class="i-acao" type="button" data-acao="puxar" aria-label="Puxar &quot;' + nome + '&quot; pro dia">' + SETA + '</button>' +
-          '<a class="i-acao" href="ideias.html#' + encodeURIComponent(i.id) + '" aria-label="Abrir &quot;' + nome + '&quot;">' + LINK + '</a>' +
-          '<button class="i-acao" type="button" data-acao="apagar" aria-label="Apagar &quot;' + nome + '&quot;">' + LIXO + '</button>' +
-        '</span>';
-      ul.appendChild(li);
+     o que ainda nao e tarefa. entra sem duracao de proposito: ideia nao
+     ocupa minuto nenhum, e por isso nao aparece na chamada, no trilho nem na
+     conta. virar tarefa passa pelo mesmo pedagio de duracao do composer — e
+     ai, sim, ela custa espaco como qualquer outra. */
+  const ideas = liveIdeas(ideasCol);
+  const createIdea = (title, extra) => {
+    const clean = String(title).replace(/\s+/g, " ").trim();
+    if (!clean) return false;
+    const now = Date.now();
+    ideasCol.save({
+      id: newId(), title: clean.slice(0, 300), body: "", stage: "seed",
+      front: (extra && extra.front) || "", client: (extra && extra.client) || "",
+      steps: [], outputs: [], history: [], createdAt: now, updatedAt: now
     });
-  }
-
-  function criarIdeia(titulo, extra) {
-    const limpo = String(titulo).replace(/\s+/g, " ").trim();
-    if (!limpo) return false;
-    const agora = Date.now();
-    colIdeias.gravar({
-      id: proximoId(), titulo: limpo.slice(0, 300), corpo: "", estagio: "semente",
-      frente: (extra && extra.frente) || "", cliente: (extra && extra.cliente) || "",
-      passos: [], saidas: [], criada: agora, atualizada: agora
-    });
-    refrescarIdeias();
     return true;
-  }
-
-  function excluirIdeia(id) {
-    const i = ideias.find((x) => x.id === id);
+  };
+  const removeIdea = (id) => {
+    const i = ideasCol.get(id);
     if (!i) return;
-    comDesfazer("apaguei “" + curto(i.titulo) + "”", () => {
-      colIdeias.apagar(id);
-      refrescarIdeias();
-    });
-  }
-
+    withUndo("apaguei “" + shortTitle(i.title) + "”", () => { ideasCol.remove(id); });
+  };
   /* ideia nao tem duracao, e tarefa sem duracao nao existe: puxar abre o
      mesmo pedagio do composer. a ideia so sai da caixa quando o tempo dela
      for respondido — desistir dos chips deixa tudo como estava. */
-  function puxarIdeia(id) {
-    const i = ideias.find((x) => x.id === id);
+  const pullIdea = (id) => {
+    const i = ideasCol.get(id);
     if (!i) return;
-    abrirChips(i.titulo, ehReserva(i.titulo));
-    pendenteDaIdeia = id;
-  }
-
-  $("lista-ideias").addEventListener("click", (e) => {
-    const b = e.target.closest("button.i-acao");
-    if (!b) return;
-    const li = b.closest(".ideia");
-    if (!li) return;
-    if (b.dataset.acao === "puxar") puxarIdeia(li.dataset.id);
-    else excluirIdeia(li.dataset.id);
-  });
-
-  $("form-ideia").addEventListener("submit", (e) => {
-    e.preventDefault();
-    const campo = $("campo-ideia");
-    const ar = lerArrobas(campo.value);
-    if (criarIdeia(ar.titulo, ar)) campo.value = "";
-  });
-
-  /* outra aba, ou a nuvem, mexeu na colecao: a lista e sempre um reflexo */
-  colIdeias.aoMudar(refrescarIdeias);
-  refrescarIdeias();
+    setPending({ title: i.title, reserved: isReserve(i.title), clickup: "", front: "", client: "", ideaId: id });
+  };
+  /* o desfazer guarda um retrato da caixa; voltar e gravar de novo o que
+     sumiu e apagar o que nasceu depois — a colecao carimba tudo como novo. */
+  const restoreIdeas = (snapshot) => {
+    const now = new Set(ideasCol.all().map((i) => i.id));
+    const before = new Set(snapshot.map((i) => i.id));
+    snapshot.forEach((i) => { if (!now.has(i.id)) ideasCol.save(i); });
+    ideasCol.all().forEach((i) => { if (!before.has(i.id)) ideasCol.remove(i.id); });
+  };
 
   /* ---------- caixa de entrada ----------
      os outros modulos nao tocam no documento do dia: eles deixam um bilhete
-     em merlin:entrada e o dia recolhe. com duracao vira tarefa na hora; sem
+     em merlin:inbox e o dia recolhe. com duracao vira tarefa na hora; sem
      duracao cai na caixa de ideias, onde paga o pedagio como qualquer outra. */
-  function esvaziarEntrada() {
-    const fila = lerEntrada();
-    if (!fila.length) return;
-    gravarEntrada([]);
-    let tarefas = 0, novasIdeias = 0;
-    fila.forEach((it) => {
-      if (!it || !it.titulo) return;
-      if (it.min) { if (criar(it.titulo, it.min, ehReserva(it.titulo), "", it.frente, it.cliente)) tarefas++; }
-      else if (criarIdeia(it.titulo, it)) novasIdeias++;
+  const emptyInbox = () => {
+    const list = readInbox();
+    if (!list.length) return;
+    writeInbox([]);
+    let d = docRef.current, tasks = 0, newIdeas = 0;
+    list.forEach((it) => {
+      if (!it || !it.title) return;
+      const title = String(it.title);
+      if (it.min) {
+        const r = withTask(d, { title, min: it.min, reserved: isReserve(title), front: it.front, client: it.client });
+        if (r) { d = r.doc; tasks++; }
+      } else if (createIdea(title, it)) newIdeas++;
     });
-    const partes = [];
-    if (tarefas) partes.push(tarefas + (tarefas === 1 ? " tarefa" : " tarefas") + " na fila");
-    if (novasIdeias) partes.push(novasIdeias + (novasIdeias === 1 ? " ideia" : " ideias") + " na caixa");
-    if (partes.length) mostrarAviso("chegou de outro módulo: " + partes.join(" e "));
-  }
-  window.addEventListener("storage", (e) => { if (e.key === "merlin:entrada") esvaziarEntrada(); });
-  esvaziarEntrada();
+    if (tasks) commit(d);
+    const parts = [];
+    if (tasks) parts.push(tasks + (tasks === 1 ? " tarefa" : " tarefas") + " na fila");
+    if (newIdeas) parts.push(newIdeas + (newIdeas === 1 ? " ideia" : " ideias") + " na caixa");
+    if (parts.length) showToast("chegou de outro módulo: " + parts.join(" e "));
+  };
 
   /* ---------- os cartoes de hoje, da semana ----------
      decisao do arthur: o que esta na coluna de hoje na semana entra na fila
      sozinho ao abrir o dia. e a unica excecao ao "nada entra sozinho", e ela
      vale porque o cartao ja foi uma decisao dele — colocar algo em "seg 7" e
-     dizer que aquilo e de segunda. o cartao ganha noDia com o id da tarefa,
+     dizer que aquilo e de segunda. o cartao ganha inDay com o id da tarefa,
      entao nao entra duas vezes; concluir aqui fecha o cartao la. */
-  const colSemana = colecao("semana");
-
-  function chaveDeHoje() {
-    const h = hoje();
-    const dow = new Date().getDay();
-    return (dow === 0 || dow === 6) ? "fds:" + segundaDe(h) : h;
-  }
-
-  function puxarDaSemana() {
-    const chave = chaveDeHoje();
-    const cartoes = colSemana.todos()
-      .filter((c) => c.dia === chave && !c.feito && !c.noDia && c.titulo)
-      .sort((a, b) => (a.ordem || 0) - (b.ordem || 0));
-    if (!cartoes.length) return;
-    let n = 0;
-    /* na ordem inversa porque criar() poe no topo: o primeiro cartao da
-       coluna termina no topo da fila */
-    cartoes.slice().reverse().forEach((c) => {
-      const id = criar(c.titulo, +c.min || 0, ehReserva(c.titulo), "", c.frente, c.cliente, { semMin: true, semana: c.id });
-      if (id) { colSemana.gravar({ ...c, noDia: id }); n++; }
+  const pullFromWeek = () => {
+    const key = todayKey();
+    const cards = week.all()
+      .filter((c) => c.day === key && !c.done && !c.inDay && c.title)
+      .sort((a, b) => (a.order || 0) - (b.order || 0));
+    if (!cards.length) return;
+    let d = docRef.current;
+    const updates = [];
+    /* na ordem inversa porque a tarefa nova entra no topo: o primeiro cartao
+       da coluna termina no topo da fila */
+    cards.slice().reverse().forEach((c) => {
+      const title = String(c.title);
+      const r = withTask(d, {
+        title, min: +c.min || 0, reserved: isReserve(title), front: c.front, client: c.client,
+        origin: { type: "week", id: c.id }, allowNoMin: true
+      });
+      if (r) { d = r.doc; updates.push({ ...c, inDay: r.id }); }
     });
-    if (n) mostrarAviso(n === 1 ? "1 cartão de hoje entrou na fila" : n + " cartões de hoje entraram na fila");
-  }
-
-  function marcarNaSemana(idCartao) {
-    const c = colSemana.obter(idCartao);
-    if (c && !c.feito) colSemana.gravar({ ...c, feito: true, atualizada: Date.now() });
-  }
-
-  colSemana.aoMudar((origem) => { if (origem !== "local") puxarDaSemana(); });
-  puxarDaSemana();
-
-  /* ---------- matriz de eisenhower ----------
-     um instrumento de ordenacao, e so isso: o quadrante NAO e gravado. ele
-     existe enquanto a folha esta aberta e morre ao fechar. o que sobra e a
-     unica ordenacao que o produto tem, que e a ordem da fila.
-
-     e por isso que o quadrante nao vira campo da tarefa: um quadrante gravado
-     seria um segundo eixo de ordenacao, e foi exatamente esse eixo que saiu do
-     produto em 948cd41, um commit depois de a fila ganhar ordem e linha de
-     corte. o que custa fica; o que nao custa saiu.
-
-     a previa da fila resultante, logo abaixo, e o que impede a matriz de
-     virar quatro baldes de capacidade infinita: arrastar mais uma coisa para
-     "faz agora" empurra outra para baixo da linha, no mesmo gesto e a vista. */
-  const MATRIZ_ORDEM = ["q1", "q2", "q3", "q4", "pool"];
-  const elMatrizCorpo = $("matriz-corpo"), elMatrizCampo = $("matriz-campo");
-
-  const zonaDe = (nome) => elMatrizCampo.querySelector('[data-zona="' + nome + '"] .m-chips');
-
-  function chipDaTarefa(t) {
-    const li = document.createElement("li");
-    li.className = "m-chip";
-    li.dataset.id = t.id;
-    li.tabIndex = 0;
-    li.setAttribute("role", "listitem");
-    li.setAttribute("aria-label", t.titulo + ", " + formatar(custoDe(t)) + ". Setas movem entre os quadrantes.");
-    const nome = document.createElement("span");
-    nome.className = "m-nome";
-    nome.textContent = t.titulo;
-    const min = document.createElement("span");
-    min.className = "m-min";
-    min.textContent = formatar(custoDe(t));
-    li.append(nome, min);
-    return li;
-  }
-
-  /* abre sempre do zero, com tudo sem classificar: e o que "efemera" quer
-     dizer. a fila de hoje ja e a sua ordem — a matriz e para revisita-la, nao
-     para lembrar de uma classificacao que o produto decidiu nao guardar. */
-  function abrirMatriz() {
-    MATRIZ_ORDEM.forEach((z) => { zonaDe(z).textContent = ""; });
-    const pool = zonaDe("pool");
-    pendentes().forEach((t) => pool.appendChild(chipDaTarefa(t)));
-    elMatrizCorpo.hidden = false;
-    $("matriz-abrir").textContent = "fechar";
-    $("matriz-abrir").setAttribute("aria-expanded", "true");
-    renderPreviaMatriz();
-  }
-
-  function fecharMatriz() {
-    elMatrizCorpo.hidden = true;
-    $("matriz-abrir").textContent = "abrir";
-    $("matriz-abrir").setAttribute("aria-expanded", "false");
-  }
-
-  /* a ordem que sai da matriz: os quadrantes na ordem canonica, e no fim o
-     que voce nao classificou — que continua exatamente na ordem em que estava. */
-  function ordemDaMatriz() {
-    const ids = [];
-    MATRIZ_ORDEM.forEach((z) => {
-      zonaDe(z).querySelectorAll(".m-chip").forEach((c) => ids.push(c.dataset.id));
-    });
-    return ids;
-  }
-
-  const tarefasDaOrdem = (ids) => {
-    const mapa = new Map(estado.tarefas.map((t) => [t.id, t]));
-    return ids.map((id) => mapa.get(id)).filter(Boolean);
+    if (!updates.length) return;
+    commit(d);
+    week.saveMany(updates);
+    showToast(updates.length === 1 ? "1 cartão de hoje entrou na fila" : updates.length + " cartões de hoje entraram na fila");
+  };
+  const markWeek = (cardId) => {
+    const c = week.get(cardId);
+    if (c && !c.done) week.save({ ...c, done: true, updatedAt: Date.now() });
   };
 
-  function renderPreviaMatriz() {
-    const abertas = tarefasDaOrdem(ordemDaMatriz());
-    const ol = $("matriz-previa");
-    ol.textContent = "";
-    if (!abertas.length) {
-      const p = document.createElement("li");
-      p.className = "m-vazia";
-      p.textContent = "a fila está vazia.";
-      ol.appendChild(p);
-      return;
+  /* ---------- matriz: aplicar e uma reordenacao em lote ----------
+     ao contrario do arrasto da fila, que move uma linha por vez e voce ve
+     acontecer, aqui a fila inteira muda de uma vez — entao passa pelo desfazer. */
+  const applyMatrix = (ids) => withUndo("apliquei a ordem da matriz", () => applyOrder(ids));
+
+  /* ---------- a nuvem ----------
+     o mesmo dia em qualquer navegador. sobe o dia atual; o servidor recusa
+     se ele estiver na frente — e ai quem adota e o cliente, em vez dos dois
+     discordarem em silencio. */
+  const uploadDay = async () => {
+    if (!cloud.signedIn) return;
+    const d = docRef.current;
+    try {
+      const r = await api("/days", { method: "POST", body: JSON.stringify({ day: d.day, v: d.v, doc: d }) });
+      if (r.ok) { serverV.current = Math.max(serverV.current, d.v); cloud.setStatus("synced"); return; }
+      if (r.status === 409 && r.body.server) { adoptFromCloud(r.body.server); return; }
+      if (r.status === 401) { cloud.signedIn = false; cloud.setStatus("local"); cloud.emit(); return; }
+      cloud.setStatus("error");
+    } catch (e) {
+      /* sem rede: o dia esta salvo aqui e sobe na proxima */
+      cloud.setStatus("offline");
     }
-    /* a MESMA conta da tela principal, so que sobre a ordem hipotetica */
-    const { vagas, corte } = distribuir(abertas);
-    abertas.forEach((t, i) => {
-      const li = document.createElement("li");
-      const cabe = vagas.has(t.id) && !vagas.get(t.id).cortada;
-      li.dataset.cabe = cabe ? "sim" : "nao";
-      if (i === corte) li.dataset.corte = "sim";
-      const nome = document.createElement("span");
-      nome.className = "p-nome";
-      nome.textContent = t.titulo;
-      li.appendChild(nome);
-      ol.appendChild(li);
-    });
-  }
+  };
 
-  /* ---- arrasto 2D ----
-     os listeners ficam na raiz do campo, e nao numa zona: com
-     setPointerCapture os eventos continuam saindo do chip e borbulhando pelos
-     ancestrais dele, e a raiz e ancestral de todas as zonas — inclusive
-     depois de o chip mudar de quadrante. */
-  let arrastoM = null;
+  /* baixa o que mudou desde a ultima vez. so troca a tela se o dia de la for
+     o mesmo dia daqui e estiver na frente — dia antigo do servidor nao
+     sequestra a fila de hoje. */
+  const downloadDays = async () => {
+    if (!cloud.signedIn) return;
+    try {
+      const r = await api("/days?since=" + serverV.current, { method: "GET" });
+      if (r.status === 401) { cloud.signedIn = false; cloud.setStatus("local"); cloud.emit(); return; }
+      if (!r.ok) { cloud.setStatus("error"); return; }
+      const days = r.body.days || [];
+      days.forEach((d) => { serverV.current = Math.max(serverV.current, d.v); });
+      const mine = days.filter((d) => d.day === docRef.current.day).sort((a, b) => b.v - a.v)[0];
+      if (mine && mine.v > docRef.current.v) adoptFromCloud(mine);
+      else cloud.setStatus("synced");
+    } catch (e) { cloud.setStatus("offline"); }
+  };
 
-  elMatrizCampo.addEventListener("pointerdown", (e) => {
-    const chip = e.target.closest(".m-chip");
-    if (!chip || e.button > 0) return;
+  /* troca o documento inteiro pelo da nuvem, que esta na frente. nao e merge
+     por tarefa: vale porque quem escreve e uma pessoa so, e quem gravou por
+     ultimo teve o dia mais recente. */
+  const adoptFromCloud = (server) => {
+    const next = loadFrom(server.doc);
+    serverV.current = Math.max(serverV.current, server.v);
+    try { localStorage.setItem(DAY_KEY, JSON.stringify(next)); } catch (e) {}
+    replace(next);
+    cloud.setStatus("synced");
+    showToast("atualizei com o que veio do outro aparelho");
+  };
+
+  /* debounce: digitar tres tarefas seguidas e uma subida, nao tres */
+  const scheduleUpload = () => {
+    if (!cloud.signedIn) return;
+    clearTimeout(uploadTimer.current);
+    uploadTimer.current = setTimeout(uploadDay, 1500);
+  };
+
+  /* ---------- arrastar para reordenar ----------
+     pointer events: o drag do HTML5 nao dispara em toque, e este app abre no
+     celular. a alca captura o ponteiro; enquanto dura o arrasto a fila e
+     desenhada a partir de dragOrder, e ao soltar essa ordem vira o estado. os
+     listeners vao para o documento, para o arrasto nao morrer se o ponteiro
+     sair da lista. */
+  const dragStart = (e, id) => {
+    if (e.button > 0) return;
     e.preventDefault();
-    arrastoM = chip;
-    chip.classList.add("arrastando");
-    chip.setPointerCapture(e.pointerId);
-  });
-
-  elMatrizCampo.addEventListener("pointermove", (e) => {
-    if (!arrastoM) return;
-    /* o chip arrastado esta com pointer-events:none, entao elementFromPoint
-       enxerga a zona por baixo dele — e por isso quadrante vazio e alcancavel,
-       o que o arrasto da fila (que so procura outra linha) nao permite. */
-    const sob = document.elementFromPoint(e.clientX, e.clientY);
-    const zona = sob && sob.closest ? sob.closest("[data-zona]") : null;
-    elMatrizCampo.querySelectorAll("[data-zona]").forEach((z) => { z.dataset.alvo = z === zona ? "sim" : "nao"; });
-    if (!zona) return;
-    const lista = zona.querySelector(".m-chips");
-    const irmao = [...lista.querySelectorAll(".m-chip")].find((c) => {
-      if (c === arrastoM) return false;
-      const r = c.getBoundingClientRect();
-      return e.clientY < r.top + r.height / 2;
-    });
-    if (irmao) lista.insertBefore(arrastoM, irmao);
-    else lista.appendChild(arrastoM);
-    renderPreviaMatriz();
-  });
-
-  function soltarM() {
-    if (!arrastoM) return;
-    arrastoM.classList.remove("arrastando");
-    arrastoM = null;
-    elMatrizCampo.querySelectorAll("[data-zona]").forEach((z) => { z.dataset.alvo = "nao"; });
-    renderPreviaMatriz();
-  }
-  elMatrizCampo.addEventListener("pointerup", soltarM);
-  elMatrizCampo.addEventListener("pointercancel", soltarM);
-
-  /* teclado: o produto inteiro e navegavel sem mouse, e uma folha que so
-     aceita arrasto seria a unica tela que nao e. */
-  elMatrizCampo.addEventListener("keydown", (e) => {
-    const chip = e.target.closest(".m-chip");
-    if (!chip) return;
-    const zona = chip.closest("[data-zona]").dataset.zona;
-    const i = MATRIZ_ORDEM.indexOf(zona);
-    let destino = null;
-    if (e.key === "ArrowRight") destino = MATRIZ_ORDEM[(i + 1) % MATRIZ_ORDEM.length];
-    else if (e.key === "ArrowLeft") destino = MATRIZ_ORDEM[(i + MATRIZ_ORDEM.length - 1) % MATRIZ_ORDEM.length];
-    else return;
-    e.preventDefault();
-    zonaDe(destino).appendChild(chip);
-    chip.focus();
-    renderPreviaMatriz();
-  });
-
-  /* aplicar e uma reordenacao em lote: ao contrario do arrasto da fila, que
-     move uma linha por vez e voce ve acontecer, aqui a fila inteira muda de
-     uma vez — entao isto passa pelo desfazer. */
-  function aplicarMatriz() {
-    const ids = ordemDaMatriz();
-    if (!ids.length) { fecharMatriz(); return; }
-    comDesfazer("apliquei a ordem da matriz", () => {
-      const mapa = new Map(estado.tarefas.map((t) => [t.id, t]));
-      const vistos = new Set(ids);
-      estado.tarefas = ids.map((id) => mapa.get(id)).filter(Boolean)
-        .concat(estado.tarefas.filter((t) => !vistos.has(t.id)));
-      salvar();
-      render();
-    });
-    fecharMatriz();
-  }
-
-  $("matriz-abrir").addEventListener("click", () => {
-    if (elMatrizCorpo.hidden) abrirMatriz(); else fecharMatriz();
-  });
-  $("matriz-aplicar").addEventListener("click", aplicarMatriz);
-  $("matriz-descartar").addEventListener("click", fecharMatriz);
-
-  /* previa fantasma: voce ve o que o parser entendeu antes de confirmar */
-  function atualizarFantasma() {
-    if (!elChips.hidden) return;
-    const bruto = elCampo.value.replace(/\s+/g, " ").trim();
-    if (!bruto) { elFantasma.hidden = true; return; }
-    const { min, titulo, clickup, semLink, frente, cliente } = lerLinha(elCampo.value);
-    const c = contas();
-    const cabe = !min || min <= c.sobra;
-    elFantasma.hidden = false;
-    elFantasma.dataset.cabe = cabe ? "sim" : "nao";
-    elFantasma.querySelector(".g-nome").textContent = titulo || bruto;
-    /* numero no texto que o parser nao entendeu quase sempre e tempo mal escrito:
-       dizer isso agora evita a tarefa muda que some da conta depois */
-    /* o link reconhecido e dito na previa: senao a URL some do campo e voce
-       nao sabe se ela virou vinculo ou se foi engolida. */
-    const nomeFrente = frente ? (listarFrentes().find((f) => f.id === frente) || {}).nome : "";
-    const marca = (clickup ? " · clickup" : "") + (nomeFrente ? " · " + nomeFrente : "") + (cliente ? " · " + nomeCliente(cliente) : "");
-    elFantasma.querySelector(".g-tempo").textContent = (min
-      ? formatar(min) + (cabe ? "" : " · não cabe hoje")
-      : (pareceTempoQuebrado(semLink, min) ? "não entendi o tempo · 45m, 1h30" : "o tempo vem a seguir")) + marca;
-  }
-  elCampo.addEventListener("input", atualizarFantasma);
-  elCampo.addEventListener("focus", atualizarFantasma);
-  elCampo.addEventListener("blur", () => { elFantasma.hidden = true; });
-
-  /* ---------- eventos da lista ---------- */
-
-  elLista.addEventListener("click", (e) => {
-    const botao = e.target.closest("[data-acao]");
-    const li = e.target.closest(".tarefa");
-    if (!botao || !li || botao.dataset.acao === "renomear") return;
-    const id = li.dataset.id;
-    if (botao.dataset.acao === "concluir") concluir(id);
-    else if (botao.dataset.acao === "excluir") excluir(id);
-    else if (botao.dataset.acao === "tempo") editarTempo(id);
-  });
-
-  elLista.addEventListener("change", (e) => {
-    if (!e.target.dataset || e.target.dataset.acao !== "renomear") return;
-    renomear(e.target.closest(".tarefa").dataset.id, e.target.value);
-  });
-
-  elLista.addEventListener("keydown", (e) => {
-    const li = e.target.closest(".tarefa");
+    const li = e.currentTarget.closest(".task");
     if (!li) return;
-    const id = li.dataset.id;
-    const noNome = e.target.classList.contains("nome");
+    drag.current = { id, y: e.clientY, li };
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch (x) { /* toque antigo */ }
+    dragOrderRef.current = pendingOf(docRef.current).map((t) => t.id);
+    setDragOrder(dragOrderRef.current);
+    setDragging(id);
+  };
+  useEffect(() => {
+    if (!dragging) return;
+    const onMove = (e) => {
+      const d = drag.current;
+      if (!d) return;
+      const li = d.li;
+      li.style.transform = "translateY(" + (e.clientY - d.y) + "px)";
+      const rows = listRef.current ? [...listRef.current.querySelectorAll(".task")] : [];
+      const target = rows.find((n) => {
+        if (n === li) return false;
+        const r = n.getBoundingClientRect();
+        return e.clientY >= r.top && e.clientY <= r.bottom;
+      });
+      if (!target) return;
+      const r = target.getBoundingClientRect();
+      const after = e.clientY > r.top + r.height / 2;
+      const order = dragOrderRef.current;
+      if (!order) return;
+      const o = order.filter((x) => x !== d.id);
+      const i = o.indexOf(target.dataset.id);
+      if (i < 0) return;
+      o.splice(after ? i + 1 : i, 0, d.id);
+      dragOrderRef.current = o;
+      setDragOrder(o);
+      d.y = e.clientY;
+      li.style.transform = "translateY(0px)";
+    };
+    const onUp = () => {
+      const d = drag.current;
+      if (!d) return;
+      d.li.style.transform = "";
+      drag.current = null;
+      const order = dragOrderRef.current;
+      dragOrderRef.current = null;
+      setDragging(null);
+      setDragOrder(null);
+      if (order) applyOrder(order);
+    };
+    document.addEventListener("pointermove", onMove);
+    document.addEventListener("pointerup", onUp);
+    document.addEventListener("pointercancel", onUp);
+    return () => {
+      document.removeEventListener("pointermove", onMove);
+      document.removeEventListener("pointerup", onUp);
+      document.removeEventListener("pointercancel", onUp);
+    };
+  }, [dragging]);
 
+  /* ---------- efeitos ---------- */
+
+  /* ao abrir: recolhe a caixa de entrada e os cartoes de hoje. uma vez;
+     depois so por evento. */
+  useEffect(() => { emptyInbox(); pullFromWeek(); }, []);
+
+  /* outra aba, ou a nuvem, mexeu na semana: cartao novo de hoje entra */
+  useEffect(() => week.onChange((origin) => { if (origin !== "local") pullFromWeek(); }), [week]);
+
+  /* outra aba gravou o dia: recarrega em vez de sobrescrever o trabalho
+     dela. o desfazer pendente virou lixo: restauraria um retrato anterior ao
+     que a outra aba acabou de gravar. */
+  useEffect(() => {
+    const f = (e) => {
+      if (e.key === DAY_KEY) {
+        replace(load());
+        if (undoStack.current.length) closeToast();
+      } else if (e.key === "merlin:inbox") emptyInbox();
+    };
+    window.addEventListener("storage", f);
+    return () => window.removeEventListener("storage", f);
+  }, []);
+
+  /* a sessao e do core (barra, dialogo de entrar, sair). o dia so precisa
+     saber quando ela muda: entrou, baixa antes de subir — o outro aparelho
+     pode ter o dia mais novo; saiu, esquece o carimbo do servidor. voltar
+     pra aba e quando o outro aparelho pode ter gravado. */
+  useEffect(() => {
+    const off = cloud.onChange(async () => {
+      if (cloud.signedIn) { await downloadDays(); await uploadDay(); }
+      else serverV.current = 0;
+    });
+    const vis = () => {
+      if (!cloud.signedIn) return;
+      if (document.hidden) { clearTimeout(uploadTimer.current); uploadDay(); }
+      else downloadDays();
+    };
+    document.addEventListener("visibilitychange", vis);
+    /* a sessao pode ter sido retomada antes de a tela montar */
+    if (cloud.signedIn) downloadDays().then(uploadDay);
+    return () => { off(); document.removeEventListener("visibilitychange", vis); };
+  }, []);
+
+  /* ---------- o dia encolhendo ----------
+     o tick nao tem transicao: tempo passando e um fato seco, nao um efeito.
+     virar a meia-noite com a aba aberta muda a fila de categoria — e o
+     redesenho e inteiro de qualquer jeito. */
+  useEffect(() => {
+    const tick = () => setTick((n) => n + 1);
+    const id = setInterval(tick, 30000);
+    const vis = () => { if (!document.hidden) tick(); };
+    document.addEventListener("visibilitychange", vis);
+    return () => { clearInterval(id); document.removeEventListener("visibilitychange", vis); };
+  }, []);
+
+  /* ---------- teclado global ---------- */
+  useKeydown((e) => {
+    const el = document.activeElement;
+    if (e.key === "/" && !isTyping()) { e.preventDefault(); if (fieldRef.current) fieldRef.current.focus(); }
+    else if (e.key === "Escape") {
+      if (el === fieldRef.current) el.blur();
+      else if (toast != null) closeToast();
+    }
+  });
+
+  /* quem pediu foco para depois do redesenho (mover uma linha) recebe aqui,
+     antes da pintura */
+  useLayoutEffect(() => {
+    const sel = focusAfter.current;
+    if (!sel) return;
+    focusAfter.current = null;
+    const el = document.querySelector(sel);
+    if (el) el.focus();
+  });
+
+  /* ---------- a tela ---------- */
+  const stale = isStale(doc);
+  const byId = new Map(doc.tasks.map((t) => [t.id, t]));
+  const open = dragOrder ? dragOrder.map((id) => byId.get(id)).filter(Boolean) : pendingOf(doc);
+  const { b, slots, cut } = distribute(doc, open);
+  const done = doneOf(doc);
+  const reserves = reservesOf(doc);
+  const rowActions = { complete, remove, rename, move, setDuration, dragStart };
+
+  /* uma lista plana com chave por linha: e assim que a linha arrastada
+     sobrevive ao redesenho em vez de ser recriada */
+  const rows = [];
+  open.forEach((t, i) => {
+    /* a régua: daqui pra baixo o dia nao alcanca */
+    if (cut >= 0 && i === cut) rows.push(html`<li key="cut" class="cut"><span class="t-mono">daqui não dá tempo hoje</span></li>`);
+    rows.push(html`<${TaskRow} key=${t.id} t=${t} start=${doc.start} slot=${slots.get(t.id)} fits=${!(cut >= 0 && i >= cut)}
+      dragging=${dragging === t.id} leaving=${leaving === t.id} actions=${rowActions}/>`);
+  });
+
+  return html`
+    <main class="device">
+      <div class="top">
+        <span class="t-mono" id="date">${dateStamp(doc.day)}</span>
+        <button class="window" id="window" type="button" title="Mudar o começo e o fim do seu dia" onClick=${() => setWindowOpen(true)}>${clock(doc.start) + " → " + clock(doc.end)}</button>
+      </div>
+
+      <div class="scroll">
+        <div class="logo-tile" aria-hidden="true">${svg(LOGO)}</div>
+        <${Headline} doc=${doc} b=${b} done=${done}/>
+        <${Track} b=${b} slots=${slots} trackRef=${trackRef}/>
+        ${windowOpen && html`<${WindowEditor} doc=${doc} onSave=${saveWindow} onClose=${closeWindow}/>`}
+        ${stale && html`<${StaleStrip} doc=${doc} onBring=${bringYesterday} onClose=${closeYesterday}/>`}
+        ${reserves.length > 0 && html`<${Reserves} list=${reserves} onRemove=${remove}/>`}
+        ${open.length > 0 && html`<p class="section-label"><span class="t-mono">${open.length + (open.length === 1 ? " coisa na fila" : " coisas na fila")}</span></p>`}
+        <ul class="queue" ref=${listRef}>${rows}</ul>
+        ${!open.length && html`<${EmptyState} doc=${doc} b=${b}/>`}
+        ${done.length > 0 && html`<${DoneList} doc=${doc} done=${done} onToggle=${toggleDoneOpen} onClear=${clearDone} onReopen=${reopen}/>`}
+      </div>
+
+      <${Composer} b=${b} text=${text} setText=${setText} pending=${pending} fieldRef=${fieldRef} storageBroken=${storageBroken}
+        onSubmit=${submitLine} onPick=${pickChip} onOther=${pickOther} onEscape=${closeChips}/>
+
+      ${toast != null && html`
+        <div class="toast" role="status" aria-live="polite">
+          <span>${toast}</span>
+          <button type="button" onClick=${undo}>desfazer</button>
+        </div>`}
+    </main>
+
+    <div class="side" id="side-left">
+      <${IdeasBox} ideas=${ideas} onCreate=${createIdea} onPull=${pullIdea} onRemove=${removeIdea}/>
+    </div>
+    <div class="side" id="side-right">
+      <${Matrix} doc=${doc} open=${pendingOf(doc)} onApply=${applyMatrix}/>
+    </div>`;
+}
+
+
+const cssEscape = (id) => (window.CSS && CSS.escape ? CSS.escape(id) : id);
+
+/* ---------- chamada ----------
+   o carimbo e a data DA FILA, nao a de hoje: enquanto o estado for de ontem,
+   dizer "hoje" aqui seria afirmar algo falso sobre o que esta na tela */
+function Headline({ doc, b, done }) {
+  const stale = isStale(doc);
+  const n = done.length;
+  let tone = "normal", l1, measure, rest, context;
+  if (!b.open.length) {
+    l1 = n ? "Tudo fechado." : "Dia limpo.";
+    measure = fmt(Math.max(0, b.remaining));
+    rest = b.overtime ? "— o dia já acabou" : (n ? "ainda de dia" : "pela frente");
+    if (n) {
+      const total = done.reduce((s, t) => s + t.min, 0);
+      /* enquanto a fila for de ontem, "N fechadas" e trabalho de ontem:
+         dizer de quando sem tirar o credito do que foi feito */
+      context = n + (n === 1 ? " fechada" : " fechadas") +
+        (total ? " · " + longFmt(total) + " de trabalho" : "") +
+        (stale ? " — de " + weekdayName(doc.day) : "");
+    } else context = "o dia acaba às " + clock(doc.end) + ".";
+  } else if (b.slack >= 0) {
+    l1 = "Ainda cabem";
+    /* "~" so aqui: a sobra e o unico numero que o palpite pode INFLAR.
+       no estouro ele e piso — palpite so pode aumentar o debito, nunca reduzi-lo. */
+    measure = (b.unestimated ? "~" : "") + fmt(b.slack);
+    rest = "no seu dia";
+    context = longFmt(b.committed) + " na fila" +
+      (b.liveReserve ? " · " + longFmt(b.liveReserve) + " reservado" : "") +
+      " · o dia acaba às " + clock(doc.end);
+  } else {
+    /* passar das 19:00 qualifica o estouro, nao substitui a pergunta: o
+       numero nao pode encolher justamente quando cortar algo e mais urgente */
+    tone = "overflow";
+    l1 = "Não cabe.";
+    measure = fmt(b.overflow);
+    rest = "além do que resta";
+    context = b.overtime
+      ? "passou das " + clock(doc.end) + " · " + longFmt(b.committed) + " ainda na fila. Algo tem que sair."
+      : longFmt(b.committed) + " na fila para " + longFmt(b.remaining) + " de dia. Algo tem que sair.";
+  }
+  /* nao ha vermelho neste sistema: quando nao cabe, o verde simplesmente some */
+  return html`
+    <h1 class="headline" data-tone=${tone}>
+      <span class="headline__l1">${l1}</span>
+      <span class="headline__l2"><span class="measure">${measure}</span> <span>${rest}</span></span>
+    </h1>
+    <p class="context">${context}</p>`;
+}
+
+/* ---------- trilho do dia ----------
+   tudo e % da mesma janela: sem px fixo, sem gap, sem min-width — e por isso
+   que o desenho nao pode divergir da conta */
+function Track({ b, slots, trackRef }) {
+  const width = (min) => ({ flex: "0 0 " + ((min / b.window) * 100) + "%", minWidth: "0" });
+  const note = b.unestimated
+    ? b.unestimated + (b.unestimated === 1 ? " sem duração · conta " : " sem duração · contam ") +
+      fmt(GUESS) + (b.unestimated === 1 ? "" : " cada")
+    : "";
+  return html`
+    <div class="track" ref=${trackRef} aria-hidden="true">
+      ${b.elapsed > 0 && html`<div key="spent" class="band spent" style=${width(b.elapsed)}></div>`}
+      ${b.liveReserve > 0 && html`<div key="reserved" class="band reserved" style=${width(b.liveReserve)} title=${"reservado · " + longFmt(b.liveReserve)}></div>`}
+      ${b.open.map((t) => {
+        const s = slots.get(t.id);
+        if (!s) return null;
+        return html`<div key=${t.id} class=${"band slot" + (s.guess ? " guess" : "")} style=${width(s.min)} data-id=${t.id}
+          title=${t.title + " · " + (s.guess ? "palpite de " + fmt(GUESS) : fmt(t.min))}></div>`;
+      })}
+      ${b.committed < b.remaining && html`<div key="free" class="band free"></div>`}
+    </div>
+    ${b.overflow > 0 && html`<div class="overflow" aria-hidden="true" style=${{ width: Math.min(100, (b.overflow / b.window) * 100) + "%" }}></div>`}
+    <span class="note t-mono">${note}</span>`;
+}
+
+/* ---------- editor do dia ---------- */
+function WindowEditor({ doc, onSave, onClose }) {
+  const startRef = useRef(null);
+  const [start, setStart] = useState(clock(doc.start));
+  const [end, setEnd] = useState(clock(doc.end));
+  useLayoutEffect(() => { startRef.current.focus(); }, []);
+  return html`
+    <div class="window-editor" onKeyDown=${(e) => { if (e.key === "Escape") onClose(); }}>
+      <label>de <input ref=${startRef} type="time" id="window-start" step="300" value=${start} onInput=${(e) => setStart(e.currentTarget.value)}/></label>
+      <label>até <input type="time" id="window-end" step="300" value=${end} onInput=${(e) => setEnd(e.currentTarget.value)}/></label>
+      <button type="button" id="window-save" onClick=${() => onSave(start, end)}>salvar</button>
+    </div>`;
+}
+
+/* ---------- a fila e de outro dia ----------
+   nada acontece sozinho: a fila velha continua exatamente como ficou, e a
+   unica coisa que muda e a tela parar de chamar aquilo de hoje. */
+function StaleStrip({ doc, onBring, onClose }) {
+  const open = pendingOf(doc);
+  const total = open.reduce((s, t) => s + t.min, 0);
+  const when = weekdayName(doc.day);
+  return html`
+    <div class="stale">
+      <p class="stale__text">Esta fila é de <b>${when}</b>${open.length
+        ? " · " + open.length + (open.length === 1 ? " aberta" : " abertas") + (total ? " · " + longFmt(total) : "")
+        : " e não sobrou nada aberto"}</p>
+      <div class="stale__actions">
+        <button class="pill" type="button" onClick=${onBring}>trazer pra hoje</button>
+        <button class="pill" type="button" onClick=${onClose}><span>${"fechar " + when}</span></button>
+      </div>
+    </div>`;
+}
+
+/* o vinculo e um <a> de verdade: abre em outra aba e e o meio do caminho
+   entre "eu sei que existe la" e "o planner virou cliente do ClickUp".
+   nada e lido de la, nada e escrito la. o href se monta aqui, a partir do
+   id — nunca de texto que alguem digitou. */
+const clickupLink = (t) => t.clickup && html`
+  <a class="action" href=${"https://app.clickup.com/t/" + t.clickup} target="_blank" rel="noopener noreferrer" aria-label=${"Abrir no ClickUp: " + t.title}>${icon("link")}</a>`;
+
+/* ---------- o que ocupa o dia sem ser trabalho ----------
+   fica acima da fila porque acontece antes dela na conta: e o dia que voce
+   ja nao tem. sem check, porque nao se conclui almoco para ganhar tempo. */
+function Reserves({ list, onRemove }) {
+  const total = list.reduce((s, t) => s + t.min, 0);
+  return html`
+    <section class="reserves">
+      <p class="section-label"><span class="t-mono">${longFmt(total) + " fora do trabalho"}</span></p>
+      <ul class="reserve-list">
+        ${list.map((t) => html`
+          <li key=${t.id} class="reserve" data-id=${t.id}>
+            <span class="reserve__mark">${icon("clock")}</span>
+            <span class="reserve__name">${t.title}</span>
+            <span class="reserve__time">${fmt(t.min)}</span>
+            <div class="actions">
+              ${clickupLink(t)}
+              <button class="action" type="button" aria-label=${"Remover reserva: " + t.title} onClick=${() => onRemove(t.id)}>${icon("trash")}</button>
+            </div>
+          </li>`)}
+      </ul>
+    </section>`;
+}
+
+/* ---------- a linha da tarefa ----------
+   o titulo e um campo controlado por um rascunho local: uma sincronizacao
+   que chega no meio da digitacao nao apaga o que esta sendo escrito, e o
+   change (blur ou Enter) e quem grava. */
+function TaskRow({ t, start, slot, fits, dragging, leaving, actions }) {
+  const [draft, setDraft] = useState(t.title);
+  useEffect(() => { setDraft(t.title); }, [t.title]);
+  const [editingTime, setEditingTime] = useState(false);
+  const front = t.front ? listFronts().find((f) => f.id === t.front) : null;
+  const client = t.client ? clientName(t.client) : "";
+  const color = frontColor(t.front);
+  const partial = slot && slot.partial ? " · só " + fmt(slot.min) + " hoje" : "";
+
+  const onKeyDown = (e) => {
+    const li = e.currentTarget;
+    const inTitle = e.target.classList.contains("task__title");
     if (e.altKey && (e.key === "ArrowUp" || e.key === "ArrowDown")) {
       e.preventDefault();
-      /* o render de mover() destroi o input sem disparar change: salva a edicao antes */
-      if (noNome) renomear(id, e.target.value);
-      mover(id, e.key === "ArrowUp" ? -1 : 1);
+      /* a linha vai mudar de lugar: salva a edicao antes */
+      if (inTitle) actions.rename(t.id, draft);
+      actions.move(t.id, e.key === "ArrowUp" ? -1 : 1, "row");
       return;
     }
-
-    if (noNome) {
+    if (inTitle) {
       if (e.key === "Enter") { e.preventDefault(); e.target.blur(); li.focus(); }
       else if (e.key === "Escape") {
-        const t = estado.tarefas[acharIndice(id)];
-        if (t) e.target.value = t.titulo;
+        /* o valor volta no DOM antes do blur, senao o change gravaria a
+           edicao que o Esc quis jogar fora */
+        e.target.value = t.title;
+        setDraft(t.title);
         e.target.blur();
         li.focus();
       }
       return;
     }
-
+    /* com o foco na alca, as setas sozinhas ja reordenam */
+    if (e.target.classList.contains("grip") && (e.key === "ArrowUp" || e.key === "ArrowDown")) {
+      e.preventDefault();
+      actions.move(t.id, e.key === "ArrowUp" ? -1 : 1, "grip");
+      return;
+    }
     /* os atalhos valem so na linha em si: dentro de um <button> eles roubariam
        a ativacao nativa e Enter concluiria a tarefa em vez de acionar o botao */
     if (e.target !== li) return;
+    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); actions.complete(t.id); }
+    else if (e.key === "Delete" || e.key === "Backspace") { e.preventDefault(); actions.remove(t.id); }
+  };
 
-    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); concluir(id); }
-    else if (e.key === "Delete" || e.key === "Backspace") { e.preventDefault(); excluir(id); }
-  });
+  return html`
+    <li class=${"task" + (dragging ? " is-dragging" : "") + (leaving ? " is-leaving" : "")} data-id=${t.id}
+        data-fits=${fits ? null : "no"} data-color=${color || null} tabindex="0"
+        title=${slot ? clock(start + slot.from) + "–" + clock(start + slot.from + slot.min) : null}
+        onKeyDown=${onKeyDown}>
+      <button class="mark" type="button" aria-label=${"Concluir: " + t.title} onClick=${() => actions.complete(t.id)}>${icon("check")}</button>
+      <div class="task__body">
+        <input class="task__title" value=${draft} aria-label="Título da tarefa"
+          onInput=${(e) => setDraft(e.currentTarget.value)}
+          onChange=${(e) => actions.rename(t.id, e.currentTarget.value)}/>
+        <div class="task__foot">
+          ${editingTime
+            ? html`<${DurationEditor} t=${t} onDone=${(min) => { setEditingTime(false); if (min) actions.setDuration(t.id, min); }}/>`
+            : html`<button class="task__time" type="button" data-missing=${t.min ? null : "yes"}
+                aria-label=${t.min ? "Duração: " + longFmt(t.min) + ". Alterar" : "Sem duração, contando " + longFmt(GUESS) + " como palpite. Definir"}
+                onClick=${() => setEditingTime(true)}>${icon("clock")}<span>${(t.min ? fmt(t.min) : "definir duração · contando " + fmt(GUESS)) + partial}</span></button>`}
+          ${!!(front || client) && html`<div class="task__badges"><${FrontBadge} id=${t.front}/><${ClientBadge} id=${t.client}/></div>`}
+        </div>
+      </div>
+      <div class="actions">
+        ${clickupLink(t)}
+        <button class="action" type="button" aria-label=${"Excluir: " + t.title} onClick=${() => actions.remove(t.id)}>${icon("trash")}</button>
+      </div>
+      <button class="grip" type="button" aria-label=${"Arrastar para reordenar: " + t.title} onPointerDown=${(e) => actions.dragStart(e, t.id)}>${icon("grip")}</button>
+    </li>`;
+}
 
-  /* arrastar para reordenar com pointer events: o drag do HTML5 nao dispara em toque,
-     e este app abre no celular. a alca captura o ponteiro e a ordem do DOM vira a ordem do estado. */
-  let arrasto = null;
+/* ---------- editar duracao na propria linha ----------
+   no lugar exato onde ela e lida. Enter e blur aplicam; Esc cancela. so
+   grava o que foi entendido: "45" sem unidade nao apaga a estimativa que ja
+   existia. o `closed` evita que o blur do input saindo da tela aplique duas vezes. */
+function DurationEditor({ t, onDone }) {
+  const ref = useRef(null);
+  const closed = useRef(false);
+  const [value, setValue] = useState(t.min ? fmt(t.min) : "");
+  useLayoutEffect(() => { ref.current.focus(); ref.current.select(); }, []);
+  const finish = (apply) => {
+    if (closed.current) return;
+    closed.current = true;
+    const min = apply ? readDuration(" " + value.trim() + " ").min : 0;
+    onDone(apply && min && min !== t.min ? min : 0);
+  };
+  return html`<input ref=${ref} class="task__time-input" value=${value} placeholder="45m, 1h30" aria-label=${"Duração de " + t.title}
+    onInput=${(e) => setValue(e.currentTarget.value)} onBlur=${() => finish(true)}
+    onKeyDown=${(e) => {
+      if (e.key === "Enter") { e.preventDefault(); finish(true); }
+      else if (e.key === "Escape") { e.preventDefault(); finish(false); }
+    }}/>`;
+}
 
-  elLista.addEventListener("pointerdown", (e) => {
-    const pega = e.target.closest(".pega");
-    if (!pega || e.button > 0) return;
-    const li = pega.closest(".tarefa");
-    if (!li) return;
-    e.preventDefault();
-    arrasto = { li, y: e.clientY };
-    li.classList.add("arrastando");
-    pega.setPointerCapture(e.pointerId);
-  });
+/* ---------- dia vazio ----------
+   os dois cartoes so na estreia — depois eles pareceriam fila de verdade. o
+   rodape, nao: ele e a unica explicacao de como a duracao e lida, e volta
+   toda vez que a fila esvazia. */
+function EmptyState({ doc, b }) {
+  const debut = doc.tasks.length === 0;
+  const sub = b.overtime
+    ? "Passou das " + clock(doc.end) + " e não sobrou nada na fila."
+    : (!debut ? "Nada na fila. Dá pra puxar mais alguma coisa, ou parar por aqui." : "Escreve embaixo a primeira coisa que precisa caber hoje.");
+  return html`
+    <div class="empty">
+      <p class="empty__sub">${sub}</p>
+      ${debut && html`
+        <ul class="examples" aria-hidden="true">
+          <li>
+            <span class="examples__mark"></span>
+            <span class="examples__body">
+              <span class="examples__name">fechar o relatório da Vibra</span>
+              <span class="examples__sub"><b>1h30</b></span>
+            </span>
+          </li>
+          <li>
+            <span class="examples__mark"></span>
+            <span class="examples__body">
+              <span class="examples__name">ligar pro contador</span>
+              <span class="examples__sub"><b>15m</b></span>
+            </span>
+          </li>
+        </ul>`}
+      <p class="empty__foot">${debut
+        ? "Escreve assim, com a duração no fim: ela sai do título e entra na barra do dia."
+        : "Com a duração no fim — “revisar proposta 45m”, “gravar 1h30”, “almoço 1h”. Sem ela, eu pergunto."}</p>
+    </div>`;
+}
 
-  elLista.addEventListener("pointermove", (e) => {
-    if (!arrasto) return;
-    const li = arrasto.li;
-    li.style.transform = "translateY(" + (e.clientY - arrasto.y) + "px)";
-    const alvo = [...elLista.querySelectorAll(".tarefa")].find((n) => {
-      if (n === li) return false;
-      const r = n.getBoundingClientRect();
-      return e.clientY >= r.top && e.clientY <= r.bottom;
-    });
-    if (!alvo) return;
-    const r = alvo.getBoundingClientRect();
-    elLista.insertBefore(li, e.clientY > r.top + r.height / 2 ? alvo.nextSibling : alvo);
-    arrasto.y = e.clientY;
-    li.style.transform = "translateY(0px)";
-  });
+/* ---------- concluidas ---------- */
+function DoneList({ doc, done, onToggle, onClear, onReopen }) {
+  return html`
+    <section class="done" data-open=${doc.doneOpen ? "yes" : "no"}>
+      <p class="section-label">
+        <button class="pill" type="button" id="done-toggle" aria-expanded=${String(!!doc.doneOpen)} onClick=${onToggle}>
+          ${svg(CHEVRON)}<span>${done.length + (done.length === 1 ? " concluída" : " concluídas")}</span>
+        </button>
+        <button class="pill" type="button" id="done-clear" onClick=${onClear}>limpar</button>
+      </p>
+      <ul class="done-list">
+        ${done.map((t) => html`
+          <li key=${t.id} class="done-item" data-id=${t.id}>
+            <button class="mark" type="button" aria-label=${"Reabrir: " + t.title} onClick=${() => onReopen(t.id)}>${icon("check")}</button>
+            <span class="done-item__name">${t.title}</span>
+            <span class="done-item__time">${fmt(t.min)}</span>
+          </li>`)}
+      </ul>
+    </section>`;
+}
 
-  function soltarArrasto() {
-    if (!arrasto) return;
-    const li = arrasto.li;
-    li.classList.remove("arrastando");
-    li.style.transform = "";
-    arrasto = null;
-    const ordem = [...elLista.querySelectorAll(".tarefa")].map((n) => n.dataset.id);
-    const mapa = new Map(estado.tarefas.map((t) => [t.id, t]));
-    const vistos = new Set(ordem);
-    estado.tarefas = ordem.map((id) => mapa.get(id)).filter(Boolean)
-      .concat(estado.tarefas.filter((t) => !vistos.has(t.id)));
-    salvar();
-    render();
-  }
-  elLista.addEventListener("pointerup", soltarArrasto);
-  elLista.addEventListener("pointercancel", soltarArrasto);
 
-  /* com o foco na alca, as setas sozinhas ja reordenam (Alt+setas segue valendo na linha) */
-  elLista.addEventListener("keydown", (e) => {
-    if (e.altKey) return;
-    const pega = e.target.closest(".pega");
-    if (!pega || (e.key !== "ArrowUp" && e.key !== "ArrowDown")) return;
-    e.preventDefault();
-    const id = pega.closest(".tarefa").dataset.id;
-    mover(id, e.key === "ArrowUp" ? -1 : 1);
-    const volta = elLista.querySelector(seletor(id) + " .pega");
-    if (volta) volta.focus();
-  });
-
-  elFeitas.addEventListener("click", (e) => {
-    const b = e.target.closest('[data-acao="reabrir"]');
-    if (b) reabrir(b.closest(".feita").dataset.id);
-  });
-
-  $("lista-reservas").addEventListener("click", (e) => {
-    const b = e.target.closest('[data-acao="excluir"]');
-    if (b) excluir(b.closest(".reserva").dataset.id);
-  });
-
-  $("alternar-feitas").addEventListener("click", () => {
-    estado.feitasAbertas = !estado.feitasAbertas;
-    salvar();
-    renderFeitas();
-  });
-
-  $("limpar").addEventListener("click", () => {
-    const n = feitas().length;
-    if (!n) return;
-    comDesfazer("removi " + n + (n === 1 ? " concluída" : " concluídas"), () => {
-      estado.tarefas = pendentes();
-      salvar();
-      render();
-    });
-  });
-
-  /* ---------- a fila de outro dia ---------- */
-
-  /* trazer: as abertas passam a ser a fila de hoje, na mesma ordem. as
-     concluidas de ontem saem — elas sao registro daquele dia, nao deste. */
-  $("fo-trazer").addEventListener("click", () => {
-    if (!atrasada()) return;
-    const n = pendentes().length;
-    comDesfazer(
-      n ? "trouxe " + n + (n === 1 ? " tarefa" : " tarefas") + " pra hoje" : "dia começado",
-      () => {
-        estado.tarefas = pendentes();
-        estado.dia = hoje();
-        salvar();
-        render();
-      }
-    );
-  });
-
-  /* fechar: o dia anterior acaba como ficou, aberto e tudo. comeca um dia limpo. */
-  $("fo-fechar").addEventListener("click", () => {
-    if (!atrasada()) return;
-    const n = pendentes().length;
-    comDesfazer(
-      n ? "fechei o dia com " + n + (n === 1 ? " aberta" : " abertas") : "dia fechado",
-      () => {
-        estado.tarefas = [];
-        estado.dia = hoje();
-        salvar();
-        render();
-      }
-    );
-  });
-
-  /* ---------- editor do dia ---------- */
-
-  elJanela.addEventListener("click", () => {
-    elInicio.value = relogio(estado.inicio);
-    elFim.value = relogio(estado.fim);
-    elEditorDia.hidden = false;
-    elInicio.focus();
-  });
-
-  $("salvar-dia").addEventListener("click", () => {
-    const ler = (v) => {
-      const p = /^(\d{1,2}):(\d{2})$/.exec(v || "");
-      return p ? (+p[1]) * 60 + (+p[2]) : null;
+/* ---------- composer ----------
+   a previa fantasma mostra o que o parser entendeu antes de confirmar; os
+   chips sao o pedagio de duracao; a pilula e o campo. */
+function Composer({ b, text, setText, pending, fieldRef, storageBroken, onSubmit, onPick, onOther, onEscape }) {
+  const [focused, setFocused] = useState(false);
+  const raw = text.replace(/\s+/g, " ").trim();
+  let ghost = null;
+  if (focused && !pending && raw) {
+    const { min, title, clickup, noLink, front, client } = readLine(text);
+    const fits = !min || min <= b.slack;
+    /* o link e o @ reconhecidos sao ditos na previa: senao a URL some do
+       campo e voce nao sabe se ela virou vinculo ou se foi engolida. numero
+       no texto que o parser nao entendeu quase sempre e tempo mal escrito. */
+    const frontName = front ? (listFronts().find((f) => f.id === front) || {}).name : "";
+    const tag = (clickup ? " · clickup" : "") + (frontName ? " · " + frontName : "") + (client ? " · " + clientName(client) : "");
+    ghost = {
+      name: title || raw,
+      fits,
+      time: (min
+        ? fmt(min) + (fits ? "" : " · não cabe hoje")
+        : (looksLikeBrokenTime(noLink, min) ? "não entendi o tempo · 45m, 1h30" : "o tempo vem a seguir")) + tag
     };
-    const i = ler(elInicio.value), f = ler(elFim.value);
-    if (i !== null && f !== null && f > i) {
-      estado.inicio = i;
-      estado.fim = f;
-      salvar();
-      render();
-    }
-    elEditorDia.hidden = true;
-    elJanela.focus();
+  }
+  return html`
+    <div class="composer">
+      ${ghost && html`
+        <div class="ghost" aria-hidden="true" data-fits=${ghost.fits ? "yes" : "no"}>
+          <span class="ghost__name">${ghost.name}</span>
+          <span class="ghost__time">${ghost.time}</span>
+        </div>`}
+      ${pending && html`<${Chips} pending=${pending} slack=${b.slack} onPick=${onPick} onOther=${onOther} onEscape=${onEscape}/>`}
+      <form class="entry" autocomplete="off" onSubmit=${onSubmit}>
+        <span class="entry__plus" aria-hidden="true">${svg(PLUS_THIN)}</span>
+        <input id="field" ref=${fieldRef} placeholder="o que precisa caber?" aria-label="Nova tarefa" value=${text}
+          onInput=${(e) => setText(e.currentTarget.value)} onFocus=${() => setFocused(true)} onBlur=${() => setFocused(false)}/>
+        <button class="entry__send" type="submit" aria-label="Adicionar tarefa">${svg(SEND)}</button>
+      </form>
+      ${storageBroken && html`<p class="storage-warning">não consegui salvar neste navegador — o que você fizer agora some ao fechar</p>`}
+    </div>`;
+}
+
+/* ---------- os chips de duracao ----------
+   toda tarefa tem duracao: quando o texto nao traz uma, ela e perguntada
+   aqui antes de a tarefa existir. e um passo, nao um erro. o chip que nao
+   cabe hoje continua clicavel: a tela informa, nao proibe. setas andam
+   entre os chips; Esc volta pro campo sem criar nada. */
+function Chips({ pending, slack, onPick, onOther, onEscape }) {
+  const rowRef = useRef(null);
+  /* foco no primeiro chip a cada pedagio aberto: quem apertou Enter ja esta
+     com o dedo no teclado */
+  useLayoutEffect(() => {
+    const first = rowRef.current && rowRef.current.querySelector(".chip");
+    if (first) first.focus();
+  }, [pending]);
+  const onKeyDown = (e) => {
+    if (e.key === "Escape") { e.preventDefault(); onEscape(); return; }
+    if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+    e.preventDefault();
+    const all = [...rowRef.current.querySelectorAll(".chip")];
+    const i = all.indexOf(e.target.closest(".chip"));
+    if (i < 0) return;
+    all[(i + (e.key === "ArrowRight" ? 1 : all.length - 1)) % all.length].focus();
+  };
+  return html`
+    <div class="chips">
+      <p class="chips__text"><b>${pending.title}</b> — ${pending.reserved ? "quanto tempo isso tira do dia?" : "quanto tempo isso leva?"}</p>
+      <div class="chips__row" ref=${rowRef} role="group" aria-label="Quanto tempo isso leva" onKeyDown=${onKeyDown}>
+        ${CHIPS.map((min) => html`<button key=${min} class="chip" type="button" data-fits=${min <= slack ? "yes" : "no"} onClick=${() => onPick(min)}>${fmt(min)}</button>`)}
+        <button class="chip chip--other" type="button" onClick=${onOther}>outro</button>
+      </div>
+    </div>`;
+}
+
+/* ---------- caixa de ideias ----------
+   linha mais leve que a da tarefa de proposito: ideia nao tem duracao, entao
+   ela nao tem a coluna de medida que toda tarefa tem. */
+function IdeasBox({ ideas, onCreate, onPull, onRemove }) {
+  const [text, setText] = useState("");
+  const submit = (e) => {
+    e.preventDefault();
+    const m = parseMentions(text);
+    if (onCreate(m.title, m)) setText("");
+  };
+  return html`
+    <section class="block" id="ideas">
+      <p class="section-label">
+        <span class="t-mono">${ideas.length ? ideas.length + (ideas.length === 1 ? " ideia" : " ideias") : "ideias"}</span>
+        <a class="text-link" href="ideas.html">todas</a>
+      </p>
+      <p class="ideas__note">não custam minuto nenhum até virarem tarefa</p>
+      ${!ideas.length && html`<p class="ideas__empty">Nada aqui. Escreve embaixo o que ainda não é tarefa.</p>`}
+      <ul class="idea-list">
+        ${ideas.map((i) => html`
+          <li key=${i.id} class="idea" data-id=${i.id}>
+            <span class="idea__name">${i.title}</span>
+            <span class="idea__actions">
+              <button class="idea__action" type="button" aria-label=${'Puxar "' + i.title + '" pro dia'} onClick=${() => onPull(i.id)}>${icon("arrow")}</button>
+              <a class="idea__action" href=${"ideas.html#" + encodeURIComponent(i.id)} aria-label=${'Abrir "' + i.title + '"'}>${icon("link")}</a>
+              <button class="idea__action" type="button" aria-label=${'Apagar "' + i.title + '"'} onClick=${() => onRemove(i.id)}>${icon("trash")}</button>
+            </span>
+          </li>`)}
+      </ul>
+      <form class="idea-form" autocomplete="off" onSubmit=${submit}>
+        <input id="idea-field" maxlength="300" placeholder="uma ideia" aria-label="Nova ideia" value=${text} onInput=${(e) => setText(e.currentTarget.value)}/>
+      </form>
+    </section>`;
+}
+
+/* ---------- matriz de eisenhower ----------
+   um instrumento de ordenacao, e so isso: o quadrante NAO e gravado. ele
+   existe enquanto a folha esta aberta e morre ao fechar. o que sobra e a
+   unica ordenacao que o produto tem, que e a ordem da fila. um quadrante
+   gravado seria um segundo eixo de ordenacao — foi exatamente esse eixo que
+   saiu do produto quando a fila ganhou ordem e linha de corte.
+
+   a previa da fila resultante e o que impede a matriz de virar quatro
+   baldes de capacidade infinita: arrastar mais uma coisa para "faz agora"
+   empurra outra para baixo da linha, no mesmo gesto e a vista. */
+const ZONES = ["q1", "q2", "q3", "q4", "pool"];
+const ZONE_LABELS = { pool: "na fila, sem classificar", q1: "faz agora", q2: "agenda", q3: "delega", q4: "fica pra depois" };
+
+function Matrix({ doc, open, onApply }) {
+  const [zones, setZones] = useState(null);   /* null = fechada; {pool, q1..q4: [ids]} */
+  const [dragId, setDragId] = useState(null);
+  const [target, setTarget] = useState(null);
+  const focusId = useRef(null);
+  const fieldRef = useRef(null);
+
+  /* abre sempre do zero, com tudo sem classificar: e o que "efemera" quer
+     dizer. a fila de hoje ja e a sua ordem — a matriz e para revisita-la. */
+  const openMatrix = () => setZones({ pool: open.map((t) => t.id), q1: [], q2: [], q3: [], q4: [] });
+  const close = () => { setZones(null); setDragId(null); setTarget(null); };
+  /* a ordem que sai da matriz: os quadrantes na ordem canonica, e no fim o
+     que voce nao classificou — que continua exatamente na ordem em que estava. */
+  const orderOf = (z) => ZONES.flatMap((k) => z[k]);
+  const byId = new Map(doc.tasks.map((t) => [t.id, t]));
+
+  const moveTo = (id, zone, beforeId) => setZones((z) => {
+    if (!z) return z;
+    const next = {};
+    for (const k in z) next[k] = z[k].filter((x) => x !== id);
+    const list = next[zone];
+    const i = beforeId ? list.indexOf(beforeId) : -1;
+    if (i >= 0) list.splice(i, 0, id); else list.push(id);
+    return next;
   });
 
-  elEditorDia.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") { elEditorDia.hidden = true; elJanela.focus(); }
-  });
-
-  /* ---------- teclado global ---------- */
-
-  document.addEventListener("keydown", (e) => {
-    const alvo = document.activeElement;
-    const digitando = alvo && /^(INPUT|TEXTAREA)$/.test(alvo.tagName);
-    if (e.key === "/" && !digitando) { e.preventDefault(); elCampo.focus(); }
-    else if (e.key === "Escape") {
-      if (alvo === elCampo) elCampo.blur();
-      else if (!elAviso.hidden) fecharAviso();
-    }
-  });
-
-  /* ---------- a nuvem ----------
-     o mesmo dia em qualquer navegador, inclusive celular e Safari. entra-se
-     com um codigo de seis digitos que chega por e-mail: sem senha para
-     decorar, sem conta para criar alem do proprio e-mail.
-
-     o navegador continua sendo a fonte de verdade da sessao. a nuvem e
-     camada de sincronia: se ela cair, o dia nao vai junto. */
-
-  let timerSubir = null;
-  let vDoServidor = 0;   /* maior carimbo que ja vi vindo de la */
-
-  /* sobe o dia atual. o servidor recusa se ele estiver na frente — e ai
-     quem adota e o cliente, em vez dos dois discordarem em silencio. */
-  async function subirDia() {
-    if (!nuvem.entrou) return;
-    try {
-      const r = await api("/dias", {
-        method: "POST",
-        body: JSON.stringify({ dia: estado.dia, v: estado.v, doc: estado })
+  /* ---- arrasto 2D ----
+     os listeners vao para o documento enquanto dura o arrasto: o chip troca
+     de <ul> quando muda de quadrante, e um listener preso a ele morreria
+     junto. o chip arrastado esta com pointer-events:none, entao
+     elementFromPoint enxerga a zona por baixo dele — e por isso quadrante
+     vazio e alcancavel. */
+  const startDrag = (e, id) => {
+    if (e.button > 0) return;
+    e.preventDefault();
+    setDragId(id);
+  };
+  useEffect(() => {
+    if (!dragId) return;
+    const onMove = (e) => {
+      const under = document.elementFromPoint(e.clientX, e.clientY);
+      const zoneEl = under && under.closest ? under.closest("[data-zone]") : null;
+      setTarget(zoneEl ? zoneEl.dataset.zone : null);
+      if (!zoneEl) return;
+      const sibling = [...zoneEl.querySelectorAll(".matrix-chip")].find((c) => {
+        if (c.dataset.id === dragId) return false;
+        const r = c.getBoundingClientRect();
+        return e.clientY < r.top + r.height / 2;
       });
-      if (r.ok) { vDoServidor = Math.max(vDoServidor, estado.v); nuvem.marcar("ligada"); return; }
-      if (r.status === 409 && r.corpo.servidor) { adotarDaNuvem(r.corpo.servidor); return; }
-      if (r.status === 401) { nuvem.entrou = false; nuvem.marcar("fora"); return; }
-      nuvem.marcar("erro");
-    } catch (e) {
-      /* sem rede: o dia esta salvo aqui e sobe na proxima */
-      nuvem.marcar("offline");
-    }
-  }
+      moveTo(dragId, zoneEl.dataset.zone, sibling ? sibling.dataset.id : null);
+    };
+    const onUp = () => { setDragId(null); setTarget(null); };
+    document.addEventListener("pointermove", onMove);
+    document.addEventListener("pointerup", onUp);
+    document.addEventListener("pointercancel", onUp);
+    return () => {
+      document.removeEventListener("pointermove", onMove);
+      document.removeEventListener("pointerup", onUp);
+      document.removeEventListener("pointercancel", onUp);
+    };
+  }, [dragId]);
 
-  /* baixa o que mudou desde a ultima vez. so troca a tela se o dia de la for
-     o mesmo dia daqui e estiver na frente — dia antigo do servidor nao
-     sequestra a fila de hoje. */
-  async function baixarDias() {
-    if (!nuvem.entrou) return;
-    try {
-      const r = await api("/dias?desde=" + vDoServidor, { method: "GET" });
-      if (r.status === 401) { nuvem.entrou = false; nuvem.marcar("fora"); return; }
-      if (!r.ok) { nuvem.marcar("erro"); return; }
-
-      const dias = r.corpo.dias || [];
-      dias.forEach((d) => { vDoServidor = Math.max(vDoServidor, d.v); });
-      const doDia = dias.filter((d) => d.dia === estado.dia).sort((a, b) => b.v - a.v)[0];
-      if (doDia && doDia.v > estado.v) adotarDaNuvem(doDia);
-      else nuvem.marcar("ligada");
-    } catch (e) { nuvem.marcar("offline"); }
-  }
-
-  /* troca o documento inteiro pelo da nuvem, que esta na frente. nao e merge
-     por tarefa: vale porque quem escreve e uma pessoa so, e quem gravou por
-     ultimo teve o dia mais recente. */
-  function adotarDaNuvem(deLa) {
-    Object.assign(estado, carregarDe(deLa.doc));
-    vDoServidor = Math.max(vDoServidor, deLa.v);
-    try { localStorage.setItem(CHAVE, JSON.stringify(estado)); } catch (e) {}
-    render();
-    nuvem.marcar("ligada");
-    mostrarAviso("atualizei com o que veio do outro aparelho");
-  }
-
-  /* debounce: digitar tres tarefas seguidas e uma subida, nao tres */
-  function agendarGravacao() {
-    if (!nuvem.entrou) return;
-    clearTimeout(timerSubir);
-    timerSubir = setTimeout(subirDia, 1500);
-  }
-
-  /* a sessao e do nucleo (barra, dialogo de entrar, sair). o dia so precisa
-     saber quando ela muda: entrou, baixa antes de subir — o outro aparelho
-     pode ter o dia mais novo; saiu, esquece o carimbo do servidor. */
-  nuvem.aoMudar(async () => {
-    if (nuvem.entrou) { await baixarDias(); await subirDia(); }
-    else vDoServidor = 0;
+  /* teclado: o produto inteiro e navegavel sem mouse, e uma folha que so
+     aceita arrasto seria a unica tela que nao e. */
+  const onChipKey = (e, id, zone) => {
+    const i = ZONES.indexOf(zone);
+    let dest = null;
+    if (e.key === "ArrowRight") dest = ZONES[(i + 1) % ZONES.length];
+    else if (e.key === "ArrowLeft") dest = ZONES[(i + ZONES.length - 1) % ZONES.length];
+    else return;
+    e.preventDefault();
+    moveTo(id, dest, null);
+    focusId.current = id;
+  };
+  /* o chip renasce em outro <ul>: o foco volta para ele antes da pintura */
+  useLayoutEffect(() => {
+    if (!focusId.current || !fieldRef.current) return;
+    const el = fieldRef.current.querySelector('[data-id="' + cssEscape(focusId.current) + '"]');
+    focusId.current = null;
+    if (el) el.focus();
   });
 
-  /* voltar pra aba e quando o outro aparelho pode ter gravado */
-  document.addEventListener("visibilitychange", () => {
-    if (!nuvem.entrou) return;
-    if (document.hidden) { clearTimeout(timerSubir); subirDia(); }
-    else baixarDias();
-  });
+  const apply = () => {
+    const ids = zones ? orderOf(zones) : [];
+    if (ids.length) onApply(ids);
+    close();
+  };
 
-  /* ---------- o dia encolhendo ---------- */
-  /* o tick nao tem transicao: tempo passando e um fato seco, nao um efeito.
-     virar a meia-noite com a aba aberta muda a fila de categoria, e ai o
-     redesenho tem que ser inteiro — a faixa e o corte dependem disso. */
-  let diaDoUltimoTick = estado.dia;
-  function tick() {
-    if (atrasada() && diaDoUltimoTick !== hoje()) { diaDoUltimoTick = hoje(); render(); return; }
-    renderTempo();
-  }
-  setInterval(tick, 30000);
-  document.addEventListener("visibilitychange", () => { if (!document.hidden) tick(); });
+  const zone = (z) => html`
+    <div key=${z} class=${"zone" + (z === "pool" ? " zone--pool" : "")} data-zone=${z} data-target=${target === z ? "yes" : "no"}>
+      <span class="t-mono matrix__label">${ZONE_LABELS[z]}</span>
+      <ul class="zone__chips">
+        ${zones[z].map((id) => {
+          const t = byId.get(id);
+          if (!t) return null;
+          return html`
+            <li key=${id} class=${"matrix-chip" + (dragId === id ? " is-dragging" : "")} data-id=${id} tabindex="0" role="listitem"
+                aria-label=${t.title + ", " + fmt(costOf(t)) + ". Setas movem entre os quadrantes."}
+                onPointerDown=${(e) => startDrag(e, id)} onKeyDown=${(e) => onChipKey(e, id, z)}>
+              <span class="matrix-chip__name">${t.title}</span>
+              <span class="matrix-chip__min">${fmt(costOf(t))}</span>
+            </li>`;
+        })}
+      </ul>
+    </div>`;
 
-  render();
-  /* nao bloqueia a primeira pintura: o dia aparece, a barra e a sessao vem atras */
-  iniciarPagina("dia");
-})();
+  /* a MESMA conta da tela principal, so que sobre a ordem hipotetica */
+  const tasks = zones ? orderOf(zones).map((id) => byId.get(id)).filter(Boolean) : [];
+  const { slots, cut } = zones ? distribute(doc, tasks) : { slots: new Map(), cut: -1 };
+
+  return html`
+    <section class="block" id="matrix">
+      <p class="section-label">
+        <span class="t-mono">ordenar</span>
+        <button class="pill" type="button" id="matrix-toggle" aria-expanded=${String(!!zones)} onClick=${() => (zones ? close() : openMatrix())}>${zones ? "fechar" : "abrir"}</button>
+      </p>
+      <p class="matrix__note">Arruma a fila por urgência e importância. O que sair daqui vira a ordem do dia.</p>
+      ${zones && html`
+        <div class="matrix__field" ref=${fieldRef}>
+          ${zone("pool")}
+          <div class="matrix__grid">${zone("q1")}${zone("q2")}${zone("q3")}${zone("q4")}</div>
+        </div>
+        <p class="matrix__label t-mono preview-label">a fila que sai daqui</p>
+        <ol class="preview">
+          ${tasks.length
+            ? tasks.map((t, i) => html`<li key=${t.id} data-fits=${slots.has(t.id) && !slots.get(t.id).partial ? "yes" : "no"} data-cut=${i === cut ? "yes" : null}><span class="preview__name">${t.title}</span></li>`)
+            : html`<li class="preview__empty">a fila está vazia.</li>`}
+        </ol>
+        <div class="matrix__actions">
+          <button class="pill" type="button" id="matrix-apply" onClick=${apply}>aplicar</button>
+          <button class="text-link" type="button" id="matrix-discard" onClick=${close}>descartar</button>
+        </div>`}
+    </section>`;
+}
+
+mount(html`<${Day}/>`, "app");
 </script>
 </body>
 </html>
