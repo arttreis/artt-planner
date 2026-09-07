@@ -253,6 +253,60 @@ diálogo com caixas de marcar; nada entra sozinho.
 
 ---
 
+### 4.9 Hábitos (`habits.html`) — a construir
+
+Pedido do Arthur em 07/09/2026, para depois da migração ao Preact: um lugar para acompanhar o
+próprio desenvolvimento, não o trabalho. Um hábito não é tarefa: não tem hora nem duração,
+tem **frequência** e um **registro por dia**.
+
+- **Hábito**: nome, frente (quase sempre Pessoal), frequência (`todo dia`, `N vezes por
+  semana`, `dias da semana`), duração sugerida opcional, cor (as tintas + o verde), ordem,
+  arquivado.
+- **A grade**: hábitos nas linhas, os dias do mês nas colunas, uma marca por célula. É a tela
+  inteira: nada de gráfico antes da grade. Ao lado de cada hábito, a sequência atual, o melhor
+  mês e a taxa do mês (`feitos ÷ esperados`). Navegação por mês; hoje destacado por borda,
+  como na semana.
+- **Só o dia tem minutos**: marcar o hábito na grade é registro, não tarefa. Quem quer
+  reservar tempo para ele hoje **puxa para o dia** com a duração sugerida
+  (`sendToDay({origin:{type:"habit", id}})`); concluir a tarefa no dia marca o hábito na
+  data, como a semana faz com `inDay`. O dia continua sem saber o que é hábito.
+- **Merlin**: `task: "habits"` recebe o mês (marcas por hábito e frequência esperada) e
+  devolve um texto curto: o que segurou, o que caiu, um ajuste para o mês que vem.
+- Coleção `habits` (`merlin:habits`), um documento por hábito:
+  `{id, name, front, schedule:{type:'daily'|'perWeek'|'weekdays', times, weekdays:[0-6]},
+  min, color, order, archived, marks:{'YYYY-MM-DD': true}, createdAt, updatedAt}`. As marcas
+  moram dentro do hábito porque um mês inteiro cabe em poucos bytes e um hábito é editado
+  por uma pessoa só.
+
+### 4.10 Planos (`plans.html`) — a construir
+
+O mesmo pedido: planejamento **trimestral, mensal e semanal**, com "o que está aberto no meu
+trimestre / no meu mês / na minha semana" visível de um lugar só.
+
+- **Três colunas, três horizontes**: trimestre atual, mês atual, semana atual, lado a lado.
+  Cada coluna lista os objetivos daquele período, agrupados por frente, com feito/aberto e a
+  contagem no topo ("4 abertos no trimestre"). Navegação por período em cada coluna.
+- **Desdobrar**: um objetivo do trimestre pode ser desdobrado no mês (cria um objetivo no mês
+  com `parent` apontando para ele), e o do mês na semana. Concluir todos os filhos não fecha
+  o pai sozinho: fechar é decisão, nunca rola.
+- **Puxar**: um objetivo da semana vira **cartão da semana** (grava na coleção `week` com
+  `origin:{type:"plan", id}`), e dali entra no dia pelo gesto de sempre. É a ponte entre
+  planejar e fazer, sem duplicar o aparelho do dia.
+- **Revisão**: no fim de cada período, três campos livres — *o que foi*, *o que não foi*,
+  *o que muda* — e o Merlin (`task: "review"`) propõe a revisão a partir dos objetivos e do
+  que a semana e o dia registraram como feito. Quem escreve é o Arthur; o Merlin só sugere.
+- Coleção `plans` (`merlin:plans`), um documento por período:
+  `{id, kind:'quarter'|'month'|'week', period:'2026-Q4'|'2026-09'|'2026-W37',
+  goals:[{id, text, front, client, done, parent, order}], review:{went, didnt, next},
+  createdAt, updatedAt}`.
+- A sidebar ganha duas telas: **hábitos** e **planos**. A busca global passa a procurar em
+  objetivos e hábitos.
+
+O que fica fora, de propósito: metas com número (OKR com percentual), lembrete/notificação e
+qualquer gráfico antes de existir um mês inteiro de marcas.
+
+---
+
 ## 5. Ordem de construção
 
 | # | Etapa | Estado |
@@ -267,6 +321,8 @@ diálogo com caixas de marcar; nada entra sozinho.
 | 7 | Vazão real (Meta Ads, pixel) | depois |
 | 8 | Merlin conselheiro (mapa, funil, ideias, semana, reunião, números) | feito |
 | 9 | Sidebar, busca global, cofre cifrado, taxa média no funil, cartões de hoje no dia | feito |
+| 10 | Migração para o Preact e para o inglês (`MIGRATION.md`) | em construção |
+| 11 | Hábitos (`habits.html`) e Planos (`plans.html`) | depois da migração |
 
 ---
 
@@ -290,7 +346,12 @@ Decidido em 07/09/2026:
 11. **Planilha**: sem importador.
 12. **Navegação**: sidebar, não barra no topo.
 13. **Stack**: HTML/JS/CSS sem build e sem CDN continua; em 07/09/2026 entrou o Preact local
-    como única dependência de tela (ver `MIGRACAO.md`). (A página "o que é isso" foi apagada
+    como única dependência de tela (ver `MIGRATION.md`). (A página "o que é isso" foi apagada
     em 07/09/2026; a leitura fica neste documento e nos READMEs.)
+
+14. **Inglês em tudo**: identificadores, chaves, campos dos documentos, rotas, tabelas e
+    classes de CSS. Só o texto de tela e os comentários seguem em português. Sem migração
+    dos dados gravados com os nomes antigos.
+15. **Hábitos e planos** (seções 4.9 e 4.10) entram depois da migração terminar.
 
 Em aberto: nada.
