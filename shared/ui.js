@@ -108,7 +108,10 @@ export function useKeydown(handler) {
 export function isTyping() {
   const el = document.activeElement;
   const tag = el && el.tagName;
-  return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || !!(el && el.isContentEditable);
+  /* checkbox, radio e botao nao sao "digitar": quem acabou de marcar um
+     cartao ainda pode apertar n */
+  if (tag === "INPUT") return !["checkbox", "radio", "button", "submit", "range", "file"].includes(el.type);
+  return tag === "TEXTAREA" || tag === "SELECT" || !!(el && el.isContentEditable);
 }
 
 /* ---------- campos de formulario ----------

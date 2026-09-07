@@ -1,0 +1,393 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0d0d0d">
+<title>merlin · hábitos</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 472.5 472.5' fill='%232EE86B'><path d='M236.31,236.23c-3.63,128.42,107.71,238.95,236.22,236.22v-118.11c-64.78,2.88-121-53.42-118.11-118.11h-118.11Z'/><path d='M236.22,0C239.85,128.42,128.52,238.95,0,236.22v-118.11C64.78,120.99,121,64.69,118.11,0h118.11Z'/><path d='M315.07,0h77.61c44.09,0,79.89,35.8,79.89,79.89v77.61h-157.5V0h0Z'/><path d='M79.96,315H.07v78.75h78.75v78.75h78.75v-79.89c0-42.86-34.75-77.61-77.61-77.61Z'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared/base.css">
+<script>/* anti-flash do tema: antes de qualquer pintura */
+try{var t=localStorage.getItem("merlin:theme");if(t?t==="light":matchMedia("(prefers-color-scheme: light)").matches)document.documentElement.classList.add("light")}catch(e){}</script>
+<style>
+/* ---------- a grade ----------
+   habitos nas linhas, os dias do mes nas colunas, uma marca por celula. e a
+   tela inteira: nada de grafico antes da grade. rola por dentro do wrapper,
+   com a coluna do nome grudada a esquerda, para o celular ler o mes inteiro
+   sem perder de vista o que esta marcando. */
+.habit-table{border-collapse:separate;border-spacing:0;font-size:12.5px;width:auto;min-width:100%}
+.habit-table th,.habit-table td{padding:5px 1px;text-align:center;border-bottom:1px solid var(--line-soft);vertical-align:middle}
+.habit-table th{font-family:var(--mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-30);font-weight:400}
+.habit-table th.habit-name,.habit-table td.habit-name{
+  position:sticky;left:0;z-index:1;text-align:left;min-width:170px;max-width:240px;padding-left:8px;padding-right:10px;
+  background:var(--bg);
+}
+.habit-table tr:hover td{background:var(--bg)}
+.habit-table tr:hover td.habit-cell,.habit-table tr:hover td.num{background:var(--fill)}
+.habit-name__row{display:flex;align-items:center;gap:8px;min-width:0}
+.habit-name__text{flex:1 1 auto;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;color:var(--ink);font-size:13px}
+.habit-name__schedule{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.04em;color:var(--ink-30);margin-top:2px}
+.habit-dot{width:8px;height:8px;border-radius:50%;flex:none;background:var(--color,var(--ink-30))}
+
+/* o cabecalho de cada dia: a letra do dia da semana em cima e o numero */
+.habit-day{line-height:1.15;min-width:22px}
+.habit-day__weekday{display:block;font-size:9px;color:var(--ink-30)}
+.habit-day.is-today{color:var(--green-ink)}
+.habit-day.is-today .habit-day__weekday{color:var(--green-ink)}
+.habit-day.is-future{opacity:.45}
+
+/* a marca: quadrado que se acende. o esperado tem borda mais viva, para a
+   grade mostrar o padrao sem precisar de legenda; o futuro fica apagado. */
+.mark{
+  width:20px;height:20px;border-radius:5px;display:inline-grid;place-items:center;
+  border:1px solid var(--line-soft);background:var(--fill);color:var(--on-green);
+  transition:background var(--t),border-color var(--t),transform var(--t);
+}
+.mark.is-expected{border-color:var(--line)}
+.mark:hover:not(:disabled){border-color:var(--ink-30);transform:scale(1.08)}
+.mark.is-done{background:var(--green);border-color:var(--green)}
+.mark:disabled{opacity:.3;cursor:default}
+.mark svg{width:11px;height:11px}
+
+.habit-table td.num{font-family:var(--mono);font-size:12px;color:var(--ink-50);white-space:nowrap;padding:0 8px}
+.habit-table td.num.is-green{color:var(--green-ink)}
+.habit-table td.habit-actions{white-space:nowrap;padding-right:6px}
+.habit-actions .row-actions{justify-content:flex-end}
+.habit-table tr:hover .row-actions,.habit-table tr:focus-within .row-actions{opacity:1}
+
+/* ---------- formulario: os dias da semana como pilulas ---------- */
+.weekday-picker{display:flex;gap:4px;flex-wrap:wrap}
+.weekday-picker label{
+  display:inline-flex;align-items:center;justify-content:center;width:34px;height:28px;border-radius:var(--br-pill);
+  border:1px solid var(--line-soft);background:var(--fill);font-size:11px;color:var(--ink-50);cursor:pointer;
+  transition:background var(--t),color var(--t),border-color var(--t);
+}
+.weekday-picker input{position:absolute;opacity:0;width:1px;height:1px}
+.weekday-picker label.is-on{background:var(--green);color:var(--on-green);border-color:var(--green)}
+
+/* ---------- botao e dialogo do merlin ---------- */
+.merlin-btn__icon{display:flex;width:13px;height:13px;color:var(--green-ink)}
+.merlin-btn__icon svg{width:100%;height:100%}
+#merlin-btn:disabled{opacity:.6;cursor:default}
+.merlin-body{font-size:13px;line-height:1.55;color:var(--ink-70);max-height:52vh;overflow-y:auto}
+.merlin-body p{margin:0 0 10px}
+.merlin-body ul,.merlin-body ol{margin:0 0 10px;padding-left:20px}
+.merlin-body h3,.merlin-body h4,.merlin-body h5{margin:14px 0 6px;color:var(--ink);font-size:13.5px}
+</style>
+</head>
+<body>
+<main class="page page--wide" id="app"></main>
+<script type="module">
+import {
+  initPage, newId, today, dayOf, dateOf, addDays, mondayOf, monthLabel, notify, sendToDay, api, formatMin, parseDuration
+} from "./shared/core.js";
+import {
+  html, mount, useState, useCollection, useFronts, useKeydown, isTyping,
+  useFields, Form, Field, Dialog, Markdown, FrontBadge, frontOptionList, icon, svg
+} from "./shared/ui.js";
+
+initPage("habits");
+
+/* ---------- o habito ----------
+   nao e tarefa: nao tem hora nem duracao obrigatoria, tem frequencia e um
+   registro por dia. as marcas moram dentro do documento porque um mes cabe em
+   poucos bytes e um habito e editado por uma pessoa so. */
+const SCHEDULES = [
+  { id: "daily", label: "todo dia" },
+  { id: "perWeek", label: "vezes por semana" },
+  { id: "weekdays", label: "dias da semana" }
+];
+const WEEKDAY_NAMES = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"];
+const COLORS = [
+  { id: 5, label: "verde" }, { id: 1, label: "azul" }, { id: 2, label: "laranja" },
+  { id: 3, label: "rosa" }, { id: 4, label: "roxo" }, { id: 6, label: "ciano" }
+];
+
+function normalize(d) {
+  const s = d.schedule && typeof d.schedule === "object" ? d.schedule : {};
+  return {
+    id: d.id,
+    name: String(d.name || "").slice(0, 80),
+    front: d.front || "",
+    schedule: {
+      type: SCHEDULES.some((x) => x.id === s.type) ? s.type : "daily",
+      times: Math.min(7, Math.max(1, Math.round(+s.times || 3))),
+      weekdays: Array.isArray(s.weekdays) ? s.weekdays.map(Number).filter((n) => n >= 0 && n <= 6) : [1, 2, 3, 4, 5]
+    },
+    min: Math.max(0, Math.round(+d.min || 0)),
+    color: +d.color || 5,
+    order: Number.isFinite(+d.order) ? +d.order : 0,
+    archived: !!d.archived,
+    marks: d.marks && typeof d.marks === "object" ? d.marks : {},
+    createdAt: +d.createdAt || Date.now(),
+    updatedAt: +d.updatedAt || +d.createdAt || Date.now()
+  };
+}
+
+const SPARK_ICON = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2l1.9 6.1L20 10l-6.1 1.9L12 18l-1.9-6.1L4 10l6.1-1.9L12 2z"/></svg>';
+const ARCHIVE_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7h18v3H3zM5 10v9h14v-9M10 14h4"/></svg>';
+
+/* ---------- meses e dias ---------- */
+const monthOf = (day) => day.slice(0, 7);
+function monthDays(ym) {
+  const [y, m] = ym.split("-").map(Number);
+  const n = new Date(y, m, 0).getDate();
+  return Array.from({ length: n }, (_, i) => ym + "-" + String(i + 1).padStart(2, "0"));
+}
+function shiftMonth(ym, n) {
+  const [y, m] = ym.split("-").map(Number);
+  return monthOf(dayOf(new Date(y, m - 1 + n, 1)));
+}
+const dayNumber = (day) => dateOf(day).getDate();
+const weekdayLetter = (day) => WEEKDAY_NAMES[dateOf(day).getDay()][0];
+
+function scheduleLabel(h) {
+  const s = h.schedule;
+  if (s.type === "daily") return "todo dia";
+  if (s.type === "perWeek") return s.times + "× por semana";
+  return s.weekdays.slice().sort().map((n) => WEEKDAY_NAMES[n]).join(" ") || "nenhum dia";
+}
+
+/* o dia e "esperado" quando a frequencia pede marca nele. quem e N vezes por
+   semana nao tem dia fixo: nenhum e esperado, e a conta e por semana. */
+function isExpected(h, day) {
+  const s = h.schedule;
+  if (s.type === "daily") return true;
+  if (s.type === "weekdays") return s.weekdays.includes(dateOf(day).getDay());
+  return false;
+}
+
+/* feitos e esperados no mes, ate hoje. para N por semana, o esperado de cada
+   semana e min(N, dias da semana que ja passaram dentro do mes). */
+function monthStats(h, ym) {
+  const t = today();
+  const days = monthDays(ym).filter((d) => d <= t && d >= dayOf(new Date(h.createdAt)).slice(0, 10) || h.marks[d]);
+  const done = days.filter((d) => h.marks[d]).length;
+  let expected = 0;
+  if (h.schedule.type === "perWeek") {
+    const weeks = new Map();
+    days.forEach((d) => { const k = mondayOf(d); weeks.set(k, (weeks.get(k) || 0) + 1); });
+    weeks.forEach((n) => { expected += Math.min(h.schedule.times, n); });
+  } else {
+    expected = days.filter((d) => isExpected(h, d)).length;
+  }
+  return { done, expected, rate: expected ? Math.round((done / expected) * 100) : 0 };
+}
+
+/* a sequencia: dias esperados seguidos com marca, contando para tras a partir
+   de hoje (hoje sem marca ainda nao quebra). para N por semana, semanas
+   seguidas que bateram a meta, contando a atual so se ja bateu. */
+function streakOf(h) {
+  const t = today();
+  if (h.schedule.type === "perWeek") {
+    const weekCount = (mon) => { let c = 0; for (let i = 0; i < 7; i++) if (h.marks[addDays(mon, i)]) c++; return c; };
+    let n = 0, monday = mondayOf(t);
+    if (weekCount(monday) >= h.schedule.times) n++;
+    monday = addDays(monday, -7);
+    while (n < 520 && weekCount(monday) >= h.schedule.times) { n++; monday = addDays(monday, -7); }
+    return n;
+  }
+  let n = 0, day = h.marks[t] ? t : addDays(t, -1);
+  for (let guard = 0; guard < 3000; guard++) {
+    if (!isExpected(h, day)) { day = addDays(day, -1); continue; }
+    if (!h.marks[day]) break;
+    n++; day = addDays(day, -1);
+  }
+  return n;
+}
+
+/* ---------- a pagina ---------- */
+function Habits() {
+  const habits = useCollection("habits", { normalize });
+  useFronts();
+  const [month, setMonth] = useState(() => monthOf(today()));
+  const [form, setForm] = useState(null);       // { id } | null
+  const [summary, setSummary] = useState(null); // texto do merlin | null
+  const [thinking, setThinking] = useState(false);
+  const t = today();
+  const days = monthDays(month);
+  const list = habits.all().filter((h) => !h.archived).sort((a, b) => a.order - b.order || a.createdAt - b.createdAt);
+  const totals = list.reduce((acc, h) => { const s = monthStats(h, month); acc.done += s.done; acc.expected += s.expected; return acc; }, { done: 0, expected: 0 });
+
+  /* ---------- acoes ---------- */
+  const toggle = (h, day) => {
+    if (day > t) return;
+    const marks = { ...h.marks };
+    if (marks[day]) delete marks[day]; else marks[day] = true;
+    habits.save({ ...h, marks, updatedAt: Date.now() });
+  };
+  const archive = (h) => {
+    habits.save({ ...h, archived: true, updatedAt: Date.now() });
+    notify("hábito arquivado", () => habits.save({ ...h, archived: false, updatedAt: Date.now() }));
+  };
+  const pull = (h) => sendToDay({ title: h.name, min: h.min, front: h.front, client: "", origin: { type: "habit", id: h.id } });
+
+  /* ---------- ler o mes com o merlin ---------- */
+  const askSummary = async () => {
+    if (thinking) return;
+    setThinking(true);
+    try {
+      const lines = list.map((h) => { const s = monthStats(h, month); return h.name + " · " + scheduleLabel(h) + " · " + s.done + "/" + s.expected + " · sequência " + streakOf(h); });
+      const r = await api("/merlin", { method: "POST", body: JSON.stringify({ task: "habits", context: { month: monthLabel(month), habits: lines } }) });
+      if (r.ok) setSummary(r.body.text || "");
+      else if (r.status === 401) notify("entre para usar o Merlin");
+      else notify(r.body.error || "não consegui falar com o Merlin");
+    } catch (e) {
+      notify("não consegui falar com o Merlin");
+    } finally { setThinking(false); }
+  };
+
+  useKeydown((e) => {
+    if (form || summary != null) return;
+    if (e.key === "n" && !isTyping() && !e.ctrlKey && !e.metaKey && !e.altKey) { e.preventDefault(); setForm({ id: "" }); return; }
+    if (e.altKey && (e.key === "ArrowLeft" || e.key === "ArrowRight")) { e.preventDefault(); setMonth((m) => shiftMonth(m, e.key === "ArrowLeft" ? -1 : 1)); }
+  });
+
+  return html`
+    <div class="header">
+      <div>
+        <h1>hábitos</h1>
+        <p class="sub">${monthLabel(month)}${totals.expected ? " · " + totals.done + " de " + totals.expected + " feitos" : ""}</p>
+      </div>
+      <div class="actions">
+        <button class="pill" type="button" onClick=${() => setMonth((m) => shiftMonth(m, -1))}>‹ mês anterior</button>
+        <button class="pill" type="button" onClick=${() => setMonth(monthOf(today()))}>hoje</button>
+        <button class="pill" type="button" id="merlin-btn" disabled=${thinking || !list.length} onClick=${askSummary}>
+          <span class="merlin-btn__icon" aria-hidden="true">${svg(SPARK_ICON)}</span>
+          <span>${thinking ? "pensando…" : "ler o mês com o merlin"}</span>
+        </button>
+        <button class="pill" type="button" onClick=${() => setMonth((m) => shiftMonth(m, 1))}>próximo ›</button>
+        <button class="pill pill--green" type="button" title="novo hábito (n)" onClick=${() => setForm({ id: "" })}>${icon("plus")}hábito</button>
+      </div>
+    </div>
+
+    ${!list.length && html`<p class="empty">Nenhum hábito ainda. O "+" cria o primeiro; marcar o dia é o registro.</p>`}
+
+    ${list.length > 0 && html`
+      <div class="table-scroll">
+        <table class="table habit-table">
+          <thead>
+            <tr>
+              <th class="habit-name">hábito</th>
+              ${days.map((d) => html`
+                <th key=${d} class=${"habit-day" + (d === t ? " is-today" : "") + (d > t ? " is-future" : "")}>
+                  <span class="habit-day__weekday">${weekdayLetter(d)}</span>${dayNumber(d)}
+                </th>`)}
+              <th class="num" title="dias seguidos">seq</th>
+              <th class="num" title="feitos ÷ esperados no mês">mês</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            ${list.map((h) => html`<${HabitRow} key=${h.id} h=${h} days=${days} today=${t} onToggle=${toggle} onEdit=${() => setForm({ id: h.id })} onArchive=${() => archive(h)} onPull=${() => pull(h)}/>`)}
+          </tbody>
+        </table>
+      </div>`}
+
+    ${form && html`<${HabitForm} habits=${habits} id=${form.id} onClose=${() => setForm(null)} onArchive=${archive}/>`}
+    ${summary != null && html`<${MerlinDialog} text=${summary} onClose=${() => setSummary(null)}/>`}`;
+}
+
+/* ---------- uma linha da grade ---------- */
+function HabitRow({ h, days, today: t, onToggle, onEdit, onArchive, onPull }) {
+  const stats = monthStats(h, days[0].slice(0, 7));
+  const streak = streakOf(h);
+  return html`
+    <tr>
+      <td class="habit-name">
+        <div class="habit-name__row">
+          <i class="habit-dot" data-color=${h.color}></i>
+          <div class="habit-name__text" title=${h.name}>
+            ${h.name}
+            <span class="habit-name__schedule">${scheduleLabel(h)}${h.min ? " · " + formatMin(h.min) : ""}</span>
+          </div>
+          <${FrontBadge} id=${h.front}/>
+        </div>
+      </td>
+      ${days.map((d) => html`
+        <td key=${d} class="habit-cell">
+          <button type="button" class=${"mark" + (h.marks[d] ? " is-done" : "") + (isExpected(h, d) ? " is-expected" : "")}
+                  disabled=${d > t} aria-pressed=${!!h.marks[d]} aria-label=${h.name + " em " + dayNumber(d)}
+                  onClick=${() => onToggle(h, d)}>${h.marks[d] ? icon("check") : null}</button>
+        </td>`)}
+      <td class=${"num" + (streak > 0 ? " is-green" : "")}>${streak}</td>
+      <td class="num">${stats.expected ? stats.rate + "%" : "—"}</td>
+      <td class="habit-actions">
+        <span class="row-actions">
+          ${h.min > 0 && !h.marks[t] && html`<button class="action" type="button" title="puxar para o dia" onClick=${onPull}>${icon("arrow")}</button>`}
+          <button class="action" type="button" title="editar" onClick=${onEdit}>${icon("pencil")}</button>
+          <button class="action" type="button" title="arquivar" onClick=${onArchive}>${svg(ARCHIVE_ICON)}</button>
+        </span>
+      </td>
+    </tr>`;
+}
+
+/* ---------- a caixa do habito: criar e editar sao a mesma ---------- */
+function HabitForm({ habits, id, onClose, onArchive }) {
+  const h = id ? habits.get(id) : null;
+  const [v, bind, set] = useFields({
+    name: h ? h.name : "",
+    front: h ? h.front : "personal",
+    type: h ? h.schedule.type : "daily",
+    times: h ? h.schedule.times : 3,
+    weekdays: h ? h.schedule.weekdays : [1, 2, 3, 4, 5],
+    duration: h && h.min ? formatMin(h.min) : "",
+    color: h ? h.color : 5
+  });
+  if (id && !h) return null;
+  const toggleWeekday = (n) => set("weekdays", v.weekdays.includes(n) ? v.weekdays.filter((x) => x !== n) : [...v.weekdays, n]);
+  const submit = () => {
+    const name = v.name.trim().slice(0, 80);
+    if (!name) { notify("o hábito precisa de um nome"); return false; }
+    if (v.type === "weekdays" && !v.weekdays.length) { notify("escolha pelo menos um dia"); return false; }
+    const now = Date.now();
+    const schedule = { type: v.type, times: Math.min(7, Math.max(1, Math.round(+v.times || 1))), weekdays: v.weekdays.slice().sort() };
+    const min = parseDuration(v.duration).min;
+    if (h) habits.save({ ...h, name, front: v.front, schedule, min, color: +v.color, updatedAt: now });
+    else habits.save({ id: newId(), name, front: v.front, schedule, min, color: +v.color, order: now, archived: false, marks: {}, createdAt: now, updatedAt: now });
+  };
+  return html`
+    <${Form} title=${h ? "hábito" : "novo hábito"} submit=${h ? "salvar" : "criar"} remove=${h ? "arquivar" : ""}
+        onRemove=${() => onArchive(h)} onClose=${onClose} onSubmit=${submit}>
+      <${Field} label="nome" full><input class="input" maxlength="80" required placeholder="treino, leitura, água…" ...${bind("name")}/><//>
+      <${Field} label="frequência">
+        <select class="select" ...${bind("type")}>${SCHEDULES.map((s) => html`<option key=${s.id} value=${s.id}>${s.label}</option>`)}</select>
+      <//>
+      ${v.type === "perWeek" && html`<${Field} label="quantas vezes"><input class="input input--num" type="number" min="1" max="7" ...${bind("times")}/><//>`}
+      ${v.type === "weekdays" && html`
+        <${Field} label="quais dias" full>
+          <div class="weekday-picker">
+            ${[1, 2, 3, 4, 5, 6, 0].map((n) => html`
+              <label key=${n} class=${v.weekdays.includes(n) ? "is-on" : ""}>
+                <input type="checkbox" checked=${v.weekdays.includes(n)} onChange=${() => toggleWeekday(n)}/>${WEEKDAY_NAMES[n]}
+              </label>`)}
+          </div>
+        <//>`}
+      <${Field} label="duração sugerida"><input class="input input--mono" placeholder="30m, 1h" ...${bind("duration")}/><//>
+      <${Field} label="frente"><select class="select" ...${bind("front")}>${frontOptionList("sem frente")}</select><//>
+      <${Field} label="cor">
+        <select class="select" ...${bind("color")}>${COLORS.map((c) => html`<option key=${c.id} value=${c.id}>${c.label}</option>`)}</select>
+      <//>
+    <//>`;
+}
+
+/* ---------- a leitura do merlin ---------- */
+function MerlinDialog({ text, onClose }) {
+  const copy = async () => {
+    try { await navigator.clipboard.writeText(text); notify("copiado"); }
+    catch (e) { notify("não consegui copiar"); }
+  };
+  return html`
+    <${Dialog} title="o merlin lê o mês" wide onClose=${onClose}
+        actions=${html`<button class="pill" type="button" onClick=${copy}>copiar</button><button class="pill pill--green" type="button" onClick=${onClose}>fechar</button>`}>
+      <${Markdown} class="merlin-body" text=${text}/>
+    <//>`;
+}
+
+mount(html`<${Habits}/>`, "app");
+</script>
+</body>
+</html>
