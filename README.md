@@ -2,13 +2,13 @@
 
 Sistema pessoal do Arthur, de uma pessoa só. Nasceu como o `artt · planner` — um controle
 de tarefas de um dia — e virou um conjunto de frentes ligadas entre si: o dia, a semana, as
-ideias, os clientes (com frentes e canais), os funis, os mapas mentais e o financeiro. A
-visão completa e as decisões estão em [VISAO.md](VISAO.md).
+ideias, os clientes (com frentes e canais), os funis, os mapas mentais, o financeiro, os
+hábitos e os planos. A visão completa e as decisões estão em [VISAO.md](VISAO.md).
 
 Cada frente é **uma página HTML** na raiz, com CSS e JS inline, sem build e sem CDN —
 legível inteira, como o `index.html` sempre foi. A tela é desenhada com o Preact (com `htm`,
 sem JSX), copiado para dentro de `shared/preact.js`; a migração das páginas para ele
-está em [MIGRACAO.md](MIGRACAO.md). O que é comum vive em
+está em [MIGRATION.md](MIGRATION.md). O que é comum vive em
 [`shared/`](shared/README.md): tokens dos dois temas (escuro e claro), a barra de
 navegação, a sessão e as coleções que sincronizam por documento.
 
@@ -21,6 +21,8 @@ navegação, a sessão e as coleções que sincronizam por documento.
 | `funnels.html` | funil como grafo com tipos de nó, vazão por etapa, criativos, automações, ofertas e gatilhos. |
 | `maps.html` | mapa mental com teclado e layout automático. |
 | `finance.html` | do jeito da planilha: o mês dia a dia com saldo previsto, o ano em doze colunas, e o painel com saídas fixas, entradas fixas, compras no cartão e dívidas, mais a divisão 50/30/20. |
+| `habits.html` | a grade do mês: hábitos nas linhas, dias nas colunas, uma marca por dia. Sequência e taxa do mês. |
+| `plans.html` | trimestre, mês e semana lado a lado: objetivos por frente, desdobrar de um horizonte para o outro, e a revisão de cada período. |
 
 Em toda tela, criar é o mesmo gesto: um botão "+" abre uma caixa (pop-up) com os campos. Nenhuma
 lista tem formulário aberto no meio, e nenhuma tela tem filtro — a busca da sidebar acha qualquer
