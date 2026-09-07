@@ -70,10 +70,11 @@ export function useClients() {
   return listClients();
 }
 
-/* a sessao/nuvem: signedIn, email, status */
+/* a sessao/nuvem: signedIn, email, status. escuta os dois canais — a casca
+   redesenha tanto quando a sessao muda quanto quando o indicador muda. */
 export function useCloud() {
   const [, tick] = useState(0);
-  useEffect(() => cloud.onChange(() => tick((n) => n + 1)), []);
+  useEffect(() => cloud.onStatus(() => tick((n) => n + 1)), []);
   return cloud;
 }
 

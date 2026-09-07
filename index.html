@@ -1280,7 +1280,9 @@ function Day() {
       if (!it || !it.title) return;
       const title = String(it.title);
       if (it.min) {
-        const r = withTask(d, { title, min: it.min, reserved: isReserve(title), front: it.front, client: it.client });
+        /* a origem viaja junto: e ela que faz concluir a tarefa fechar o
+           cartao da semana de onde ela veio */
+        const r = withTask(d, { title, min: it.min, reserved: isReserve(title), front: it.front, client: it.client, origin: it.origin });
         if (r) { d = r.doc; tasks++; }
       } else if (createIdea(title, it)) newIdeas++;
     });
@@ -1337,9 +1339,14 @@ function Day() {
   const uploadDay = async () => {
     if (!cloud.signedIn) return;
     const d = docRef.current;
+    /* dia sem carimbo e dia que ninguem tocou: nao ha o que guardar, e o
+       servidor recusaria com 400 ("documento sem carimbo"). */
+    if (!d.v) return;
     try {
       const r = await api("/days", { method: "POST", body: JSON.stringify({ day: d.day, v: d.v, doc: d }) });
-      if (r.ok) { serverV.current = Math.max(serverV.current, d.v); cloud.setStatus("synced"); return; }
+      /* o marcador so avanca no download: avancar com o carimbo daqui faria
+         o proximo `since` pular um dia que o outro aparelho gravou no meio */
+      if (r.ok) { cloud.setStatus("synced"); return; }
       if (r.status === 409 && r.body.server) { adoptFromCloud(r.body.server); return; }
       if (r.status === 401) { cloud.signedIn = false; cloud.setStatus("local"); cloud.emit(); return; }
       cloud.setStatus("error");

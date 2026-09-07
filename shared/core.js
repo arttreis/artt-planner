@@ -164,8 +164,8 @@ export const NAV_ICONS = {
   fold: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16M14 10l-2 2 2 2"/></svg>',
   menu: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>',
   theme: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a9 9 0 100 18 7 7 0 010-18z"/></svg>',
-  sun: '<svg class="knob__sol" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/></svg>',
-  moon: '<svg class="knob__lua" viewBox="0 0 24 24" fill="currentColor"><path d="M14.5 3.5a8.5 8.5 0 1 0 6 14.3 7 7 0 0 1-6-14.3z"/><path d="M18.5 3l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7z"/></svg>'
+  sun: '<svg class="knob__sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/></svg>',
+  moon: '<svg class="knob__moon" viewBox="0 0 24 24" fill="currentColor"><path d="M14.5 3.5a8.5 8.5 0 1 0 6 14.3 7 7 0 0 1-6-14.3z"/><path d="M18.5 3l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7z"/></svg>'
 };
 
 export function toggleSidebar() {
@@ -250,7 +250,13 @@ export const CLOUD_STATUS = {
 };
 
 const collections = new Map();
+/* dois avisos diferentes, de proposito: `onChange` e "a SESSAO mudou" (entrou,
+   saiu, caiu), e quem escuta costuma responder com rede. `onStatus` e so o
+   estado do indicador (sincronizado, offline, erro), que muda o tempo todo
+   durante uma sincronizacao. Misturar os dois faz laco: subir marca erro,
+   avisar dispara quem escuta, quem escuta sobe de novo. */
 const cloudListeners = new Set();
+const statusListeners = new Set();
 
 export const cloud = {
   signedIn: false,
@@ -259,10 +265,16 @@ export const cloud = {
   setStatus(which) {
     if (this.status === which) return;
     this.status = which;
-    this.emit();
+    this.notifyStatus();
   },
   onChange(fn) { cloudListeners.add(fn); return () => cloudListeners.delete(fn); },
-  emit() { cloudListeners.forEach((f) => { try { f(this); } catch (e) { console.error(e); } }); },
+  onStatus(fn) { statusListeners.add(fn); return () => statusListeners.delete(fn); },
+  notifyStatus() { statusListeners.forEach((f) => { try { f(this); } catch (e) { console.error(e); } }); },
+  /* a sessao mudou: avisa os dois lados, porque a casca tambem redesenha */
+  emit() {
+    cloudListeners.forEach((f) => { try { f(this); } catch (e) { console.error(e); } });
+    this.notifyStatus();
+  },
   async resume() {
     try {
       const r = await api("/me", { method: "GET" });
@@ -449,7 +461,10 @@ export function collection(type, options = {}) {
           body: JSON.stringify({ type, id, v: item.v, doc: item.doc })
         });
         if (r.ok) {
-          data.serverV = Math.max(data.serverV, item.v);
+          /* o marcador do servidor so avanca no download. avancar aqui, com o
+             carimbo do proprio cliente, faria o proximo `since` pular por cima
+             de um documento que o outro aparelho gravou no meio — e ele nunca
+             mais chegaria. baixar de novo o que ja e meu nao custa nada. */
           data.dirty = data.dirty.filter((x) => x !== id);
           cloud.setStatus("synced");
         } else if (r.status === 409 && r.body.server) {
