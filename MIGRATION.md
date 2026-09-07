@@ -424,11 +424,33 @@ Duas armadilhas de ambiente que custaram tempo e ficam registradas: o `http.serv
 serve `.js` como `application/octet-stream` no Windows, e o navegador recusa o módulo; e o
 `vite preview` sobe só em IPv6 se não receber `--host 127.0.0.1`.
 
-### Estado
+### Duas coisas que só apareceram na integração
+
+**A ordem do CSS inverteu.** O Vite injeta o CSS do bundle no fim do `<head>`, ou seja depois
+do `<style>` inline da página — o contrário da ordem antiga, em que o `<link>` do `base.css`
+vinha primeiro. Empates de especificidade passaram a ser vencidos pelo comum, e regras da
+página pararam de valer: no financeiro os medidores estouravam a coluna, com 38px onde a
+página pede 27. O conserto não cabia numa página: o CSS de cada uma saiu do HTML para
+`src/<pagina>.css`, importado logo depois do `base.css`. A ordem volta a ser a de sempre, e
+vale igual no `dev` e no `build`.
+
+**O mapa não aceitou o desenho imperativo.** Trocar os vnodes por `createElementNS` quebrava o
+duplo clique: `paint()` refaz a árvore a cada pintura, e o `<rect>` que recebeu o `mousedown`
+já não estava no documento no `mouseup`, então o Chrome não emitia `click` nem `dblclick` — o
+Preact escondia isso porque remendava atributo no lugar. Ficou um `createRoot(svg)` guardado
+num ref e reusado, com `flushSync` no que vem de ponteiro, roda e animação; sem ele o fantasma
+do arraste fica um quadro atrás.
+
+### Estado — feito
 
 - [x] Fundação: Vite, `src/shared/core.js`, `icons.jsx`, `ui.jsx`.
-- [x] `week.html` (piloto), `plans.html`, `habits.html`.
-- [ ] `index.html`, `ideas.html`, `clients.html`, `funnels.html`, `maps.html`, `finance.html`.
+- [x] As nove páginas: `index`, `week`, `ideas`, `clients`, `funnels`, `maps`, `finance`,
+  `habits`, `plans`.
+- [x] `server/site.mjs` (a cópia) some; quem gera `server/site/` é o `vite build`.
+- [x] **604 verificações** no navegador contra o build, e os roteiros da primeira migração
+  passaram sem mudança — a prova de que foi tradução, não refatoração. As duas exceções estão
+  anotadas nos commits: o roteiro da casca clicava no centro de um escurecedor que a gaveta
+  cobre, e o do dia importava um arquivo que o Vite não expõe mais.
 
 ---
 
