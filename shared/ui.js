@@ -19,7 +19,9 @@ import {
   useState, useReducer, useEffect, useLayoutEffect, useRef, useMemo, useCallback, useContext
 } from "./preact.js";
 import {
-  collection, cloud, fronts, clients, listFronts, listClients, clientName, md, ICONS, brl, parseMoney
+  collection, cloud, fronts, clients, listFronts, listClients, clientName, md, ICONS, brl, parseMoney,
+  PAGES, LOGO, NAV_ICONS, CLOUD_STATUS, search, signIn, currentNotice, onNotice, closeNotice,
+  toggleTheme, toggleSidebar, setShellRenderer
 } from "./core.js";
 
 export {
@@ -277,3 +279,232 @@ export function NewItemRow({ placeholder, button, onAdd, class: cls }) {
       <button class="pill pill--mini" type="button" onClick=${add}>${button || "adicionar"}</button>
     </div>`;
 }
+
+/* =====================================================================
+   a casca: sidebar, busca global, tema, nuvem, entrar e o aviso.
+   e a mesma em toda pagina, e o core so guarda o estado dela. quem monta
+   e o initPage(id) do core, que chama o desenhista registrado no fim
+   deste arquivo.
+   ===================================================================== */
+
+/* a gaveta do celular e o recolhido do desktop moram numa classe do <html>,
+   porque o CSS inteiro depende delas; aqui so as ligamos ao estado. */
+function useRootClass(name, on) {
+  useLayoutEffect(() => {
+    document.documentElement.classList.toggle(name, !!on);
+  }, [name, on]);
+}
+
+/* ---------- busca global ---------- */
+function SearchBox({ onNavigate }) {
+  const [term, setTerm] = useState("");
+  const [open, setOpen] = useState(false);
+  const [focus, setFocus] = useState(-1);
+  const ref = useRef(null);
+  const hits = term.trim() ? search(term) : [];
+
+  /* Ctrl+K de qualquer lugar; Esc limpa e devolve o foco a pagina */
+  useKeydown((e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+      e.preventDefault();
+      ref.current.focus(); ref.current.select();
+      setOpen(true);
+    }
+  });
+  useEffect(() => {
+    const f = (e) => { if (!e.target.closest(".sb__search")) setOpen(false); };
+    document.addEventListener("click", f);
+    return () => document.removeEventListener("click", f);
+  }, []);
+
+  const onKeyDown = (e) => {
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      if (!hits.length) return;
+      setFocus((i) => (i + (e.key === "ArrowDown" ? 1 : hits.length - 1) + (i < 0 ? 1 : 0)) % hits.length);
+    } else if (e.key === "Enter") {
+      const hit = hits[focus >= 0 ? focus : 0];
+      if (hit) { onNavigate && onNavigate(); location.href = hit.href; }
+    } else if (e.key === "Escape") {
+      e.stopPropagation();
+      setTerm(""); setOpen(false); ref.current.blur();
+    }
+  };
+
+  return html`
+    <div class="sb__search">
+      <label class="sb__search-field">
+        ${svg(NAV_ICONS.search)}
+        <input ref=${ref} id="sb-search" type="search" placeholder="buscar…" autocomplete="off" aria-label="Buscar em tudo"
+               value=${term} onInput=${(e) => { setTerm(e.currentTarget.value); setOpen(true); setFocus(-1); }}
+               onFocus=${() => { if (term.trim()) setOpen(true); }} onKeyDown=${onKeyDown}/>
+        <kbd>ctrl k</kbd>
+      </label>
+      ${open && term.trim() && html`
+        <div class="sb__results" id="sb-results">
+          ${hits.length
+            ? hits.map((hit, i) => html`
+                <a key=${hit.href + i} href=${hit.href} class=${i === focus ? "is-focus" : null} onClick=${onNavigate}>
+                  <span class="t-mono">${hit.label}</span><span>${hit.text}</span>
+                </a>`)
+            : html`<p>nada com esse nome</p>`}
+        </div>`}
+    </div>`;
+}
+
+/* ---------- o cartao da nuvem e quem esta aqui ---------- */
+function CloudCard() {
+  const c = useCloud();
+  const info = CLOUD_STATUS[c.status] || CLOUD_STATUS.local;
+  const email = c.signedIn ? String(c.email || "") : "";
+  return html`
+    <${Fragment}>
+      <div class="sb__card">
+        <div class="cloud" id="cloud" data-status=${c.status}><i class="dot"></i><span id="cloud-status">${info.line}</span></div>
+        <p id="cloud-text">${info.text}</p>
+        ${info.action && html`
+          <button class="pill pill--green" type="button" id="cloud-action"
+                  onClick=${() => (c.status === "error" ? c.syncAll() : signIn.show())}>${info.action}</button>`}
+      </div>
+      <div class="sb__who">
+        <span class=${"avatar" + (email ? "" : " is-out")} id="sb-avatar">${email ? email[0].toUpperCase() : "?"}</span>
+        <span class="who"><b id="sb-name">${email ? email.split("@")[0] : "só você"}</b><span id="sb-email">${email || "sem sessão"}</span></span>
+        ${c.signedIn && html`<button type="button" id="cloud-signout" onClick=${() => c.signOut()}>sair</button>`}
+      </div>
+    <//>`;
+}
+
+/* ---------- a caixa de entrar ----------
+   um passo de e-mail e um de codigo. quem faz as chamadas e o core; aqui
+   so o recado que ele devolve. */
+function SignInDialog() {
+  const [email, setEmail] = useState("");
+  const [code, setCode] = useState("");
+  const [step, setStep] = useState("email");
+  const [message, setMessage] = useState("");
+  const [busy, setBusy] = useState(false);
+  const emailRef = useRef(null), codeRef = useRef(null);
+  useLayoutEffect(() => { emailRef.current && emailRef.current.focus(); }, []);
+  useEffect(() => { if (step === "code" && codeRef.current) codeRef.current.focus(); }, [step]);
+  useEscape(() => signIn.hide());
+
+  const sendCode = async (e) => {
+    e.preventDefault();
+    if (busy) return;
+    setBusy(true); setMessage("mandando…");
+    const r = await signIn.requestCode(email);
+    setBusy(false); setMessage(r.message);
+    if (r.ok) { setEmail(r.email); setCode(""); setStep("code"); }
+  };
+  const enter = async (e) => {
+    e.preventDefault();
+    if (busy) return;
+    setBusy(true); setMessage("conferindo…");
+    const r = await signIn.submitCode(email, code);
+    setBusy(false);
+    if (!r.ok) setMessage(r.message);
+  };
+
+  return html`
+    <div class="dialog" id="signin" role="dialog" aria-modal="true" aria-label="Entrar"
+         onClick=${(e) => { if (e.target === e.currentTarget) signIn.hide(); }}>
+      <div class="dialog__box">
+        <button class="dialog__close" type="button" id="signin-close" aria-label="Fechar" onClick=${() => signIn.hide()}>${icon("x")}</button>
+        <p class="dialog__title">Levar o Merlin para outros aparelhos</p>
+        ${step === "email"
+          ? html`
+            <form id="form-email" autocomplete="on" onSubmit=${sendCode}>
+              <div id="signin-email">
+                <p class="dialog__sub">Sem senha: mando um código de 6 dígitos.</p>
+                <input ref=${emailRef} class="signin-input" id="email-input" type="email" inputmode="email" autocomplete="email"
+                       placeholder="seu@email.com" aria-label="Seu e-mail" value=${email} onInput=${(e) => setEmail(e.currentTarget.value)}/>
+                <button class="signin-button" type="submit" disabled=${busy}>mandar código</button>
+              </div>
+            </form>`
+          : html`
+            <form id="form-code" autocomplete="off" onSubmit=${enter}>
+              <div id="signin-code-step">
+                <input ref=${codeRef} class="signin-input signin-code" id="code-input" inputmode="numeric" autocomplete="one-time-code"
+                       maxlength="6" placeholder="000000" aria-label="Código de 6 dígitos" value=${code} onInput=${(e) => setCode(e.currentTarget.value)}/>
+                <button class="signin-button" type="submit" disabled=${busy}>entrar</button>
+              </div>
+            </form>`}
+        <p class="signin-message" id="signin-message" role="status" aria-live="polite">${message}</p>
+      </div>
+    </div>`;
+}
+
+/* ---------- o aviso com desfazer ---------- */
+function Notice() {
+  const [notice, setNotice] = useState(currentNotice);
+  useEffect(() => onNotice(setNotice), []);
+  if (!notice) return null;
+  return html`
+    <div class="notice" role="status">
+      <span>${notice.text}</span>
+      ${notice.undo && html`<button type="button" onClick=${() => { const f = notice.undo; closeNotice(); f(); }}>desfazer</button>`}
+    </div>`;
+}
+
+/* ---------- a casca inteira ---------- */
+function Shell({ page }) {
+  const [drawer, setDrawer] = useState(false);
+  const [closed, setClosed] = useState(() => document.documentElement.classList.contains("sidebar-closed"));
+  const [signInOpen, setSignInOpen] = useState(signIn.open);
+  useEffect(() => signIn.onChange((s) => setSignInOpen(s.open)), []);
+  useRootClass("sidebar-open", drawer);
+
+  const fold = () => { toggleSidebar(); setClosed(document.documentElement.classList.contains("sidebar-closed")); };
+  useKeydown((e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "b") { e.preventDefault(); fold(); }
+    if (e.key === "Escape") setDrawer(false);
+  });
+
+  return html`
+    <${Fragment}>
+      <div class="sb__mobile">
+        <button type="button" id="sb-open" aria-label="Abrir a navegação" onClick=${() => setDrawer((d) => !d)}>${svg(NAV_ICONS.menu)}</button>
+        <a class="sb__logo" href="index.html" aria-label="Merlin">${svg(LOGO)}<b>merlin</b></a>
+      </div>
+      <div class="sb__scrim" onClick=${() => setDrawer(false)}></div>
+      <aside class="sb" aria-label="Navegação">
+        <div class="sb__top">
+          <a class="sb__logo" href="index.html" aria-label="Merlin">${svg(LOGO)}<b>merlin</b></a>
+          <button class="sb__fold" type="button" id="sb-fold" title="Recolher (Ctrl+B)" aria-label="Recolher a barra" onClick=${fold}>${svg(NAV_ICONS.fold)}</button>
+        </div>
+        <${SearchBox} onNavigate=${() => setDrawer(false)}/>
+        <ul class="sb__list">
+          ${PAGES.map((p) => html`
+            <li key=${p.id}>
+              <a class="sb__item" href=${p.href} title=${p.label} aria-current=${p.id === page ? "page" : null}>
+                ${svg(NAV_ICONS[p.id] || "")}<span>${p.label}</span>
+              </a>
+            </li>`)}
+        </ul>
+        <div class="sb__sep"></div>
+        <ul class="sb__list">
+          <li>
+            <button class="sb__item sb__theme" type="button" id="theme" aria-label="Alternar tema claro/escuro" title="tema" onClick=${toggleTheme}>
+              <span style="display:flex;align-items:center;gap:10px">${svg(NAV_ICONS.theme)}<span>tema</span></span>
+              <!-- o interruptor: a bolinha desliza e, do lado vazio, fica o
+                   icone do modo ativo — lua no escuro, sol no claro -->
+              <span class="knob" aria-hidden="true">${svg(NAV_ICONS.sun)}${svg(NAV_ICONS.moon)}<span class="knob__dot"></span></span>
+            </button>
+          </li>
+        </ul>
+        <div class="sb__spacer"></div>
+        <${CloudCard}/>
+      </aside>
+      ${signInOpen && html`<${SignInDialog}/>`}
+      <${Notice}/>
+    <//>`;
+}
+
+/* o core chama isto no initPage: a casca mora num no proprio, antes do
+   conteudo, e o resto da pagina desenha no #app como sempre. */
+setShellRenderer((page) => {
+  const host = document.createElement("div");
+  host.className = "shell";
+  document.body.prepend(host);
+  render(html`<${Shell} page=${page}/>`, host);
+});

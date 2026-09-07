@@ -147,9 +147,9 @@ export const PAGES = [
   { id: "plans", label: "planos", href: "plans.html" }
 ];
 
-const LOGO = '<svg viewBox="0 0 472.5 472.5" fill="currentColor" aria-hidden="true"><path d="M236.31,236.23c-3.63,128.42,107.71,238.95,236.22,236.22v-118.11c-64.78,2.88-121-53.42-118.11-118.11h-118.11Z"/><path d="M236.22,0C239.85,128.42,128.52,238.95,0,236.22v-118.11C64.78,120.99,121,64.69,118.11,0h118.11Z"/><path d="M315.07,0h77.61c44.09,0,79.89,35.8,79.89,79.89v77.61h-157.5V0h0Z"/><path d="M79.96,315H.07v78.75h78.75v78.75h78.75v-79.89c0-42.86-34.75-77.61-77.61-77.61Z"/></svg>';
+export const LOGO = '<svg viewBox="0 0 472.5 472.5" fill="currentColor" aria-hidden="true"><path d="M236.31,236.23c-3.63,128.42,107.71,238.95,236.22,236.22v-118.11c-64.78,2.88-121-53.42-118.11-118.11h-118.11Z"/><path d="M236.22,0C239.85,128.42,128.52,238.95,0,236.22v-118.11C64.78,120.99,121,64.69,118.11,0h118.11Z"/><path d="M315.07,0h77.61c44.09,0,79.89,35.8,79.89,79.89v77.61h-157.5V0h0Z"/><path d="M79.96,315H.07v78.75h78.75v78.75h78.75v-79.89c0-42.86-34.75-77.61-77.61-77.61Z"/></svg>';
 
-const NAV_ICONS = {
+export const NAV_ICONS = {
   day: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>',
   week: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>',
   ideas: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 21h4M12 3a6 6 0 00-3.5 10.9c.7.5 1 1.3 1 2.1h5c0-.8.3-1.6 1-2.1A6 6 0 0012 3z"/></svg>',
@@ -167,85 +167,6 @@ const NAV_ICONS = {
   sun: '<svg class="knob__sol" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/></svg>',
   moon: '<svg class="knob__lua" viewBox="0 0 24 24" fill="currentColor"><path d="M14.5 3.5a8.5 8.5 0 1 0 6 14.3 7 7 0 0 1-6-14.3z"/><path d="M18.5 3l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7z"/></svg>'
 };
-
-/* monta a sidebar: logo, busca, as sete telas, tema, nuvem e quem esta aqui */
-export function mountNav(current) {
-  const sb = document.createElement("aside");
-  sb.className = "sb";
-  sb.setAttribute("aria-label", "Navegação");
-  sb.innerHTML =
-    '<div class="sb__top">' +
-      '<a class="sb__logo" href="index.html" aria-label="Merlin">' + LOGO + "<b>merlin</b></a>" +
-      '<button class="sb__fold" type="button" id="sb-fold" title="Recolher (Ctrl+B)" aria-label="Recolher a barra">' + NAV_ICONS.fold + "</button>" +
-    "</div>" +
-    '<div class="sb__search"><label class="sb__search-field">' + NAV_ICONS.search +
-      '<input id="sb-search" type="search" placeholder="buscar…" autocomplete="off" aria-label="Buscar em tudo"><kbd>ctrl k</kbd></label>' +
-      '<div class="sb__results" id="sb-results" hidden></div></div>' +
-    '<ul class="sb__list">' +
-      PAGES.map((p) =>
-        '<li><a class="sb__item" href="' + p.href + '"' + (p.id === current ? ' aria-current="page"' : "") + ' title="' + p.label + '">' +
-        (NAV_ICONS[p.id] || "") + "<span>" + p.label + "</span></a></li>"
-      ).join("") +
-    "</ul>" +
-    '<div class="sb__sep"></div>' +
-    '<ul class="sb__list">' +
-      '<li><button class="sb__item sb__theme" type="button" id="theme" aria-label="Alternar tema claro/escuro" title="tema">' +
-        '<span style="display:flex;align-items:center;gap:10px">' + NAV_ICONS.theme + "<span>tema</span></span>" +
-        /* o interruptor: a bolinha desliza e, do lado vazio, fica o icone do
-           modo que esta ativo — lua no escuro, sol no claro */
-        '<span class="knob" aria-hidden="true">' + NAV_ICONS.sun + NAV_ICONS.moon + '<span class="knob__dot"></span></span></button></li>' +
-    "</ul>" +
-    '<div class="sb__spacer"></div>' +
-    '<div class="sb__card">' +
-      '<div class="cloud" id="cloud" data-status="local"><i class="dot"></i><span id="cloud-status">só neste navegador</span></div>' +
-      '<p id="cloud-text">entre com seu e-mail para levar o Merlin a outros aparelhos.</p>' +
-      '<button class="pill pill--green" type="button" id="cloud-action">entrar</button>' +
-    "</div>" +
-    '<div class="sb__who">' +
-      '<span class="avatar is-out" id="sb-avatar">?</span>' +
-      '<span class="who"><b id="sb-name">só você</b><span id="sb-email">sem sessão</span></span>' +
-      '<button type="button" id="cloud-signout" hidden>sair</button>' +
-    "</div>";
-  document.body.prepend(sb);
-
-  /* a barra fina do celular e o escurecedor da gaveta */
-  const mobileBar = document.createElement("div");
-  mobileBar.className = "sb__mobile";
-  mobileBar.innerHTML =
-    '<button type="button" id="sb-open" aria-label="Abrir a navegação">' + NAV_ICONS.menu + "</button>" +
-    '<a class="sb__logo" href="index.html" aria-label="Merlin">' + LOGO + "<b>merlin</b></a>";
-  const scrim = document.createElement("div");
-  scrim.className = "sb__scrim";
-  document.body.prepend(scrim);
-  document.body.prepend(mobileBar);
-
-  const root = document.documentElement;
-  const closeDrawer = () => root.classList.remove("sidebar-open");
-  $("sb-open").addEventListener("click", () => root.classList.toggle("sidebar-open"));
-  scrim.addEventListener("click", closeDrawer);
-  $("sb-fold").addEventListener("click", toggleSidebar);
-  document.addEventListener("keydown", (e) => {
-    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "b") { e.preventDefault(); toggleSidebar(); }
-    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") { e.preventDefault(); $("sb-search").focus(); $("sb-search").select(); }
-    if (e.key === "Escape") { closeDrawer(); closeSearchResults(); }
-  });
-
-  $("theme").addEventListener("click", toggleTheme);
-  mountSignIn();
-  mountSearch();
-  $("cloud-action").addEventListener("click", (e) => {
-    if (e.currentTarget.dataset.for === "error") { cloud.syncAll(); return; }
-    openSignIn();
-  });
-  $("cloud-signout").addEventListener("click", async () => {
-    await api("/sign-out", { method: "POST" }).catch(() => {});
-    cloud.signedIn = false; cloud.email = "";
-    cloud.setStatus("local");
-    cloud.emit();
-  });
-  cloud.setStatus(cloud.signedIn ? "synced" : "local");
-  return sb;
-}
 
 export function toggleSidebar() {
   const root = document.documentElement;
@@ -286,60 +207,25 @@ export function search(term) {
   });
   return hits.slice(0, 12);
 }
-function closeSearchResults() { const a = $("sb-results"); if (a) a.hidden = true; }
-function mountSearch() {
-  const input = $("sb-search"), box = $("sb-results");
-  let focus = -1;
-  const draw = () => {
-    const hits = search(input.value);
-    focus = -1;
-    if (!input.value.trim()) { box.hidden = true; return; }
-    box.hidden = false;
-    box.innerHTML = hits.length
-      ? hits.map((a) => '<a href="' + a.href + '"><span class="t-mono">' + escapeHtml(a.label) + "</span><span>" + escapeHtml(a.text) + "</span></a>").join("")
-      : "<p>nada com esse nome</p>";
-  };
-  input.addEventListener("input", draw);
-  input.addEventListener("focus", () => { if (input.value.trim()) draw(); });
-  input.addEventListener("keydown", (e) => {
-    const links = [...box.querySelectorAll("a")];
-    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
-      e.preventDefault();
-      if (!links.length) return;
-      focus = (focus + (e.key === "ArrowDown" ? 1 : links.length - 1)) % links.length;
-      links.forEach((l, i) => l.classList.toggle("is-focus", i === focus));
-      links[focus].scrollIntoView({ block: "nearest" });
-    } else if (e.key === "Enter") {
-      const target = links[focus >= 0 ? focus : 0];
-      if (target) location.href = target.href;
-    } else if (e.key === "Escape") { input.value = ""; box.hidden = true; input.blur(); }
-  });
-  document.addEventListener("click", (e) => { if (!e.target.closest(".sb__search")) closeSearchResults(); });
-}
+/* ---------- aviso com desfazer ----------
+   o core so guarda qual e o aviso da vez e por quanto tempo; quem desenha e
+   a casca, no ui.js. `notify` continua com a mesma assinatura de sempre. */
 
-/* ---------- aviso com desfazer ---------- */
+let notice = null, noticeTimer = null;
+const noticeListeners = new Set();
+const emitNotice = () => noticeListeners.forEach((f) => { try { f(notice); } catch (e) { console.error(e); } });
 
-let noticeEl = null, noticeTimer = null, undoAction = null;
 export function notify(text, undo) {
-  if (!noticeEl) {
-    noticeEl = document.createElement("div");
-    noticeEl.className = "notice";
-    noticeEl.setAttribute("role", "status");
-    noticeEl.innerHTML = '<span></span><button type="button" hidden>desfazer</button>';
-    noticeEl.querySelector("button").addEventListener("click", () => {
-      const f = undoAction; closeNotice(); if (f) f();
-    });
-    document.body.appendChild(noticeEl);
-  }
-  noticeEl.querySelector("span").textContent = text;
-  const b = noticeEl.querySelector("button");
-  undoAction = undo || null;
-  b.hidden = !undo;
-  noticeEl.hidden = false;
   clearTimeout(noticeTimer);
+  /* o carimbo serve de `key`: avisar duas vezes o mesmo texto reinicia o
+     tempo em vez de parecer que nada aconteceu */
+  notice = { text: String(text), undo: undo || null, at: Date.now() };
   noticeTimer = setTimeout(closeNotice, undo ? 7000 : 3500);
+  emitNotice();
 }
-export function closeNotice() { if (noticeEl) noticeEl.hidden = true; undoAction = null; }
+export function closeNotice() { clearTimeout(noticeTimer); notice = null; emitNotice(); }
+export const currentNotice = () => notice;
+export function onNotice(fn) { noticeListeners.add(fn); return () => noticeListeners.delete(fn); }
 
 /* ---------- sessao e nuvem ---------- */
 
@@ -356,17 +242,11 @@ export async function api(route, options) {
 
 /* os estados da nuvem: synced (entrou e esta em dia), local (so este
    navegador), offline (sem rede, sobe depois), error (o servidor falhou) */
-const STATUS_LINES = {
-  synced:  ["sincronizado", ""],
-  local:   ["só neste navegador", "entrar"],
-  offline: ["sem conexão — sobe depois", ""],
-  error:   ["não consegui sincronizar", "tentar de novo"]
-};
-const STATUS_TEXTS = {
-  synced: "o mesmo Merlin em todos os seus aparelhos.",
-  local: "entre com seu e-mail para levar o Merlin a outros aparelhos.",
-  offline: "sem rede agora; o que você fizer sobe quando voltar.",
-  error: "o servidor não respondeu; tente de novo."
+export const CLOUD_STATUS = {
+  synced:  { line: "sincronizado", action: "", text: "o mesmo Merlin em todos os seus aparelhos." },
+  local:   { line: "só neste navegador", action: "entrar", text: "entre com seu e-mail para levar o Merlin a outros aparelhos." },
+  offline: { line: "sem conexão — sobe depois", action: "", text: "sem rede agora; o que você fizer sobe quando voltar." },
+  error:   { line: "não consegui sincronizar", action: "tentar de novo", text: "o servidor não respondeu; tente de novo." }
 };
 
 const collections = new Map();
@@ -377,24 +257,9 @@ export const cloud = {
   email: "",
   status: "local",
   setStatus(which) {
+    if (this.status === which) return;
     this.status = which;
-    const el = $("cloud"); if (!el) return;
-    const [text, action] = STATUS_LINES[which] || STATUS_LINES.local;
-    el.dataset.status = which;
-    $("cloud-status").textContent = text;
-    const t = $("cloud-text"); if (t) t.textContent = STATUS_TEXTS[which] || STATUS_TEXTS.local;
-    const b = $("cloud-action");
-    b.hidden = !action; b.textContent = action; b.dataset.for = which;
-    $("cloud-signout").hidden = !this.signedIn;
-    /* quem esta aqui */
-    const av = $("sb-avatar"), name = $("sb-name"), email = $("sb-email");
-    if (av) {
-      const e = this.signedIn ? String(this.email || "") : "";
-      av.textContent = e ? e[0].toUpperCase() : "?";
-      av.classList.toggle("is-out", !e);
-      name.textContent = e ? e.split("@")[0] : "só você";
-      email.textContent = e || "sem sessão";
-    }
+    this.emit();
   },
   onChange(fn) { cloudListeners.add(fn); return () => cloudListeners.delete(fn); },
   emit() { cloudListeners.forEach((f) => { try { f(this); } catch (e) { console.error(e); } }); },
@@ -411,73 +276,52 @@ export const cloud = {
   async syncAll() {
     if (!this.signedIn) return;
     for (const c of collections.values()) await c.sync();
+  },
+  async signOut() {
+    await api("/sign-out", { method: "POST" }).catch(() => {});
+    this.signedIn = false; this.email = "";
+    this.setStatus("local");
+    this.emit();
   }
 };
 
-/* a tela de entrar: e-mail, codigo, sessao. igual a do dia. */
-let requestedEmail = "";
-function mountSignIn() {
-  if ($("signin")) return;
-  const d = document.createElement("div");
-  d.className = "dialog"; d.id = "signin"; d.hidden = true;
-  d.setAttribute("role", "dialog"); d.setAttribute("aria-modal", "true"); d.setAttribute("aria-label", "Entrar");
-  d.innerHTML =
-    '<div class="dialog__box">' +
-      '<button class="dialog__close" type="button" id="signin-close" aria-label="Fechar">✕</button>' +
-      '<p class="dialog__title">Levar o Merlin para outros aparelhos</p>' +
-      '<form id="form-email" autocomplete="on"><div id="signin-email">' +
-        '<p class="dialog__sub">Sem senha: mando um código de 6 dígitos.</p>' +
-        '<input class="signin-input" id="email-input" type="email" inputmode="email" autocomplete="email" placeholder="seu@email.com" aria-label="Seu e-mail">' +
-        '<button class="signin-button" type="submit">mandar código</button>' +
-      "</div></form>" +
-      '<form id="form-code" autocomplete="off"><div id="signin-code-step" hidden>' +
-        '<input class="signin-input signin-code" id="code-input" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000" aria-label="Código de 6 dígitos">' +
-        '<button class="signin-button" type="submit">entrar</button>' +
-      "</div></form>" +
-      '<p class="signin-message" id="signin-message" role="status" aria-live="polite"></p>' +
-    "</div>";
-  document.body.appendChild(d);
-  const say = (t) => { $("signin-message").textContent = t; };
-  $("signin-close").addEventListener("click", closeSignIn);
-  d.addEventListener("click", (e) => { if (e.target === d) closeSignIn(); });
-  $("form-email").addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const email = $("email-input").value.trim().toLowerCase();
-    if (!/^[^@\s]+@[^@\s.]+\.[^@\s]+$/.test(email)) { say("esse e-mail não parece certo"); return; }
-    say("mandando…");
-    const r = await api("/code", { method: "POST", body: JSON.stringify({ email }) });
-    if (!r.ok) { say(r.body.error || "não consegui mandar o código"); return; }
-    requestedEmail = email;
-    $("signin-email").hidden = true; $("signin-code-step").hidden = false;
-    say("mandei um código de 6 dígitos para " + email);
-    $("code-input").value = ""; $("code-input").focus();
-  });
-  $("form-code").addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const code = $("code-input").value.replace(/\D/g, "");
-    if (code.length !== 6) { say("o código tem 6 dígitos"); return; }
-    say("conferindo…");
-    const r = await api("/sign-in", { method: "POST", body: JSON.stringify({ email: requestedEmail, code }) });
-    if (!r.ok) { say(r.body.error || "código inválido"); return; }
+/* ---------- entrar ----------
+   e-mail, codigo, sessao. o core guarda se a caixa esta aberta e faz as duas
+   chamadas; a caixa em si e da casca. cada chamada devolve o recado que a
+   tela mostra, para o texto do erro nao morar em dois lugares. */
+
+const signInListeners = new Set();
+export const signIn = {
+  open: false,
+  onChange(fn) { signInListeners.add(fn); return () => signInListeners.delete(fn); },
+  emit() { signInListeners.forEach((f) => { try { f(this); } catch (e) { console.error(e); } }); },
+  show() { this.open = true; this.emit(); },
+  hide() { this.open = false; this.emit(); },
+  /* manda o codigo. devolve {ok, message} — a mensagem e sempre para a tela. */
+  async requestCode(raw) {
+    const email = String(raw || "").trim().toLowerCase();
+    if (!/^[^@\s]+@[^@\s.]+\.[^@\s]+$/.test(email)) return { ok: false, message: "esse e-mail não parece certo" };
+    const r = await api("/code", { method: "POST", body: JSON.stringify({ email }) }).catch(() => null);
+    if (!r || !r.ok) return { ok: false, message: (r && r.body.error) || "não consegui mandar o código" };
+    return { ok: true, email, message: "mandei um código de 6 dígitos para " + email };
+  },
+  /* troca o codigo por sessao. em caso de sucesso ja sincroniza tudo. */
+  async submitCode(email, raw) {
+    const code = String(raw || "").replace(/\D/g, "");
+    if (code.length !== 6) return { ok: false, message: "o código tem 6 dígitos" };
+    const r = await api("/sign-in", { method: "POST", body: JSON.stringify({ email, code }) }).catch(() => null);
+    if (!r || !r.ok) return { ok: false, message: (r && r.body.error) || "código inválido" };
     cloud.signedIn = true;
-    cloud.email = String(r.body.email || requestedEmail);
-    closeSignIn();
+    cloud.email = String(r.body.email || email);
+    this.hide();
     cloud.setStatus("synced");
     cloud.emit();
-    await cloud.syncAll();
-  });
-}
-export function openSignIn() {
-  $("signin").hidden = false;
-  $("signin-email").hidden = false; $("signin-code-step").hidden = true;
-  $("signin-message").textContent = ""; $("email-input").value = "";
-  $("email-input").focus();
-}
-export const closeSignIn = () => { const e = $("signin"); if (e) e.hidden = true; };
-
-document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape") { const d = $("signin"); if (d && !d.hidden) closeSignIn(); }
-});
+    cloud.syncAll();
+    return { ok: true, message: "" };
+  }
+};
+export const openSignIn = () => signIn.show();
+export const closeSignIn = () => signIn.hide();
 
 /* ---------- colecoes ----------
    uma colecao e um conjunto de documentos do mesmo tipo, cada um com id e
@@ -772,9 +616,15 @@ export const ICONS = {
   unfold: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4v9a3 3 0 003 3h9"/><path d="M14 12l4 4-4 4"/></svg>'
 };
 
-/* ---------- inicio comum ---------- */
+/* ---------- inicio comum ----------
+   quem desenha a casca (sidebar, busca, entrar, aviso) e o ui.js, que se
+   registra aqui ao ser importado. e assim que o core continua sem saber
+   desenhar: se ele importasse o ui, os dois se importariam em circulo. */
+let renderShell = null;
+export function setShellRenderer(fn) { renderShell = fn; }
+
 export function initPage(id) {
-  mountNav(id);
+  if (renderShell) renderShell(id);
   fronts();
   clients();
   cloud.resume();
