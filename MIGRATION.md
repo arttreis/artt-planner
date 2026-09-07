@@ -1,8 +1,18 @@
-# Merlin · migração para o Preact e para o inglês
+# Merlin · as duas migrações
 
-Epic decidido em 07/09/2026, executado na madrugada de 07 para 08/09/2026. Este documento é a
-fonte do que mudou, em que ordem, e como saber que cada passo terminou. O que está aqui é o
-que o código faz; o que não está, não faz parte da migração.
+Este documento é a fonte do que mudou, em que ordem, e como saber que cada passo terminou. O
+que está aqui é o que o código faz; o que não está, não faz parte da migração.
+
+São duas migrações no mesmo dia, 07/09/2026:
+
+1. **De HTML por string para o Preact, e de português para inglês** (seções 1 a 9). Decidida de
+   madrugada, executada enquanto o Arthur dormia, e no ar ao meio-dia.
+2. **Do Preact para o React 19 com Vite e JSX** (seção 10). Decidida à tarde, depois de ele
+   perguntar por que não tinha sido React desde o começo.
+
+A primeira resolveu o problema real: escape manual, redesenho que matava o foco, e nada que
+compusesse. A segunda trocou a peça que resolvia isso por outra equivalente, com um passo de
+build — foi escolha de ferramenta, não conserto de defeito.
 
 ---
 
@@ -330,6 +340,97 @@ mensal e semanal**. As duas nasceram já em Preact e em inglês, com o desenho d
   três campos e Merlin (`task: "review"`). Coleção `plans`, um documento por período.
 
 As duas entraram na sidebar e na busca global; o worker ganhou as duas tarefas do Merlin.
+
+## 10. Segunda migração: do Preact para o React 19
+
+### Por quê
+
+Pergunta do Arthur, à tarde: por que Preact e não React ou Next. A resposta honesta foi que o
+Next não servia (SSR, rotas e SEO não existem num sistema local-first atrás de login, e ele
+quebraria o cookie `SameSite=Lax` que depende de site e API no mesmo Worker), e que entre React
+e Preact o que decidiu foi a regra "sem build": o React precisa de um compilador para o JSX, e
+sem ele vira `createElement` escrito à mão.
+
+Ele optou por trocar a regra: **React de verdade, atual, com o build que vier junto**.
+
+Um fato técnico pesou na escolha e vale registrar: **o React 19 não tem mais build UMD**. Só
+CommonJS. Não existe React 19 no navegador sem bundler. Ficar sem build significaria congelar
+no React 18.3.1, a última versão com UMD.
+
+| | Preact + htm | React 18.3 sem build | React 19 com Vite |
+| --- | --- | --- | --- |
+| tamanho | 13 KB | 143 KB | ~140 KB |
+| passo de build | nenhum | nenhum | Vite |
+| versão | atual | congelada | atual |
+| JSX | não | não | sim |
+
+### O que mudou de forma
+
+A unidade do sistema continua sendo **uma página por frente**. O que mudou é que ela virou dois
+arquivos em vez de um:
+
+```
+week.html          o CSS da página inline, o anti-flash do tema, <main id="app"> e
+                   <script type="module" src="/src/week.jsx">
+src/week.jsx       a tela, em React com JSX
+src/shared/
+  core.js          os dados. JavaScript puro, sem React, testável sem navegador.
+  icons.jsx        os 32 SVGs que eram string, agora elementos
+  ui.jsx           hooks, componentes comuns e a casca inteira
+  base.css / shell.css
+vite.config.js     cada HTML com par em src/ é uma entrada; o build sai em server/site/
+```
+
+O que se perdeu: a página não é mais legível inteira num arquivo só, e `npm run build` passou a
+existir entre editar e ver. O que se ganhou: JSX, React DevTools, o ecossistema e a porta aberta
+para TypeScript.
+
+### O dicionário da segunda migração
+
+| antes (Preact + htm) | depois (React + JSX) |
+| --- | --- |
+| `shared/` | `src/shared/` |
+| `shared/preact.js` (vendorizado) | `react` e `react-dom` do npm, empacotados pelo Vite |
+| `shared/ui.js` | `src/shared/ui.jsx` |
+| os ícones como string em `core.js` | `src/shared/icons.jsx`, elementos |
+| `server/site.mjs` (cópia) | `vite build --outDir server/site` |
+| `html\`<div class=${x}>\`` | `<div className={x}>` |
+| `<${Comp} p=${v}/>` … `<//>` | `<Comp p={v}>` … `</Comp>` |
+| `...${bind("t")}` | `{...bind("t")}` |
+| `svg(TEXTO)` | um componente JSX no topo da página, ou `icon("nome")` |
+| `onInput` | `onChange` |
+| `render(vnode, el)` do Preact | `createRoot(el).render(...)` |
+| `class`, `for`, `maxlength`, `tabindex` | `className`, `htmlFor`, `maxLength`, `tabIndex` |
+
+O que **não** mudou: nome de classe CSS, id de elemento, texto de tela, comentário, forma dos
+documentos, chave do `localStorage`, chamada de API, atalho de teclado. Foi tradução, não
+refatoração — e os roteiros Playwright da primeira migração, sem uma linha alterada, são a
+prova: eles passam contra o build do React exatamente como passavam contra o Preact.
+
+### Como se testa agora
+
+Os roteiros rodam contra o **build**, não contra os arquivos soltos:
+
+```bash
+npm run build                              # gera server/site/
+npx vite preview --port 8765 --strictPort --host 127.0.0.1
+cd <scratchpad>/pw && node testa.mjs week.html week.mjs
+```
+
+`MERLIN_ONLY=week` limita o build a uma página, e `PW_PORT` diz ao roteiro onde bater — foi
+assim que oito páginas foram convertidas em paralelo, cada uma com a sua porta e a sua pasta.
+
+Duas armadilhas de ambiente que custaram tempo e ficam registradas: o `http.server` do Python
+serve `.js` como `application/octet-stream` no Windows, e o navegador recusa o módulo; e o
+`vite preview` sobe só em IPv6 se não receber `--host 127.0.0.1`.
+
+### Estado
+
+- [x] Fundação: Vite, `src/shared/core.js`, `icons.jsx`, `ui.jsx`.
+- [x] `week.html` (piloto), `plans.html`, `habits.html`.
+- [ ] `index.html`, `ideas.html`, `clients.html`, `funnels.html`, `maps.html`, `finance.html`.
+
+---
 
 ## 9. Como retomar
 
