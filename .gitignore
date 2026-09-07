@@ -49,3 +49,6 @@ Thumbs.db
 
 # o que o site.mjs copia para subir com o worker: gerado, nao fonte
 server/site/
+
+# builds de trabalho de uma pagina so
+.tmp/
