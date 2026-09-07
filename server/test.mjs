@@ -273,6 +273,14 @@ claudeAnswer = { stop_reason: "end_turn", content: [{ type: "text", text: '{"sug
 r = await call("POST", "/merlin", { task: "expand", context: { title: "app", steps: [] } }, cookie);
 body = await r.json();
 check("merlin ramifica ideia", r.status === 200 && body.suggestions[0].type === "step");
+claudeAnswer = { stop_reason: "end_turn", content: [{ type: "text", text: '{"text":"treino segurou; leitura caiu na segunda semana"}' }] };
+r = await call("POST", "/merlin", { task: "habits", context: { month: "set 2026", habits: ["treino · todo dia · 20/30 · sequência 4"] } }, cookie);
+body = await r.json();
+check("merlin le o mes de habitos", r.status === 200 && /treino/.test(body.text), JSON.stringify(body));
+claudeAnswer = { stop_reason: "end_turn", content: [{ type: "text", text: '{"text":"## o que foi\\n- MVP"}' }] };
+r = await call("POST", "/merlin", { task: "review", context: { kind: "semana", period: "7–13 set", goals: ["fechar o MVP · SaaS · feito"], weekDone: ["deploy"], review: { went: "", didnt: "", next: "" } } }, cookie);
+body = await r.json();
+check("merlin revisa o periodo", r.status === 200 && /MVP/.test(body.text), JSON.stringify(body));
 claudeAnswer = { stop_reason: "refusal", content: [] };
 r = await call("POST", "/merlin", { task: "funnel", context: { name: "f", stages: ["lp"] } }, cookie);
 check("merlin repassa a recusa", r.status === 422);

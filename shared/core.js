@@ -140,7 +140,9 @@ export const PAGES = [
   { id: "clients", label: "clientes", href: "clients.html" },
   { id: "funnels", label: "funis", href: "funnels.html" },
   { id: "maps", label: "mapas", href: "maps.html" },
-  { id: "finance", label: "financeiro", href: "finance.html" }
+  { id: "finance", label: "financeiro", href: "finance.html" },
+  { id: "habits", label: "hábitos", href: "habits.html" },
+  { id: "plans", label: "planos", href: "plans.html" }
 ];
 
 const LOGO = '<svg viewBox="0 0 472.5 472.5" fill="currentColor" aria-hidden="true"><path d="M236.31,236.23c-3.63,128.42,107.71,238.95,236.22,236.22v-118.11c-64.78,2.88-121-53.42-118.11-118.11h-118.11Z"/><path d="M236.22,0C239.85,128.42,128.52,238.95,0,236.22v-118.11C64.78,120.99,121,64.69,118.11,0h118.11Z"/><path d="M315.07,0h77.61c44.09,0,79.89,35.8,79.89,79.89v77.61h-157.5V0h0Z"/><path d="M79.96,315H.07v78.75h78.75v78.75h78.75v-79.89c0-42.86-34.75-77.61-77.61-77.61Z"/></svg>';
@@ -153,6 +155,8 @@ const NAV_ICONS = {
   funnels: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h18l-7 8.5V20l-4-2v-5.5z"/></svg>',
   maps: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2.5"/><circle cx="4.5" cy="6" r="2"/><circle cx="19.5" cy="6" r="2"/><circle cx="4.5" cy="18" r="2"/><circle cx="19.5" cy="18" r="2"/><path d="M6.3 7l3.7 3.5M17.7 7L14 10.5M6.3 17l3.7-3.5M17.7 17L14 13.5"/></svg>',
   finance: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 6.5v11M15 9.2c0-1.2-1.3-2-3-2s-3 .8-3 2 1.3 1.8 3 2 3 .9 3 2.1-1.3 2-3 2-3-.8-3-2"/></svg>',
+  habits: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 13l2 2 4-4M8 18h2M14 17h2"/></svg>',
+  plans: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h6v14H4zM14 5h6v6h-6zM14 15h6v4h-6z"/></svg>',
   docs: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4M9 12h6M9 16h6"/></svg>',
   search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4-4"/></svg>',
   fold: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16M14 10l-2 2 2 2"/></svg>',
@@ -251,7 +255,7 @@ export function toggleSidebar() {
 
 /* ---------- busca global ----------
    procura por titulo em tudo que mora no navegador: ideias, clientes,
-   cartoes da semana, mapas, funis e lancamentos. nao e indice: e um filtro
+   cartoes da semana, mapas, funis, lancamentos, habitos e objetivos. nao e indice: e um filtro
    sobre o que ja esta em memoria, e por isso e instantaneo. */
 const SEARCH_SOURCES = [
   { type: "ideas", label: "ideia", field: "title", href: (d) => "ideas.html#" + encodeURIComponent(d.id) },
@@ -259,7 +263,10 @@ const SEARCH_SOURCES = [
   { type: "week", label: "semana", field: "title", href: () => "week.html", filter: (d) => !d.done },
   { type: "maps", label: "mapa", field: "name", href: (d) => "maps.html#" + encodeURIComponent(d.id) },
   { type: "funnels", label: "funil", field: "name", href: (d) => "funnels.html#" + encodeURIComponent(d.id) },
-  { type: "finance", label: "R$", field: "name", href: () => "finance.html", filter: (d) => d.type === "entry" || d.type === "fixed" || d.type === "debt" || d.type === "card" }
+  { type: "finance", label: "R$", field: "name", href: () => "finance.html", filter: (d) => d.type === "entry" || d.type === "fixed" || d.type === "debt" || d.type === "card" },
+  { type: "habits", label: "hábito", field: "name", href: () => "habits.html", filter: (d) => !d.archived },
+  /* os objetivos moram dentro do documento do periodo: `each` abre o doc em varios achados */
+  { type: "plans", label: "objetivo", href: () => "plans.html", each: (d) => (d.goals || []).map((g) => g.text) }
 ];
 export function search(term) {
   const k = foldKey(term);
@@ -268,8 +275,11 @@ export function search(term) {
   SEARCH_SOURCES.forEach((src) => {
     collection(src.type).all().forEach((d) => {
       if (src.filter && !src.filter(d)) return;
-      const text = String(d[src.field] || "");
-      if (foldKey(text).includes(k)) hits.push({ label: src.label, text, href: src.href(d) });
+      const texts = src.each ? src.each(d) : [d[src.field]];
+      texts.forEach((t) => {
+        const text = String(t || "");
+        if (foldKey(text).includes(k)) hits.push({ label: src.label, text, href: src.href(d) });
+      });
     });
   });
   return hits.slice(0, 12);

@@ -472,6 +472,30 @@ const TEXT_TASKS = {
       "Diário recente (mais novo primeiro):\n" + linesOf(c.journal, 15) + "\n" +
       (c.offers ? "Ofertas: " + listOf(c.offers) + "\n" : "")
   }),
+  /* o mes de habitos: o que segurou, o que caiu, um ajuste */
+  habits: (c) => ({
+    instruction:
+      "Leia este mês de hábitos e responda em até 150 palavras, em markdown simples: o que se manteve, o que caiu e um único ajuste concreto para o mês que vem. " +
+      "Use só os números da lista; não invente, não moralize. " +
+      'Formato: {"text":"…"}',
+    context:
+      "Mês: " + String(c.month || "").slice(0, 40) + "\n" +
+      "Hábitos (nome · frequência · feitos/esperados · sequência):\n" + linesOf(c.habits, 40) + "\n"
+  }),
+  /* a revisao de um periodo de planejamento */
+  review: (c) => ({
+    instruction:
+      "Proponha a revisão deste período de planejamento em até 200 palavras, em markdown simples, com três blocos: o que foi, o que não foi, o que muda. " +
+      "Use só os objetivos e o que foi registrado como feito; onde faltar informação, diga o que perguntar. Se já houver uma revisão escrita, complemente sem repetir. " +
+      'Formato: {"text":"…"}',
+    context:
+      "Período: " + String(c.kind || "").slice(0, 20) + " · " + String(c.period || "").slice(0, 60) + "\n" +
+      "Objetivos (texto · frente · cliente · feito/aberto):\n" + linesOf(c.goals, 60) + "\n" +
+      (Array.isArray(c.weekDone) && c.weekDone.length ? "Cartões da semana concluídos:\n" + linesOf(c.weekDone, 60) + "\n" : "") +
+      (c.review && (c.review.went || c.review.didnt || c.review.next)
+        ? "Revisão já escrita — foi: " + String(c.review.went || "").slice(0, 400) + " | não foi: " + String(c.review.didnt || "").slice(0, 400) + " | muda: " + String(c.review.next || "").slice(0, 400) + "\n"
+        : "")
+  }),
   /* os numeros do funil: onde esta perdendo */
   numbers: (c) => ({
     instruction:
