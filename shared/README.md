@@ -96,17 +96,22 @@ O `html` é o `htm`: parece HTML, é JavaScript. `${x}` é sempre texto (escapad
 | `useFronts()`, `useClients()` | as listas, redesenhando quando mudam |
 | `useCloud()` | `signedIn`, `email`, `status` |
 | `useHash()` | o `#id` da URL, acompanhando o `hashchange` |
-| `useKeydown(handler, deps)` | atalho no documento; use `isTyping()` para não disparar dentro de um campo |
+| `useKeydown(handler)` | atalho no documento; o handler é sempre o atual, sem deps. Use `isTyping()` para não disparar dentro de um campo |
+| `setHash(id)` | troca o `#id` sem empilhar histórico, avisando o `useHash` |
 | `useFields(initial)` → `[values, bind, set]` | formulário controlado: `<input ...${bind("title")}>`, checkbox com `bind("x", "check")` |
 | `<${Form} title sub? wide? submit? remove? onSubmit onRemove? onClose>` | todo "criar X" e "editar X". `onSubmit(form)` devolvendo `false` mantém aberta |
 | `<${Field} label full?>` | um campo com rótulo dentro do formulário |
 | `<${Dialog} title wide? onClose actions?>` | caixa modal para o que não é formulário |
-| `<${Markdown} text class?>` | markdown mínimo do core; o único lugar com `innerHTML` |
+| `<${Markdown} text class? tag? …>` | markdown mínimo do core; o único lugar com `innerHTML` |
+| `<${Meter} label value class?>` | o número grande com legenda |
+| `<${MoneyInput} value onChange>` | dinheiro em centavos; só reformata ao sair do campo |
+| `<${NewItemRow} placeholder button onAdd>` | "novo item" no pé de uma lista, Enter adiciona |
 | `<${FrontBadge} id>`, `<${ClientBadge} id>` | os selos |
 | `frontOptionList("sem frente")`, `clientOptionList("sem cliente", front?)` | `<option>`s; o escolhido vai no `value` do `<select>` |
 | `icon("plus")`, `svg(text)` | ícone como vnode |
 
-Ícones em `ICONS`: `trash, arrow, plus, check, pencil, link, grip, x, clock, map`.
+Ícones em `ICONS`: `trash, arrow, plus, check, pencil, link, grip, x, clock, map, spark,
+archive, arrowLeft, chevronLeft, chevronRight, unfold`.
 
 ## Coleções (`collection(type, {normalize})`)
 
@@ -146,6 +151,9 @@ Um documento é um objeto JSON plano. Coloque nele o que o módulo precisa, mas 
 | `maps` | maps.html | `{id, name, root:{id, title, note, color, collapsed, children:[…]}, front, client, idea, funnel}` |
 | `funnels` | funnels.html | `{id, name, client, channel, front, nodes:[{id, type, title, x, y, fields:{}, number}], edges:[{from, to}], creatives:[…], automations:[…], offers:[…], triggers:[…], snapshots:[…]}` |
 | `finance` | finance.html | vários docs: `{id, type:'entry'|'fixed'|'card'|'debt'|'config', …}` (`card` é uma compra parcelada: `{name, card, total, installments, start:'YYYY-MM', dayOfMonth}`) |
+| `vault` | clients.html | um doc `{id:'config', salt}` — só o sal do cofre; o segredo vai cifrado dentro do cliente |
+| `habits` | habits.html | `{id, name, front, schedule:{type:'daily'|'perWeek'|'weekdays', times, weekdays:[0-6]}, min, color, order, archived, marks:{'YYYY-MM-DD':true}}` |
+| `plans` | plans.html | um doc por período, id `kind:period`: `{id, kind:'quarter'|'month'|'week', period:'2026-Q4'|'2026-09'|'2026-W37', goals:[{id, text, front, client, done, parent, card, order}], review:{went, didnt, next}}` |
 
 Ligações entre módulos são **por id**, nunca por cópia. Para abrir outra página num item:
 `clients.html#<id>`, `maps.html#<id>`, `funnels.html#<id>`, `ideas.html#<id>`. Cada

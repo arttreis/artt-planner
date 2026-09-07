@@ -65,6 +65,7 @@ qualquer página ou módulo novo.
 | `servidor/` | `server/` (`teste.mjs` → `test.mjs`) |
 | `semana.html`, `ideias.html`, `clientes.html`, `funis.html`, `mapas.html`, `financeiro.html` | `week.html`, `ideas.html`, `clients.html`, `funnels.html`, `maps.html`, `finance.html` |
 | ids de página `dia, semana, ideias, clientes, funis, mapas, financeiro` | `day, week, ideas, clients, funnels, maps, finance` |
+| — | `habits.html`, `plans.html` (telas novas, ids `habits` e `plans`) |
 
 ### Chaves do navegador
 
@@ -100,6 +101,9 @@ Por coleção:
 - **finance** vários docs `{id, type:'entry'|'fixed'|'card'|'debt'|'config', …}`.
 - **inbox** (`merlin:inbox`) `[{id, title, min, front, client, origin:{type, id}, at}]`.
 - **day** (`merlin:day`, tabela `days`) é do `index.html`, em inglês.
+- **vault** (`merlin:vault`) um doc `{id:'config', salt}`, de `clients.html`.
+- **habits** `{id, name, front, schedule:{type:'daily'|'perWeek'|'weekdays', times, weekdays:[0-6]}, min, color, order, archived, marks:{'YYYY-MM-DD':true}}`.
+- **plans** um doc por período, id `kind:period`: `{id, kind:'quarter'|'month'|'week', period, goals:[{id, text, front, client, done, parent, card, order}], review:{went, didnt, next}}`.
 
 ### API e banco
 
@@ -115,7 +119,7 @@ Por coleção:
 | `POST /api/docs {tipo, id, v, doc}` | `POST /api/docs {type, id, v, doc}` |
 | 409 `{ok:false, motivo, servidor}` | `{ok:false, reason, server}` |
 | erro `{erro}` | `{error}` |
-| `POST /api/merlin {tarefa, contexto}` | `{task, context}`; tarefas `branches, funnel, expand, week, meeting, numbers`; resposta `{text}` ou `{suggestions:[{type, nodeType, title, note}]}` |
+| `POST /api/merlin {tarefa, contexto}` | `{task, context}`; tarefas `branches, funnel, expand, week, meeting, numbers, habits, review`; resposta `{text}` ou `{suggestions:[{type, nodeType, title, note}]}` |
 | cookie `sessao` | `session` |
 | tabelas `pessoas, codigos, dias, docs(tipo)` | `people, codes, days, docs(type)` |
 | binding D1 `artt_planner` | `DB` |
@@ -217,23 +221,27 @@ Regras da página migrada:
 - [x] Atalhos `n`, `Alt+←/→`, `Esc`.
 - [x] Roteiro Playwright no Chromium.
 
-### Fase 2 · `ideas.html` e `finance.html`
+### Fase 2 · `ideas.html` e `finance.html` — feita
 
-- [ ] `ideas.html`: lista à esquerda, ideia aberta à direita (`useHash`), estágio, passos,
-  atividade, sugestões do Merlin (`task: "expand"`).
-- [ ] `finance.html`: abas mês/ano/painel, tabela do mês com saldo, formulários de
-  entrada/fixo/cartão/dívida, config.
+- [x] `ideas.html`: lista por dia, ideia aberta (`useHash`), estágio `seed|exploring|defined|
+  executing|archived`, passos, atividade, quadro por estágio, Merlin (`task: "expand"`).
+  770 → 736 linhas de JS, 19 → 0 `innerHTML`, 12 → 0 escapes.
+- [x] `finance.html`: abas mês/ano/painel, formulários de `entry|fixed|card|debt|config`.
+  731 → 836 linhas de JS, 2 → 0 `innerHTML`, 29 → 0 escapes.
 
-### Fase 3 · `clients.html`
+### Fase 3 · `clients.html` — feita
 
-- [ ] Cadastro de frentes, lista de clientes por frente, painel do cliente (`useHash`).
-- [ ] Canais com itens, objetivos, backlog, diário, ofertas, contrato, contatos, links.
-- [ ] Pauta de reunião com o Merlin (`task: "meeting"`).
+- [x] Cadastro de frentes, lista por frente, painel do cliente em oito abas (`useHash`).
+- [x] Canais, objetivos, backlog, diário, ofertas, contrato, contatos, links e o cofre, com
+  a mesma cifra de antes (PBKDF2 300k + AES-GCM; a coleção `vault` guarda só o sal).
+- [x] Pauta de reunião com o Merlin (`task: "meeting"`).
+  1169 → 1077 linhas de JS, 30 → 0 `innerHTML`, 37 → 0 escapes.
 
 ### Fase 4 · `funnels.html` e `maps.html`
 
-- [ ] `maps.html`: lista de mapas, o mapa (componente com ref), painel do nó, atalhos,
-  ramos do Merlin (`task: "branches"`).
+- [x] `maps.html`: lista, editor com o SVG num componente de ref (o motor desenha com
+  `render()` do Preact, sem `innerHTML`), teclado, arrasto, zoom/pan, painel do nó,
+  exportar, ramos do Merlin (`task: "branches"`). 8 → 0 `innerHTML`, 8 → 0 escapes.
 - [ ] `funnels.html`: lista de funis, o grafo (componente com ref), painel do nó por tipo,
   biblioteca com busca, vazão, Merlin (`task: "funnel"` e `"numbers"`).
 
@@ -282,12 +290,20 @@ Uma página está migrada quando tudo isto vale:
 - **Dados antigos.** Nada do que estava em `merlin:semana`, `merlin:ideias`… nem nas tabelas
   antigas do D1 é lido pelo código novo. Decisão do Arthur em 07/09/2026: sem migração.
 
-## 8. Depois da migração: hábitos e planejamento
+## 8. Hábitos e planejamento — feito
 
-Pedido do Arthur em 07/09/2026, para depois da refatoração: uma tela de **hábitos/tracker**
-para acompanhar o próprio desenvolvimento, e **planejamento mensal, semanal e trimestral**,
-com "o que está aberto no meu mês / no meu trimestre" visível de um lugar só. O desenho
-proposto está na seção correspondente da `VISAO.md`.
+Pedido do Arthur em 07/09/2026: uma tela de **hábitos/tracker** e **planejamento trimestral,
+mensal e semanal**. As duas nasceram já em Preact e em inglês, com o desenho da `VISAO.md`
+(seções 4.9 e 4.10):
+
+- `habits.html` — a grade do mês, frequência `daily|perWeek|weekdays`, sequência, taxa do
+  mês, puxar para o dia (`origin: {type:"habit"}`), arquivar com desfazer, Merlin
+  (`task: "habits"`). Coleção `habits`, marcas dentro do documento.
+- `plans.html` — trimestre, mês e semana lado a lado; objetivos por frente, desdobrar
+  (filho com `parent`), puxar para a semana (cartão com `origin: {type:"plan"}`), revisão em
+  três campos e Merlin (`task: "review"`). Coleção `plans`, um documento por período.
+
+As duas entraram na sidebar e na busca global; o worker ganhou as duas tarefas do Merlin.
 
 ## 9. Como retomar
 

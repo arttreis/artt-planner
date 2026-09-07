@@ -153,8 +153,8 @@ export const icon = (name) => svg(ICONS[name] || "");
 
 /* markdown minimo do core, dentro de um elemento. o unico lugar em que
    uma pagina migrada encosta em innerHTML. */
-export function Markdown({ text, class: cls, tag }) {
-  return h(tag || "div", { class: cls, dangerouslySetInnerHTML: { __html: md(text) } });
+export function Markdown({ text, class: cls, tag, ...rest }) {
+  return h(tag || "div", { ...rest, class: cls, dangerouslySetInnerHTML: { __html: md(text) } });
 }
 
 /* o selo de frente: bolinha da cor e o nome. nada quando a frente nao existe. */
