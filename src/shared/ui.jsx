@@ -17,6 +17,7 @@ import { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback, cre
 import { createRoot } from "react-dom/client";
 import {
   collection, cloud, fronts, clients, listFronts, listClients, clientName, md, brl, parseMoney,
+  api, notify, sendToDay,
   PAGES, CLOUD_STATUS, search, signIn, currentNotice, onNotice, closeNotice,
   toggleTheme, toggleSidebar, setShellRenderer
 } from "./core.js";
@@ -277,6 +278,92 @@ export function NewItemRow({ placeholder, button, onAdd, class: _c, className })
         onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); add(); } }} />
       <button className="pill pill--mini" type="button" onClick={add}>{button || "adicionar"}</button>
     </div>
+  );
+}
+
+/* ---------- "da pra fazer com Claude?" ----------
+   a mesma pergunta em dois lugares: a linha da fila do dia e o item de backlog
+   do cliente. o merlin so responde — nao grava nada, nao muda a tarefa, nao
+   mexe na duracao. o que ele disser que precisa ser montado vira trabalho num
+   segundo gesto, e sempre sem duracao: minutos sao assunto do dia. */
+
+/* a ultima linha da resposta e o que precisa ser montado, quando o veredicto e
+   de que da. tiramos ela do corpo para virar botao; sem a linha nao ha botao,
+   porque nao havera trabalho a criar. */
+const SETUP_LINE = /^[ \t]*Montar:[ \t]*(.*?)[ \t]*$/m;
+
+export function useDelegate() {
+  const [busy, setBusy] = useState("");
+  const [answer, setAnswer] = useState(null);
+
+  /* demanda: {id, title, min?, due?, front?, client?, about?, where, origin} —
+     front e client sao ids, e viram nome antes de subir: o merlin le "Guessless",
+     nao um uuid. */
+  const ask = async (demand) => {
+    /* uma pergunta por vez: `busy` e o id de quem esta no ar, e e ele que
+       apaga o botao das outras linhas enquanto isso */
+    if (busy) return;
+    setBusy(demand.id || "?");
+    try {
+      const front = demand.front && fronts().get(demand.front);
+      const r = await api("/merlin", {
+        method: "POST",
+        body: JSON.stringify({
+          task: "delegate",
+          context: {
+            title: demand.title || "",
+            min: demand.min || 0,
+            due: demand.due || "",
+            where: demand.where || "",
+            front: front ? front.name : "",
+            client: demand.client ? clientName(demand.client) : "",
+            about: demand.about || ""
+          }
+        })
+      });
+      if (r.ok) {
+        const text = String((r.body && r.body.text) || "");
+        const line = SETUP_LINE.exec(text);
+        setAnswer({
+          title: demand.title || "",
+          text: (line ? text.replace(line[0], "") : text).trim(),
+          setup: line ? line[1].slice(0, 160) : "",
+          front: demand.front || "",
+          client: demand.client || "",
+          origin: demand.origin || null
+        });
+      } else if (r.status === 401) notify("entre para usar o Merlin");
+      else notify((r.body && r.body.error) || "o Merlin não respondeu — tenta de novo daqui a pouco");
+    } catch (e) {
+      notify("não consegui falar com o Merlin");
+    } finally { setBusy(""); }
+  };
+
+  return { ask, busy, answer, close: () => setAnswer(null) };
+}
+
+/* o veredicto. o botao verde so existe quando ha o que montar, e ele nao cria
+   tarefa direto: manda para a caixa de entrada sem duracao, que e onde o dia
+   pergunta quantos minutos aquilo custa.
+   `onBuild` existe porque a propria tela do dia nao pode usar a caixa de
+   entrada: o evento de storage nao volta para a aba que escreveu, e o bilhete
+   so seria recolhido no proximo carregamento. La o gesto certo e outro — o
+   campo do dia, que ja pergunta a duracao. */
+export function DelegateDialog({ answer, onClose, onBuild }) {
+  const build = () => {
+    if (onBuild) onBuild(answer.setup);
+    else sendToDay({ title: answer.setup, front: answer.front, client: answer.client, origin: answer.origin });
+    onClose();
+  };
+  return (
+    <Dialog title="dá pra fazer com Claude?" sub={answer.title} wide label="O que o Claude faz desta demanda" onClose={onClose}
+        actions={<>
+          <button className="pill" type="button" onClick={onClose}>fechar</button>
+          {!!answer.setup && <button className="pill pill--green" type="button" id="build-btn" onClick={build}>montar no dia</button>}
+        </>}>
+      <Markdown className="merlin-body" text={answer.text} />
+      {!!answer.setup && <p className="delegate__setup"><span className="t-mono">montar</span>{answer.setup}</p>}
+    </Dialog>
   );
 }
 

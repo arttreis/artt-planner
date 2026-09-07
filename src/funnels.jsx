@@ -12,60 +12,188 @@ import {
   mount, useCollection, useFronts, useClients, useHash, useKeydown, isTyping, useFields,
   Form, Field, Dialog, Markdown, FrontBadge, ClientBadge, frontOptionList, clientOptionList, icon
 } from "./shared/ui.jsx";
+import { FUNNEL_TEMPLATES, funnelGroups, funnelChain, buildFunnel } from "./shared/templates.js";
+import { NODE_W, NODE_H, computeLayers, layoutNodes } from "./shared/funnel-layout.js";
 
 initPage("funnels");
 
 /* ---------- tipos de etapa ----------
+   uma etapa é um lugar onde dá para dizer "N pessoas estiveram aqui" e
+   "X% passaram daqui para a próxima". o que não passa nesse teste não é
+   etapa: o CTA é um elemento dentro da página (o clique nele é a aresta,
+   não o nó), o bump acontece na mesma tela do checkout, e o remarketing é
+   caminho de volta — os três moram nos campos, nas ofertas e nas
+   automações, e `migrateNodes` leva para lá o que ficou de funis antigos.
+
    cada tipo carrega o próprio ícone e os campos que aparecem no painel
    quando uma etapa desse tipo está selecionada. o ícone é dado, não HTML:
    uma lista de [tag, atributos] em viewBox 24x24, que vira <path> de
    verdade tanto no svg do fluxo (createElementNS) quanto no html comum
    (elemento react). quem usa escolhe o tamanho.
    "conversion" marca as etapas onde entra dinheiro: são as únicas que
-   ganham o verde do sistema, pra que o olho ache o fim do funil de longe. */
+   ganham o verde do sistema, pra que o olho ache o fim do funil de longe —
+   a página de obrigado ficou fora, porque ela confirma a venda que já
+   entrou no checkout, e pintar as duas contava a mesma venda duas vezes.
+   "group" é só a prateleira da biblioteca, na ordem em que o lead anda. */
+const CTA_FIELDS = [
+  { key: "cta", label: "texto do botão", kind: "text" },
+  { key: "ctaTarget", label: "destino do botão", kind: "text" }
+];
 const NODE_TYPES = {
-  traffic: { label: "tráfego", icon: [["path", { d: "M5 19V13M12 19V9M19 19V5" }]],
+  /* ---- aquisição: onde o lead ainda nem é lead ---- */
+  traffic: { label: "tráfego", group: "aquisição", icon: [["path", { d: "M5 19V13M12 19V9M19 19V5" }]],
     fields: [
       { key: "source", label: "origem", kind: "select", options: [["meta", "meta"], ["google", "google"], ["tiktok", "tiktok"], ["organic", "organico"], ["email", "email"], ["referral", "indicacao"]] },
       { key: "campaign", label: "campanha", kind: "text" },
       { key: "cost", label: "custo no período", kind: "money" }
     ] },
-  ad: { label: "anúncio", icon: [["path", { d: "M4 10v4h3l5 4V6l-5 4H4z" }], ["path", { d: "M16.5 9a4 4 0 010 6" }]],
+  impression: { label: "impressão", group: "aquisição", icon: [["path", { d: "M2.5 12S6 6 12 6s9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6z" }], ["circle", { cx: 12, cy: 12, r: 2.6 }]],
+    fields: [{ key: "placement", label: "posicionamento", kind: "text" }, { key: "frequency", label: "frequência", kind: "text" }] },
+  ad: { label: "anúncio", group: "aquisição", icon: [["path", { d: "M4 10v4h3l5 4V6l-5 4H4z" }], ["path", { d: "M16.5 9a4 4 0 010 6" }]],
     fields: [{ key: "creative", label: "criativo", kind: "text" }, { key: "link", label: "link do anúncio", kind: "text" }] },
-  lp: { label: "lp", icon: [["rect", { x: 4, y: 5, width: 16, height: 14, rx: 2 }], ["path", { d: "M4 9h16" }]],
-    fields: [{ key: "url", label: "url", kind: "text" }] },
-  vsl: { label: "vsl", icon: [["circle", { cx: 12, cy: 12, r: 8.5 }], ["path", { d: "M10 8.5l6 3.5-6 3.5z" }]],
-    fields: [{ key: "url", label: "url", kind: "text" }, { key: "duration", label: "duração", kind: "text" }] },
-  capture: { label: "captura", icon: [["rect", { x: 5, y: 4, width: 14, height: 16, rx: 1.5 }], ["path", { d: "M8 9h8M8 13h8M8 17h4" }]],
-    fields: [{ key: "what", label: "o que captura", kind: "text" }] },
-  cta: { label: "cta", icon: [["path", { d: "M6 3l5 15 2-6 6-2z", fill: "currentColor", stroke: "none" }]],
-    fields: [{ key: "text", label: "texto do botão", kind: "text" }, { key: "target", label: "destino", kind: "text" }] },
-  checkout: { label: "checkout", conversion: true, icon: [["rect", { x: 3, y: 6, width: 18, height: 13, rx: 2 }], ["path", { d: "M3 10h18" }], ["path", { d: "M7 15h4" }]],
+  click: { label: "clique", group: "aquisição", icon: [["path", { d: "M7 4l11 8-4.6 1.3L16 19l-2.4 1-2.6-5.6L7 17z" }]],
+    fields: [{ key: "destination", label: "destino", kind: "text" }, { key: "cost", label: "custo por clique", kind: "money" }] },
+
+  /* ---- página: onde ele lê, assiste ou olha o produto ---- */
+  lp: { label: "lp", group: "página", icon: [["rect", { x: 4, y: 5, width: 16, height: 14, rx: 2 }], ["path", { d: "M4 9h16" }]],
+    fields: [{ key: "url", label: "url", kind: "text" }, ...CTA_FIELDS] },
+  vsl: { label: "vsl", group: "página", icon: [["circle", { cx: 12, cy: 12, r: 8.5 }], ["path", { d: "M10 8.5l6 3.5-6 3.5z" }]],
+    fields: [{ key: "url", label: "url", kind: "text" }, { key: "duration", label: "duração", kind: "text" }, ...CTA_FIELDS] },
+  webinar: { label: "webinar", group: "página", icon: [["rect", { x: 3, y: 5, width: 18, height: 12, rx: 2 }], ["path", { d: "M10 9.5l4.5 2.5-4.5 2.5z" }], ["path", { d: "M9 20h6" }]],
+    fields: [{ key: "url", label: "url", kind: "text" }, { key: "when", label: "quando", kind: "text" }, ...CTA_FIELDS] },
+  product: { label: "produto", group: "página", icon: [["path", { d: "M12 3l8 4.2v9.6L12 21l-8-4.2V7.2z" }], ["path", { d: "M4 7.2l8 4.2 8-4.2M12 11.4V21" }]],
+    fields: [
+      { key: "marketplace", label: "canal", kind: "select", options: [["own", "site proprio"], ["mercadolivre", "mercado livre"], ["shopee", "shopee"], ["tiktok", "tiktok shop"], ["amazon", "amazon"]] },
+      { key: "sku", label: "sku", kind: "text" },
+      { key: "price", label: "preço", kind: "money" },
+      ...CTA_FIELDS
+    ] },
+
+  /* ---- captura: onde ele deixa de ser anônimo ---- */
+  capture: { label: "captura", group: "captura", icon: [["rect", { x: 5, y: 4, width: 14, height: 16, rx: 1.5 }], ["path", { d: "M8 9h8M8 13h8M8 17h4" }]],
+    fields: [{ key: "what", label: "o que captura", kind: "text" }, { key: "tool", label: "ferramenta", kind: "text" }] },
+  quiz: { label: "qualificação", group: "captura", icon: [["path", { d: "M4 5h16l-6 7v6l-4 2v-8z" }]],
+    fields: [{ key: "tool", label: "ferramenta", kind: "text" }, { key: "criteria", label: "critério de corte", kind: "text" }] },
+  dm: { label: "dm", group: "captura", icon: [["path", { d: "M21 4L3 11l7 3 3 7z" }], ["path", { d: "M21 4l-11 10" }]],
+    fields: [
+      { key: "channel", label: "canal", kind: "select", options: [["instagram", "instagram"], ["whatsapp", "whatsapp"], ["linkedin", "linkedin"], ["tiktok", "tiktok"]] },
+      { key: "opener", label: "abertura", kind: "text" }
+    ] },
+  group: { label: "grupo", group: "captura", icon: [["circle", { cx: 9, cy: 9, r: 3 }], ["path", { d: "M3.5 19a5.5 5.5 0 0111 0" }], ["path", { d: "M16 7.2a3 3 0 010 5.6M17.5 19a5.6 5.6 0 00-2-4.3" }]],
+    fields: [{ key: "platform", label: "plataforma", kind: "text" }, { key: "link", label: "link", kind: "text" }] },
+
+  /* ---- relacionamento: onde ele é aquecido ---- */
+  email: { label: "e-mail", group: "relacionamento", icon: [["rect", { x: 3.5, y: 5.5, width: 17, height: 13, rx: 1.5 }], ["path", { d: "M4 6.5l8 6.5 8-6.5" }]],
+    fields: [{ key: "sequence", label: "sequência", kind: "text" }, { key: "tool", label: "ferramenta", kind: "text" }] },
+  whatsapp: { label: "whatsapp", group: "relacionamento", icon: [["path", { d: "M4 5.5A2.5 2.5 0 016.5 3h11A2.5 2.5 0 0120 5.5v8a2.5 2.5 0 01-2.5 2.5H9l-4 3.5v-3.5H6.5A2.5 2.5 0 014 13.5v-8z" }]],
+    fields: [{ key: "number", label: "número", kind: "text" }, { key: "flow", label: "fluxo", kind: "text" }] },
+
+  /* ---- venda: o funil de serviço, quando tem gente vendendo ---- */
+  booking: { label: "agendamento", group: "venda", icon: [["rect", { x: 3.5, y: 5, width: 17, height: 15, rx: 2 }], ["path", { d: "M3.5 10h17M8 3.5v3M16 3.5v3" }], ["path", { d: "M9.5 14.5l2 2 3.5-3.5" }]],
+    fields: [{ key: "tool", label: "ferramenta", kind: "text" }, { key: "duration", label: "duração", kind: "text" }] },
+  call: { label: "call", group: "venda", icon: [["path", { d: "M5 4.5h3l1.5 4-2 1.5a11 11 0 005.5 5.5l1.5-2 4 1.5v3a1.5 1.5 0 01-1.6 1.5A15.5 15.5 0 013.5 6.1 1.5 1.5 0 015 4.5z" }]],
+    fields: [{ key: "owner", label: "quem faz", kind: "text" }, { key: "script", label: "roteiro", kind: "text" }] },
+  proposal: { label: "proposta", group: "venda", icon: [["path", { d: "M6 3h7l5 5v13H6z" }], ["path", { d: "M13 3v5h5" }], ["path", { d: "M9 13h6M9 17h4" }]],
+    fields: [{ key: "scope", label: "escopo", kind: "text" }, { key: "ticket", label: "ticket", kind: "money" }] },
+  closing: { label: "fechamento", group: "venda", conversion: true, icon: [["circle", { cx: 12, cy: 10, r: 5.5 }], ["path", { d: "M9.6 10.2l1.8 1.8 3.2-3.4" }], ["path", { d: "M8.5 15l-1 6 4.5-2.2L16.5 21l-1-6" }]],
+    fields: [{ key: "contract", label: "contrato", kind: "text" }, { key: "value", label: "valor fechado", kind: "money" }] },
+
+  /* ---- compra: onde o dinheiro entra ---- */
+  cart: { label: "carrinho", group: "compra", icon: [["circle", { cx: 10, cy: 19, r: 1.4 }], ["circle", { cx: 17, cy: 19, r: 1.4 }], ["path", { d: "M3 4h2.2l2.4 11h10.2l1.8-8H6.2" }]],
+    fields: [{ key: "platform", label: "plataforma", kind: "text" }, { key: "ticket", label: "ticket médio", kind: "money" }] },
+  checkout: { label: "checkout", group: "compra", conversion: true, icon: [["rect", { x: 3, y: 6, width: 18, height: 13, rx: 2 }], ["path", { d: "M3 10h18" }], ["path", { d: "M7 15h4" }]],
     fields: [
       { key: "platform", label: "plataforma", kind: "text", preset: "Stripe" },
       { key: "product", label: "produto", kind: "text" },
       { key: "price", label: "preço", kind: "money" }
     ] },
-  thanks: { label: "obrigado", conversion: true, icon: [["circle", { cx: 12, cy: 12, r: 8.5 }], ["path", { d: "M8 12.5l2.5 2.5L16 9.5" }]], fields: [] },
-  email: { label: "e-mail", icon: [["rect", { x: 3.5, y: 5.5, width: 17, height: 13, rx: 1.5 }], ["path", { d: "M4 6.5l8 6.5 8-6.5" }]],
-    fields: [{ key: "sequence", label: "sequência", kind: "text" }, { key: "tool", label: "ferramenta", kind: "text" }] },
-  whatsapp: { label: "whatsapp", icon: [["path", { d: "M4 5.5A2.5 2.5 0 016.5 3h11A2.5 2.5 0 0120 5.5v8a2.5 2.5 0 01-2.5 2.5H9l-4 3.5v-3.5H6.5A2.5 2.5 0 014 13.5v-8z" }]],
-    fields: [{ key: "number", label: "número", kind: "text" }, { key: "flow", label: "fluxo", kind: "text" }] },
-  remarketing: { label: "remarketing", icon: [["path", { d: "M4 12a8 8 0 0114-5.3M20 12a8 8 0 01-14 5.3" }], ["path", { d: "M18 4v4h-4M6 20v-4h4" }]],
+  payment: { label: "pagamento", group: "compra", conversion: true, icon: [["rect", { x: 3.5, y: 6.5, width: 17, height: 11, rx: 2 }], ["circle", { cx: 12, cy: 12, r: 2.4 }], ["path", { d: "M7 12h.01M17 12h.01" }]],
     fields: [
-      { key: "audience", label: "público", kind: "text" },
-      { key: "window", label: "janela (dias)", kind: "number" },
-      { key: "channel", label: "canal", kind: "text" }
+      { key: "method", label: "meio", kind: "select", options: [["card", "cartao"], ["pix", "pix"], ["boleto", "boleto"], ["mixed", "misto"]] },
+      { key: "revenue", label: "receita no período", kind: "money" }
     ] },
-  upsell: { label: "upsell", conversion: true, icon: [["path", { d: "M7 17L17 7M9 7h8v8" }]], fields: [] },
-  downsell: { label: "downsell", conversion: true, icon: [["path", { d: "M7 7l10 10M17 7v10H7" }]], fields: [] },
-  bump: { label: "bump", conversion: true, icon: [["circle", { cx: 12, cy: 12, r: 8.5 }], ["path", { d: "M12 8v8M8 12h8" }]], fields: [] },
-  custom: { label: "personalizado", icon: [["path", { d: "M12 3l2.6 5.6L21 9.3l-4.5 4.2L17.6 20 12 16.9 6.4 20l1.1-6.5L3 9.3l6.4-.7z" }]], fields: [] }
+  thanks: { label: "obrigado", group: "compra", icon: [["circle", { cx: 12, cy: 12, r: 8.5 }], ["path", { d: "M8 12.5l2.5 2.5L16 9.5" }]],
+    fields: [{ key: "url", label: "url", kind: "text" }] },
+
+  /* ---- depois: o funil que continua ---- */
+  upsell: { label: "upsell", group: "depois", conversion: true, icon: [["path", { d: "M7 17L17 7M9 7h8v8" }]],
+    fields: [{ key: "offer", label: "oferta", kind: "text" }, { key: "price", label: "preço", kind: "money" }] },
+  downsell: { label: "downsell", group: "depois", conversion: true, icon: [["path", { d: "M7 7l10 10M17 7v10H7" }]],
+    fields: [{ key: "offer", label: "oferta", kind: "text" }, { key: "price", label: "preço", kind: "money" }] },
+  onboarding: { label: "ativação", group: "depois", icon: [["path", { d: "M13 3l-7 9h5l-1 9 7-9h-5z" }]],
+    fields: [{ key: "milestone", label: "marco de ativação", kind: "text" }, { key: "window", label: "janela (dias)", kind: "number" }] },
+  repurchase: { label: "recompra", group: "depois", conversion: true, icon: [["path", { d: "M4 12a8 8 0 0114-5.3M20 12a8 8 0 01-14 5.3" }], ["path", { d: "M18 4v4h-4M6 20v-4h4" }]],
+    fields: [{ key: "window", label: "janela (dias)", kind: "number" }, { key: "revenue", label: "receita no período", kind: "money" }] },
+
+  custom: { label: "personalizado", group: "livre", icon: [["path", { d: "M12 3l2.6 5.6L21 9.3l-4.5 4.2L17.6 20 12 16.9 6.4 20l1.1-6.5L3 9.3l6.4-.7z" }]], fields: [] }
 };
 const TYPE_ORDER = Object.keys(NODE_TYPES);
+/* as prateleiras da biblioteca, na ordem em que o lead anda */
+const TYPE_GROUPS = TYPE_ORDER.reduce((acc, t) => {
+  const g = NODE_TYPES[t].group;
+  const last = acc[acc.length - 1];
+  if (last && last.name === g) last.types.push(t);
+  else acc.push({ name: g, types: [t] });
+  return acc;
+}, []);
 const typeOf = (n) => NODE_TYPES[n.type] || NODE_TYPES.custom;
 const typeLabel = (n) => typeOf(n).label;
 const nodeLabel = (n) => n.title || typeLabel(n);
+
+/* ---------- o que vem depois ----------
+   a gramática do funil: para cada tipo de etapa, os tipos que costumam vir
+   em seguida, do mais provável para o menos. é isso que pinta os fantasmas
+   no palco no mesmo quadro em que a etapa nasce — sem rede, sem espera e
+   sem custo. o Merlin entra depois, e só se for chamado, para trocar o
+   genérico ("checkout") pelo concreto daquele funil ("checkout Stripe do
+   plano anual"). a segunda linha de cada entrada é o porquê, que vira o
+   texto de ajuda do fantasma: um funil só ensina se disser por que aquela
+   etapa deveria existir. */
+const NEXT_STAGES = {
+  traffic:    [["impression", "quem viu"], ["ad", "o criativo que recebe a verba"], ["lp", "onde a verba cai"]],
+  impression: [["click", "o ctr mora nesta passagem"], ["ad", "o criativo por trás da impressão"]],
+  ad:         [["click", "quantos clicaram no que viram"], ["lp", "a página que recebe o clique"], ["product", "o anúncio do marketplace"]],
+  click:      [["lp", "a página que recebe o clique"], ["vsl", "o vídeo que recebe o clique"], ["product", "a página do produto"], ["capture", "captura direta, sem página"]],
+  lp:         [["capture", "a página sem formulário não vira lead"], ["checkout", "venda direta, sem captura"], ["vsl", "o vídeo que sustenta a oferta"], ["quiz", "qualificar antes de gastar time de venda"]],
+  vsl:        [["capture", "quem assistiu e deixou contato"], ["checkout", "o botão embaixo do vídeo"], ["booking", "vsl de serviço termina em agenda"]],
+  webinar:    [["capture", "inscrição na aula"], ["checkout", "a oferta no fim da aula"], ["booking", "quem quer conversar depois"]],
+  product:    [["cart", "quem pôs no carrinho"], ["checkout", "compra direta, sem carrinho"]],
+  capture:    [["email", "lead sem sequência esfria"], ["whatsapp", "onde a conversa continua"], ["quiz", "separar quem tem perfil"], ["thanks", "a confirmação do cadastro"]],
+  quiz:       [["booking", "quem passou no corte vai para a agenda"], ["capture", "guardar quem não passou"], ["whatsapp", "seguir a conversa"]],
+  dm:         [["whatsapp", "tirar da rede social e levar pro fluxo"], ["booking", "marcar a conversa"], ["capture", "pegar o contato de verdade"]],
+  group:      [["whatsapp", "o disparo para o grupo"], ["webinar", "o evento que o grupo assiste"], ["checkout", "a oferta para dentro do grupo"]],
+  email:      [["lp", "a página para onde a sequência manda"], ["checkout", "a oferta da sequência"], ["booking", "a call que a sequência pede"], ["webinar", "a aula que a sequência convida"]],
+  whatsapp:   [["booking", "a agenda que sai da conversa"], ["checkout", "o link de pagamento"], ["proposal", "a proposta que sai da conversa"]],
+  booking:    [["call", "marcar não é acontecer: o show-up é aqui"]],
+  call:       [["proposal", "a proposta que sai da call"], ["closing", "call que já fecha"]],
+  proposal:   [["closing", "proposta enviada não é contrato"], ["call", "a call de negociação"]],
+  closing:    [["onboarding", "contrato assinado sem ativação vira churn"]],
+  cart:       [["checkout", "carrinho abandonado é o vazamento mais barato de tapar"]],
+  checkout:   [["payment", "iniciar não é pagar: pix e boleto caem aqui"], ["upsell", "a oferta seguinte, no calor da compra"], ["thanks", "a confirmação"]],
+  payment:    [["thanks", "a confirmação"], ["upsell", "a oferta seguinte"], ["onboarding", "a primeira entrega"]],
+  thanks:     [["upsell", "a página de obrigado é a mais barata para ofertar"], ["onboarding", "o começo da entrega"]],
+  upsell:     [["downsell", "quem disse não ao upsell"], ["thanks", "a confirmação"], ["onboarding", "o começo da entrega"]],
+  downsell:   [["thanks", "a confirmação"], ["onboarding", "o começo da entrega"]],
+  onboarding: [["repurchase", "o cliente que ativa é o que compra de novo"]],
+  repurchase: [],
+  custom:     []
+};
+/* funil vazio: por onde ele começa */
+const FIRST_STAGES = [["traffic", "de onde vem a gente"], ["ad", "o criativo que puxa"], ["lp", "a página que recebe"]];
+const MAX_GHOSTS = 3;
+
+/* os fantasmas de uma etapa: o que a gramática sugere, menos o que já sai
+   dela. quem já tem três saídas não precisa de palpite — o funil ali já
+   está decidido, e um fantasma a mais só sujaria o palco. */
+function ghostsFor(doc, node) {
+  const taken = new Set(doc.edges.filter((a) => a.from === node.id)
+    .map((a) => doc.nodes.find((n) => n.id === a.to)).filter(Boolean).map((n) => n.type));
+  if (taken.size >= MAX_GHOSTS) return [];
+  return (NEXT_STAGES[node.type] || [])
+    .filter(([type]) => !taken.has(type))
+    .slice(0, MAX_GHOSTS)
+    .map(([type, why]) => ({ type, title: "", note: why }));
+}
 
 const SUGGESTED_TRIGGERS = ["escassez", "urgência", "prova social", "autoridade", "reciprocidade", "garantia", "ancoragem"];
 
@@ -100,9 +228,10 @@ const DRAWERS = { creatives: "criativos", automations: "automações", offers: "
    o cartão tem três faixas: ícone + tipo + título, o número do período, e
    os chips do que está ligado à etapa (criativos, automações...). a altura
    é fixa para as portas ficarem sempre no meio e as arestas não pularem. */
-const NODE_W = 228, NODE_H = 104, PORT_Y = NODE_H / 2;
+const PORT_Y = NODE_H / 2;
 const GRID = 24; // passo da grade de pontos do palco, em px de tela a 100%
 const VIEW_KEY = "merlin:funnels:view:";
+const GHOSTS_KEY = "merlin:funnels:ghosts"; // a tira de próximas etapas, ligada ou desligada neste aparelho
 
 /* ---------- ícones só desta página ---------- */
 const BackIcon = () => (
@@ -122,6 +251,11 @@ const LibraryIcon = () => (
 );
 const PanelIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M15 4v16" /></svg>
+);
+/* a próxima etapa: um retângulo tracejado com um "+" dentro — o mesmo
+   desenho que o palco usa, em 24px */
+const GhostIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3.5" y="7" width="17" height="10" rx="2.5" strokeDasharray="3.4 2.6" /><path d="M9 12h6M12 9v6" /></svg>
 );
 const SparkIcon = () => (
   <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.5l1.9 6.1 6.1 1.9-6.1 1.9L12 18.5l-1.9-6.1-6.1-1.9 6.1-1.9z" /></svg>
@@ -147,81 +281,6 @@ const formatAvg = (v) => "~" + String(v).replace(".", ",") + "%";
 const truncate = (t, n) => { t = String(t || ""); return t.length > n ? t.slice(0, n - 1) + "…" : t; };
 const orderedNodes = (doc) => [...doc.nodes].sort((a, b) => a.x - b.x || a.y - b.y);
 const trafficCost = (doc) => doc.nodes.filter((n) => n.type === "traffic").reduce((s, n) => s + (+n.fields.cost || 0), 0);
-
-/* ---------- camadas ----------
-   camada de um nó = maior distância desde uma origem (nó sem entrada). uma
-   aresta que aponta para um nó que já está "na pilha" desta busca é uma
-   aresta de retorno (ex.: remarketing que volta pra lp) — ela é ignorada na
-   contagem, senão o funil com um loop nunca terminaria de calcular camada. */
-function computeLayers(nodes, edges) {
-  const out = new Map(nodes.map((n) => [n.id, []]));
-  const hasIn = new Set();
-  edges.forEach((a) => {
-    if (!out.has(a.from) || !out.has(a.to)) return;
-    out.get(a.from).push(a.to);
-    hasIn.add(a.to);
-  });
-  const layer = new Map(nodes.map((n) => [n.id, 0]));
-  const visited = new Set();
-  const stack = new Set();
-
-  function visit(id, depth) {
-    if (stack.has(id)) return; // aresta de retorno: corta o ciclo aqui
-    const current = layer.get(id) || 0;
-    if (visited.has(id) && depth <= current) return; // já tem profundidade maior ou igual, nada a propagar
-    layer.set(id, Math.max(current, depth));
-    stack.add(id);
-    visited.add(id);
-    (out.get(id) || []).forEach((to) => visit(to, depth + 1));
-    stack.delete(id);
-  }
-
-  const roots = nodes.filter((n) => !hasIn.has(n.id));
-  (roots.length ? roots : nodes).forEach((n) => visit(n.id, 0));
-  return layer;
-}
-
-/* layout em camadas da esquerda para a direita; dentro da camada, uma
-   passada de baricentro pela posição das origens reduz cruzamentos de forma
-   simples (não é um algoritmo ótimo, é o suficiente pra não virar espaguete).
-   devolve nós novos: o documento nunca é alterado no lugar. */
-function layoutNodes(nodes, edges) {
-  if (!nodes.length) return nodes;
-  const layer = computeLayers(nodes, edges);
-  const byLayer = new Map();
-  nodes.forEach((n) => {
-    const c = layer.get(n.id) || 0;
-    if (!byLayer.has(c)) byLayer.set(c, []);
-    byLayer.get(c).push(n);
-  });
-  const layers = [...byLayer.keys()].sort((a, b) => a - b);
-  const incoming = new Map();
-  edges.forEach((a) => {
-    if (!incoming.has(a.to)) incoming.set(a.to, []);
-    incoming.get(a.to).push(a.from);
-  });
-  const position = new Map();
-  layers.forEach((c) => byLayer.get(c).forEach((n, i) => position.set(n.id, i)));
-  layers.forEach((c, idx) => {
-    if (idx === 0) return; // a primeira camada mantém a ordem que já tinha
-    const list = byLayer.get(c);
-    const weight = new Map();
-    list.forEach((n) => {
-      const from = (incoming.get(n.id) || []).map((id) => position.get(id)).filter((v) => v != null);
-      weight.set(n.id, from.length ? from.reduce((a, b) => a + b, 0) / from.length : position.get(n.id));
-    });
-    list.sort((a, b) => weight.get(a.id) - weight.get(b.id));
-    list.forEach((n, i) => position.set(n.id, i));
-  });
-  const GAP_X = 96, GAP_Y = 36, MARGIN = 60;
-  const placed = new Map();
-  layers.forEach((c) => {
-    byLayer.get(c).forEach((n, i) => {
-      placed.set(n.id, { x: MARGIN + c * (NODE_W + GAP_X), y: MARGIN + i * (NODE_H + GAP_Y) });
-    });
-  });
-  return nodes.map((n) => ({ ...n, ...placed.get(n.id) }));
-}
 
 /* onde entra um nó novo vindo de sugestão: à direita do último nó da última
    camada, sem ligar aresta nenhuma — é material solto até o Arthur decidir
@@ -310,7 +369,101 @@ function normalizeEdge(a) {
   };
 }
 const normalizeList = (list) => (Array.isArray(list) ? list.map((x) => ({ ...x, id: x.id || newId() })) : []);
-function normalize(d) {
+
+/* ---------- funis de antes da limpeza ----------
+   houve um tempo em que cta, bump e remarketing eram etapas. nenhum dos
+   três é: o cta é um elemento da página (o clique nele é a aresta), o bump
+   acontece na mesma tela do checkout e o remarketing é caminho de volta.
+   ao abrir um funil antigo, cada um vai para onde é a casa dele — campo,
+   oferta, automação — e a aresta se costura por cima, multiplicando as
+   taxas médias para o caminho continuar valendo o mesmo (lp>cta 30% e
+   cta>checkout 90% viram lp>checkout 27%). nada se perde: um nó desses sem
+   pai nenhum vira etapa livre em vez de sumir.
+   é idempotente de graça — depois de rodar não sobra nó legado, e a
+   primeira linha devolve o documento intacto. */
+const LEGACY_NODES = { cta: "field", bump: "offer", remarketing: "automation" };
+const PAGE_TYPES = new Set(["lp", "vsl", "webinar", "product"]);
+
+/* tira um nó do meio do caminho e liga quem entrava nele a quem saía */
+function stitchAround(edges, id) {
+  const incoming = edges.filter((a) => a.to === id && a.from !== id);
+  const outgoing = edges.filter((a) => a.from === id && a.to !== id);
+  const rest = edges.filter((a) => a.from !== id && a.to !== id);
+  incoming.forEach((i) => outgoing.forEach((o) => {
+    if (i.from === o.to) return; // costurar isso faria um laço de um nó só
+    if (rest.some((a) => a.from === i.from && a.to === o.to)) return;
+    const rate = i.avgRate != null && o.avgRate != null ? Math.round(i.avgRate * o.avgRate) / 100
+      : i.avgRate != null ? i.avgRate : o.avgRate == null ? null : o.avgRate;
+    rest.push({ id: newId(), from: i.from, to: o.to, label: i.label || o.label || "", avgRate: rate });
+  }));
+  return rest;
+}
+
+function migrateLegacy(d) {
+  const raw = Array.isArray(d.nodes) ? d.nodes : [];
+  if (!raw.some((n) => n && LEGACY_NODES[n.type])) return d; // o caminho de todo dia sai por aqui
+  const nodes = raw.map((n) => ({ ...n, fields: { ...(n.fields || {}) } })); // nada de mexer no documento de quem chamou
+  const byId = new Map(nodes.map((n) => [n.id, n]));
+  const lists = {
+    creatives: Array.isArray(d.creatives) ? d.creatives.map((x) => ({ ...x })) : [],
+    automations: Array.isArray(d.automations) ? d.automations.map((x) => ({ ...x })) : [],
+    offers: Array.isArray(d.offers) ? d.offers.map((x) => ({ ...x })) : [],
+    triggers: Array.isArray(d.triggers) ? d.triggers.map((x) => ({ ...x })) : []
+  };
+  let edges = Array.isArray(d.edges) ? d.edges.map((a) => ({ ...a })) : [];
+  const keep = [];
+
+  nodes.forEach((n) => {
+    const kind = LEGACY_NODES[n.type];
+    if (!kind) { keep.push(n); return; }
+    const title = String(n.title || "").trim();
+    const parents = edges.filter((a) => a.to === n.id && a.from !== n.id).map((a) => byId.get(a.from)).filter(Boolean);
+    const page = parents.find((p) => PAGE_TYPES.has(p.type));
+    const host = page || parents.find((p) => p.type === "checkout") || parents[0] || null;
+
+    /* o que estava pendurado no nó que vai embora passa a morar no hospedeiro
+       — e se a oferta (ou a automação) já existia apontando pra cá, ela é a
+       própria migração: escrever outra igual só daria linha repetida. */
+    const hosted = { creatives: 0, automations: 0, offers: 0, triggers: 0 };
+    Object.keys(lists).forEach((k) => lists[k].forEach((it) => {
+      if (it.node !== n.id) return;
+      hosted[k]++;
+      it.node = host ? host.id : "";
+    }));
+
+    if (kind === "field") {
+      const text = String(n.fields.text || "").trim() || title;
+      const target = String(n.fields.target || "").trim();
+      if (page) {
+        if (text && !page.fields.cta) page.fields.cta = text;
+        if (target && !page.fields.ctaTarget) page.fields.ctaTarget = target;
+      } else if (host && (text || target)) {
+        /* o pai não tem campo de cta (um e-mail, um whatsapp): vira nota dele */
+        host.note = [String(host.note || "").trim(), "cta: " + [text, target].filter(Boolean).join(" → ")].filter(Boolean).join("\n");
+      } else {
+        keep.push({ ...n, type: "custom" }); // órfão: fica no palco como etapa livre
+        return;
+      }
+    } else if (kind === "offer") {
+      if (!hosted.offers) lists.offers.push({
+        id: newId(), name: title || "bump", price: +n.fields.price || 0, type: "bump",
+        promise: String(n.note || ""), guarantee: "", node: host ? host.id : ""
+      });
+    } else if (!hosted.automations) {
+      const days = n.fields.window;
+      lists.automations.push({
+        id: newId(), name: title || "remarketing",
+        trigger: days ? "não avançou em " + days + " dias" : "",
+        action: String(n.note || n.fields.audience || ""),
+        tool: String(n.fields.channel || ""), status: "idea", node: host ? host.id : ""
+      });
+    }
+    edges = stitchAround(edges, n.id);
+  });
+  return { ...d, nodes: keep, edges, ...lists };
+}
+function normalize(raw) {
+  const d = migrateLegacy(raw);
   return {
     id: d.id,
     name: String(d.name || ""),
@@ -355,6 +508,25 @@ function funnelContext(doc) {
     offers: doc.offers.map((o) => (o.name || "") + " " + brl(o.price || 0)),
     triggers: doc.triggers.map((g) => g.name || ""),
     numbers: rates.join(", ") || "sem números lançados ainda"
+  };
+}
+
+/* o contexto de uma etapa só, para o Merlin dizer o que vem depois DELA.
+   é bem menor que o do funil inteiro de propósito: a pergunta é estreita
+   ("o que sai daqui?") e a resposta tem que caber em três cartões. */
+function nextStageContext(doc, node) {
+  const byId = new Map(doc.nodes.map((n) => [n.id, n]));
+  const around = (dir, mine) => doc.edges.filter((a) => a[dir] === node.id).map((a) => byId.get(a[mine])).filter(Boolean).map(nodeLabel);
+  return {
+    name: doc.name || "",
+    client: clientName(doc.client) || "",
+    stage: typeLabel(node) + ": " + nodeLabel(node),
+    fields: typeOf(node).fields.map((f) => (node.fields[f.key] ? f.label + ": " + node.fields[f.key] : "")).filter(Boolean),
+    before: around("to", "from"),
+    after: around("from", "to"),
+    stages: orderedNodes(doc).map((n) => typeLabel(n) + ": " + nodeLabel(n)),
+    offers: doc.offers.map((o) => o.name || ""),
+    types: TYPE_ORDER.join(", ")
   };
 }
 
@@ -496,6 +668,61 @@ function drawEdge(a, ctx) {
   ]);
 }
 
+/* ---------- o fantasma ----------
+   a etapa que ainda não existe, desenhada à direita da que está
+   selecionada: tracejada, apagada, e com um "+" que diz que ela é um
+   convite e não um dado. um clique nela vira etapa de verdade, ligada à
+   anterior — e a etapa nova, já selecionada, mostra os fantasmas dela.
+   é assim que o funil se desenha quase sozinho, um clique por etapa.
+   o fantasma é menor que o cartão real de propósito: ele não tem número,
+   não tem chip e não tem o que mostrar nas duas faixas de baixo. */
+const GHOST_H = 58, GHOST_GAP = 14, GHOST_DX = 96;
+
+/* a tira de fantasmas, centrada na etapa de origem. se ela cair em cima de
+   uma etapa que já existe, desce até achar chão livre — palpite nenhum vale
+   esconder o que o Arthur já desenhou. */
+function placeGhosts(doc, node, list) {
+  if (!list.length) return [];
+  const total = list.length * GHOST_H + (list.length - 1) * GHOST_GAP;
+  /* funil vazio: a tira nasce sozinha no canto, sem etapa de origem */
+  if (!node) return list.map((g, i) => ({ ...g, x: 60, y: Math.round(60 + i * (GHOST_H + GHOST_GAP)) }));
+  const x = node.x + NODE_W + GHOST_DX;
+  const others = doc.nodes.filter((n) => n.id !== node.id);
+  const busy = (top) => others.some((o) => o.x < x + NODE_W && o.x + NODE_W > x && o.y < top + total && o.y + NODE_H > top);
+  let top = node.y + NODE_H / 2 - total / 2;
+  for (let i = 0; i < 8 && busy(top); i++) top += NODE_H + 28;
+  return list.map((g, i) => ({ ...g, x, y: Math.round(top + i * (GHOST_H + GHOST_GAP)) }));
+}
+
+function drawGhost(g, i, from) {
+  const def = NODE_TYPES[g.type] || NODE_TYPES.custom;
+  const cy = GHOST_H / 2;
+  const x1 = from ? from.x + NODE_W + 5 : 0, y1 = from ? from.y + PORT_Y : 0, x2 = g.x - 5, y2 = g.y + cy;
+  const dx = Math.max(40, Math.abs(x2 - x1) * 0.5);
+  return svgEl("g", { class: "ghost", "data-ghost": String(i) }, [
+    from ? svgEl("path", { class: "ghost-link", d: "M " + x1 + " " + y1 + " C " + (x1 + dx) + " " + y1 + " " + (x2 - dx) + " " + y2 + " " + x2 + " " + y2 }) : null,
+    svgEl("g", { class: "ghost-card", transform: "translate(" + g.x + "," + g.y + ")" }, [
+      svgEl("rect", { class: "ghost-box", width: NODE_W, height: GHOST_H, rx: 12 }),
+      svgEl("g", { class: "ghost-icon" + (def.conversion ? " is-conversion" : ""), transform: "translate(17," + (cy - 7) + ") scale(.5833)" }, def.icon.map(([tag, attrs]) => svgEl(tag, attrs))),
+      svgText("ghost-type", 46, cy - 5, def.label),
+      svgText("ghost-why", 46, cy + 10, truncate(g.title || g.note || "", 27)),
+      svgEl("g", { class: "ghost-plus", transform: "translate(" + (NODE_W - 19) + "," + cy + ")" }, [
+        svgEl("circle", { r: 9 }),
+        svgEl("path", { d: "M-4.5 0h9M0 -4.5v9" })
+      ])
+    ])
+  ]);
+}
+
+/* a única porta da tira para a rede: trocar o palpite genérico da gramática
+   pelo palpite deste funil, com nome de produto e de ferramenta dentro. */
+function askRow(x, y, thinking) {
+  return svgEl("g", { class: "ghost-ask" + (thinking ? " is-thinking" : "") }, [
+    svgEl("rect", { class: "ghost-ask-box", x, y, width: NODE_W, height: 26, rx: 13 }),
+    svgText("ghost-ask-text", x + NODE_W / 2, y + 17, thinking ? "pensando…" : "✦ pedir ao Merlin", { "text-anchor": "middle" })
+  ]);
+}
+
 /* a vista (pan/zoom) é conveniência de tela, não dado do funil — por isso
    mora só no localStorage deste navegador, fora da coleção sincronizada. */
 function readView(id) {
@@ -509,9 +736,9 @@ function readView(id) {
 /* o palco. `api` é um ref que o editor usa para pedir zoom, enquadrar e
    converter coordenadas — a vista mora aqui, e só aqui. */
 function Stage(props) {
-  const { api, doc, selected, comparing, projections, empty } = props;
+  const { api, doc, selected, comparing, projections, ghosts, empty } = props;
   const wrapRef = useRef(null), svgRef = useRef(null), worldRef = useRef(null);
-  const edgesRef = useRef(null), nodesRef = useRef(null), tempRef = useRef(null);
+  const edgesRef = useRef(null), nodesRef = useRef(null), ghostsRef = useRef(null), tempRef = useRef(null);
   const viewRef = useRef(null);
   const liveRef = useRef({ nodes: [], edges: [] }); // cópia de trabalho: o arrasto mexe nela, nunca no documento
   const latest = useRef(props);
@@ -577,6 +804,23 @@ function Stage(props) {
     viewRef.current = fitView(freeArea(), nodes || latest.current.doc.nodes);
     applyView(); saveView();
   };
+  /* traz um retângulo do mundo para dentro da área livre com o menor
+     empurrão que resolve — sem mexer no zoom e sem reenquadrar. é o que
+     mantém a corrente de fantasmas andando: a etapa nova abre o painel da
+     direita, e a tira seguinte nasceria justo atrás dele. */
+  const ensureVisible = (box) => {
+    const a = freeArea(), v = viewRef.current, M = 24;
+    const x1 = v.x + box.x * v.k, x2 = v.x + (box.x + box.w) * v.k;
+    const y1 = v.y + box.y * v.k, y2 = v.y + (box.y + box.h) * v.k;
+    let dx = 0, dy = 0;
+    if (x2 > a.left + a.width - M) dx = a.left + a.width - M - x2;
+    if (x1 + dx < a.left + M) dx = a.left + M - x1; // não cabe inteiro: o começo é que importa
+    if (y2 > a.top + a.height - M) dy = a.top + a.height - M - y2;
+    if (y1 + dy < a.top + M) dy = a.top + M - y1;
+    if (!dx && !dy) return;
+    viewRef.current = { ...v, x: v.x + dx, y: v.y + dy };
+    applyView(); saveView();
+  };
 
   const contextOf = () => {
     const p = latest.current;
@@ -593,10 +837,28 @@ function Stage(props) {
     };
   };
   const drawEdges = (ctx) => { edgesRef.current.replaceChildren(...liveRef.current.edges.map((a) => drawEdge(a, ctx)).filter(Boolean)); };
+  /* os fantasmas moram numa camada só deles: aparecem e somem sem tocar
+     no resto do desenho, e saem da frente assim que um arrasto começa. */
+  const drawGhosts = () => {
+    const g = latest.current.ghosts;
+    if (!g || !g.list.length) { ghostsRef.current.replaceChildren(); return; }
+    const from = g.from ? liveRef.current.nodes.find((n) => n.id === g.from) : null;
+    if (g.from && !from) { ghostsRef.current.replaceChildren(); return; }
+    const list = placeGhosts({ nodes: liveRef.current.nodes }, from, g.list);
+    const drawn = list.map((x, i) => drawGhost(x, i, from));
+    /* a gramática já respondeu; quem quiser o palpite deste funil em vez do
+       palpite de qualquer funil pede aqui, e só aqui é que a rede é usada. */
+    if (from && !g.merlin) {
+      const last = list[list.length - 1];
+      drawn.push(askRow(last.x, last.y + GHOST_H + 10, g.thinking));
+    }
+    ghostsRef.current.replaceChildren(...drawn);
+  };
   const redraw = () => {
     const ctx = contextOf();
     nodesRef.current.replaceChildren(...liveRef.current.nodes.map((n) => drawNode(n, ctx)));
     drawEdges(ctx);
+    drawGhosts();
   };
   /* durante o arrasto só o nó que anda e as arestas dele são refeitos */
   const patchNode = (id) => {
@@ -616,11 +878,11 @@ function Stage(props) {
     liveRef.current = { nodes: doc.nodes.map((n) => ({ ...n })), edges: doc.edges };
     if (!viewRef.current) { viewRef.current = readView(doc.id) || fitView(freeArea(), doc.nodes); applyView(); }
     redraw();
-  }, [doc, selected, comparing, projections]);
+  }, [doc, selected, comparing, projections, ghosts]);
 
   useEffect(() => {
     api.current = {
-      zoomBy, fit,
+      zoomBy, fit, ensureVisible,
       resetZoom: () => zoomBy(1 / viewRef.current.k),
       toWorld,
       center: () => { const r = wrapRef.current.getBoundingClientRect(); return toWorld(r.left + r.width / 2, r.top + r.height / 2); }
@@ -639,6 +901,10 @@ function Stage(props) {
       const active = document.activeElement;
       if (active && /^(INPUT|TEXTAREA|SELECT)$/.test(active.tagName)) active.blur();
       const p = latest.current;
+      /* o fantasma é um convite, não um objeto: um toque nele já vira etapa */
+      if (e.target.closest(".ghost-ask")) { e.preventDefault(); p.onAskMerlin(); return; }
+      const ghostEl = e.target.closest(".ghost");
+      if (ghostEl) { e.preventDefault(); p.onAcceptGhost(+ghostEl.dataset.ghost); return; }
       const handle = e.target.closest(".node-handle");
       const nodeEl = e.target.closest(".node");
       const edgeEl = e.target.closest(".edge");
@@ -651,6 +917,7 @@ function Stage(props) {
         if (!n) return;
         const m = toWorld(e.clientX, e.clientY);
         dragNode = { id, dx: m.x - n.x, dy: m.y - n.y, moved: false };
+        ghostsRef.current.replaceChildren(); // a tira ficaria no lugar antigo enquanto a etapa anda
         el.setPointerCapture(e.pointerId);
         return;
       }
@@ -768,9 +1035,11 @@ function Stage(props) {
             <path d="M0 0L10 5L0 10z" fill="context-stroke" />
           </marker>
         </defs>
-        <g ref={worldRef}><g ref={edgesRef} /><g ref={nodesRef} /><g ref={tempRef} /></g>
+        <g ref={worldRef}><g ref={edgesRef} /><g ref={nodesRef} /><g ref={ghostsRef} /><g ref={tempRef} /></g>
       </svg>
-      {empty && <p className="empty fe-empty">nenhuma etapa ainda — arraste um tipo da biblioteca para cá, dê dois cliques no palco, ou selecione uma etapa e aperte <kbd>Tab</kbd> para ligar a próxima.</p>}
+      {empty && <p className="empty fe-empty">{ghosts
+        ? <>nenhuma etapa ainda — clique num dos cartões tracejados para começar, ou arraste um tipo da biblioteca para cá.</>
+        : <>nenhuma etapa ainda — arraste um tipo da biblioteca para cá, dê dois cliques no palco, ou selecione uma etapa e aperte <kbd>Tab</kbd> para ligar a próxima.</>}</p>}
     </div>
   );
 }
@@ -845,9 +1114,9 @@ function Editor({ id, funnels }) {
   const patchEdge = (eid, patch, opts) => update((d) => ({ ...d, edges: d.edges.map((a) => (a.id === eid ? { ...a, ...patch } : a)) }), opts);
   const setNodeField = (nid, key, value) =>
     update((d) => ({ ...d, nodes: d.nodes.map((n) => (n.id === nid ? { ...n, fields: { ...n.fields, [key]: value } } : n)) }));
-  const createNode = (type, x, y) => {
+  const createNode = (type, x, y, seed) => {
     const def = NODE_TYPES[type] || NODE_TYPES.custom;
-    const n = normalizeNode({ id: newId(), type, title: "", x, y, fields: {}, number: null, note: "" });
+    const n = normalizeNode({ id: newId(), type, title: (seed && seed.title) || "", x, y, fields: {}, number: null, note: (seed && seed.note) || "" });
     def.fields.forEach((f) => { if (f.preset != null) n.fields[f.key] = f.preset; });
     update((d) => ({ ...d, nodes: [...d.nodes, n] }), { undo: true });
     pendingFocus.current = n.id; // a etapa nasce sem nome: o cursor já cai no título, pra digitar direto
@@ -882,6 +1151,72 @@ function Editor({ id, funnels }) {
     const c = stage.current.center();
     createNode(type, Math.round(c.x - NODE_W / 2), Math.round(c.y - NODE_H / 2));
     if (window.innerWidth < 900) showLibrary(false); // no celular a biblioteca cobre o palco: sai da frente
+  };
+
+  /* ---------- a próxima etapa ----------
+     o fantasma não é sugestão de IA: é a gramática do funil respondendo na
+     hora "o que costuma vir depois disto". por isso ele aparece sozinho,
+     sem botão, sem espera e sem custo — a etapa nasce já selecionada, e a
+     tira dela já está lá. o Merlin entra só se for chamado, e o que ele faz
+     é trocar o genérico ("checkout") pelo concreto deste funil. como toda
+     tira é um palpite, ela não grava nada: só clicar num cartão cria etapa.
+     quem achar que atrapalha desliga, e a escolha fica no aparelho. */
+  const [ghostsOn, setGhostsOn] = useState(() => {
+    try { return localStorage.getItem(GHOSTS_KEY) !== "off"; } catch (e) { return true; }
+  });
+  const [merlinGhosts, setMerlinGhosts] = useState(null); // {from, list} — vale só para a etapa que pediu
+  const [ghosting, setGhosting] = useState(false);
+  const toggleGhosts = () => setGhostsOn((on) => {
+    try { localStorage.setItem(GHOSTS_KEY, on ? "off" : "on"); } catch (e) {}
+    return !on;
+  });
+  const ghostFrom = selected && selected.kind === "node" ? doc.nodes.find((n) => n.id === selected.id) : null;
+  const ghosts = useMemo(() => {
+    if (!ghostsOn) return null;
+    if (!doc.nodes.length) return { from: null, list: FIRST_STAGES.map(([type, why]) => ({ type, title: "", note: why })) };
+    if (!ghostFrom) return null;
+    const mine = merlinGhosts && merlinGhosts.from === ghostFrom.id;
+    const list = mine ? merlinGhosts.list : ghostsFor(doc, ghostFrom);
+    return list.length ? { from: ghostFrom.id, list, merlin: mine, thinking: ghosting } : null;
+  }, [doc, ghostFrom, ghostsOn, merlinGhosts, ghosting]);
+
+  /* aceitar é criar: a etapa nasce onde o fantasma estava, ligada à
+     anterior, e o lote inteiro é um passo só de desfazer. */
+  const acceptGhost = (i) => {
+    if (!ghosts) return;
+    const d = docRef.current;
+    const from = ghosts.from ? d.nodes.find((n) => n.id === ghosts.from) : null;
+    if (ghosts.from && !from) return;
+    const g = placeGhosts(d, from, ghosts.list)[i];
+    if (!g) return;
+    /* o porquê da gramática é texto de ajuda, não conteúdo da etapa; o do
+       Merlin é conselho sobre este funil, e esse vale guardar na nota. */
+    const n = createNode(g.type, g.x, g.y, { title: g.title, note: ghosts.merlin ? g.note : "" });
+    if (from) update((x) => ({ ...x, edges: [...x.edges, { id: newId(), from: from.id, to: n.id, label: "", avgRate: null }] }));
+    setMerlinGhosts(null); // a tira era daquela etapa; a nova pede a dela
+    /* no quadro seguinte, porque é lá que o painel da direita já abriu e a
+       área livre passa a ser a de verdade */
+    const strip = MAX_GHOSTS * GHOST_H + (MAX_GHOSTS - 1) * GHOST_GAP;
+    requestAnimationFrame(() => stage.current.ensureVisible({
+      x: g.x, y: g.y + NODE_H / 2 - strip / 2,
+      w: NODE_W + GHOST_DX + NODE_W, h: Math.max(NODE_H, strip)
+    }));
+  };
+
+  const askGhosts = async () => {
+    if (ghosting || !ghosts || !ghosts.from) return;
+    const node = docRef.current.nodes.find((n) => n.id === ghosts.from);
+    if (!node) return;
+    setGhosting(true);
+    const body = await askMerlin("nextStage", nextStageContext(docRef.current, node), "o Merlin não conseguiu pensar na próxima etapa");
+    setGhosting(false);
+    if (!body) return;
+    const list = (Array.isArray(body.suggestions) ? body.suggestions : [])
+      .filter((s) => NODE_TYPES[s.nodeType])
+      .slice(0, MAX_GHOSTS)
+      .map((s) => ({ type: s.nodeType, title: s.title || "", note: s.note || "" }));
+    if (!list.length) { notify("o Merlin ficou na mesma ideia da gramática"); return; }
+    setMerlinGhosts({ from: node.id, list });
   };
 
   /* ---------- criativos, automações, ofertas, gatilhos ---------- */
@@ -1030,9 +1365,10 @@ function Editor({ id, funnels }) {
 
   return (
     <main className={"fe" + (drawer ? " is-drawer" : "")} id="editor">
-      <Stage api={stage} doc={doc} selected={selected} comparing={comparing} projections={projections}
+      <Stage api={stage} doc={doc} selected={selected} comparing={comparing} projections={projections} ghosts={ghosts}
         libraryOpen={libraryOpen} panelOpen={panelOpen} drawerOpen={!!drawer} empty={!doc.nodes.length}
-        onSelect={select} onCreateNode={createNode} onMoveNode={moveNode} onLink={linkNodes} onZoom={(k) => setZoom(Math.round(k * 100))} />
+        onSelect={select} onCreateNode={createNode} onMoveNode={moveNode} onLink={linkNodes}
+        onAcceptGhost={acceptGhost} onAskMerlin={askGhosts} onZoom={(k) => setZoom(Math.round(k * 100))} />
 
       <div className="fe-top">
         <div className="fe-group glass fe-trail">
@@ -1051,6 +1387,7 @@ function Editor({ id, funnels }) {
         <div className="fe-group glass">
           <button className="action" id="library-toggle" type="button" title="biblioteca de tipos" aria-label="Biblioteca" aria-pressed={String(libraryOpen)} onClick={() => showLibrary(!libraryOpen)}><LibraryIcon /></button>
           <button className="action" id="panel-toggle" type="button" title="painel do funil" aria-label="Painel" aria-pressed={String(panelOpen)} onClick={() => showPanel(!panelOpen)}><PanelIcon /></button>
+          <button className="action" id="ghosts-toggle" type="button" title="mostrar a próxima etapa sugerida" aria-label="Próxima etapa" aria-pressed={String(ghostsOn)} onClick={toggleGhosts}><GhostIcon /></button>
           <span className="sep"></span>
           <button className="pill pill--mini pill--green" id="suggest-btn" type="button" disabled={thinking} title="pedir sugestões ao Merlin para este funil" onClick={suggest}>
             {thinking ? "pensando…" : <><SparkIcon /><span>sugerir</span></>}
@@ -1101,21 +1438,34 @@ const MoneyInput = (props) => <BufferedInput placeholder="0,00" format={moneyTex
 /* ================================================================
    biblioteca de tipos, à esquerda
    ================================================================ */
+/* a biblioteca vem em prateleiras, na ordem em que o lead anda: com 27
+   tipos, uma grade única viraria um caça-palavras. buscar achata tudo de
+   volta numa lista só — quem já sabe o nome não quer saber de prateleira. */
 function Library({ hidden, onPick }) {
   const [term, setTerm] = useState("");
   const q = foldKey(term);
-  const types = TYPE_ORDER.filter((t) => !q || foldKey(NODE_TYPES[t].label).includes(q) || t.includes(q));
+  const matches = (t) => !q || foldKey(NODE_TYPES[t].label).includes(q) || t.includes(q);
+  const shelves = q
+    ? [{ name: "", types: TYPE_ORDER.filter(matches) }]
+    : TYPE_GROUPS;
+  const typeButton = (t) => (
+    <button key={t} type="button" className={"fe-type" + (NODE_TYPES[t].conversion ? " is-conversion" : "")} draggable="true" title={NODE_TYPES[t].label}
+        onClick={() => onPick(t)}
+        onDragStart={(e) => { e.dataTransfer.setData("text/plain", "type:" + t); e.dataTransfer.effectAllowed = "copy"; }}>
+      <span className="ico"><TypeIcon def={NODE_TYPES[t]} /></span><span>{NODE_TYPES[t].label}</span>
+    </button>
+  );
   return (
     <aside className="fe-library glass" id="library" hidden={hidden}>
       <div className="fe-library__top"><span className="t-mono">biblioteca</span><span className="t-mono">{TYPE_ORDER.length} tipos</span></div>
       <input className="input input--pill fe-library__search" id="library-search" placeholder="buscar tipo…" autoComplete="off" value={term} onChange={(e) => setTerm(e.currentTarget.value)} />
-      <div className="fe-library__grid">
-        {types.map((t) => (
-          <button key={t} type="button" className={"fe-type" + (NODE_TYPES[t].conversion ? " is-conversion" : "")} draggable="true" title={NODE_TYPES[t].label}
-              onClick={() => onPick(t)}
-              onDragStart={(e) => { e.dataTransfer.setData("text/plain", "type:" + t); e.dataTransfer.effectAllowed = "copy"; }}>
-            <span className="ico"><TypeIcon def={NODE_TYPES[t]} /></span><span>{NODE_TYPES[t].label}</span>
-          </button>))}
+      <div className="fe-library__shelves">
+        {shelves.filter((s) => s.types.length).map((s) => (
+          <div key={s.name || "busca"} className="fe-shelf">
+            {s.name && <p className="fe-shelf__name t-mono">{s.name}</p>}
+            <div className="fe-library__grid">{s.types.map(typeButton)}</div>
+          </div>))}
+        {!shelves.some((s) => s.types.length) && <p className="empty">nenhum tipo com esse nome.</p>}
       </div>
       <p className="fe-library__hint">clique para pôr no centro, ou arraste para o palco.</p>
     </aside>
@@ -1592,11 +1942,48 @@ function FunnelCard({ f, onDuplicate, onRemove }) {
   );
 }
 
+/* o modelo escolhido, em duas linhas: o que ele é e por onde passa. a mesma
+   dupla aparece no cliente, na hora de criar o funil de um canal. */
+function TemplateNote({ tpl }) {
+  return (
+    <>
+      <p className="tpl-note">{tpl.summary}</p>
+      <p className="tpl-chain">{funnelChain(tpl).join(" → ")}</p>
+    </>
+  );
+}
+
+/* o modelo virando funil de verdade: etapas, ligações e o que fica pendurado
+   nelas. o layout roda aqui — o modelo não guarda posição, só a estrutura. */
+function applyTemplate(doc, tpl) {
+  const parts = buildFunnel(tpl);
+  doc.nodes = layoutNodes(parts.nodes, parts.edges);
+  doc.edges = parts.edges;
+  doc.creatives = parts.creatives;
+  doc.automations = parts.automations;
+  doc.offers = parts.offers;
+  doc.triggers = parts.triggers;
+  /* se o cliente já tem um canal desse tipo, o funil nasce ligado a ele */
+  const client = doc.client ? clients().get(doc.client) : null;
+  const channel = tpl.channel && client ? (client.channels || []).find((c) => c.type === tpl.channel) : null;
+  if (channel) doc.channel = channel.id;
+  return doc;
+}
+
 /* criar é um botão e uma caixa, como em todo o sistema. no nome, "@frente"
    e "@cliente" continuam valendo (a mesma gramática do dia); os campos ao
-   lado ganham quando preenchidos. */
+   lado ganham quando preenchidos. o modelo é opcional: em branco, o funil
+   nasce vazio como sempre nasceu. */
 function FunnelForm({ funnels, onClose }) {
-  const [v, bind, set] = useFields({ name: "", front: "", client: "" });
+  const [v, bind, set] = useFields({ name: "", front: "", client: "", template: "" });
+  const tpl = v.template ? FUNNEL_TEMPLATES.find((t) => t.id === v.template) : null;
+  /* escolher o modelo batiza o funil, quando o nome ainda está vazio */
+  const pickTemplate = (e) => {
+    const id = e.currentTarget.value;
+    set("template", id);
+    const chosen = FUNNEL_TEMPLATES.find((t) => t.id === id);
+    if (chosen && !v.name.trim()) set("name", chosen.name);
+  };
   const submit = () => {
     const parsed = parseMentions(v.name);
     const name = (parsed.title || v.name).trim().slice(0, 80);
@@ -1609,12 +1996,24 @@ function FunnelForm({ funnels, onClose }) {
       period: { from: "", to: "" }, snapshots: [],
       createdAt: now, updatedAt: now
     };
+    if (tpl) applyTemplate(doc, tpl);
     funnels.save(doc);
     location.hash = doc.id;
   };
   return (
     <Form title="novo funil" submit="criar e abrir" onClose={onClose} onSubmit={submit}>
       <Field label="nome" full><input className="input" maxLength="80" required placeholder="funil da lojax · @guessless" {...bind("name")} /></Field>
+      <Field label="modelo" full>
+        <select className="select" id="funnel-template" value={v.template} onChange={pickTemplate}>
+          <option value="">funil em branco</option>
+          {funnelGroups().map((g) => (
+            <optgroup key={g.key} label={g.label}>
+              {g.items.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+            </optgroup>
+          ))}
+        </select>
+        {tpl && <TemplateNote tpl={tpl} />}
+      </Field>
       <Field label="frente">
         <select className="select" {...bind("front")} onChange={(e) => { set("front", e.currentTarget.value); set("client", ""); }}>{frontOptionList("sem frente")}</select>
       </Field>

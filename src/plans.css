@@ -43,7 +43,3 @@
 .review .textarea{min-height:44px;font-size:12.5px;padding:6px 10px}
 .review .field-label{margin-bottom:2px}
 #merlin-btn:disabled,.merlin-btn:disabled{opacity:.6;cursor:default}
-.merlin-body{font-size:13px;line-height:1.55;color:var(--ink-70);max-height:52vh;overflow-y:auto}
-.merlin-body p{margin:0 0 10px}
-.merlin-body ul,.merlin-body ol{margin:0 0 10px;padding-left:20px}
-.merlin-body h3,.merlin-body h4,.merlin-body h5{margin:14px 0 6px;color:var(--ink);font-size:13.5px}

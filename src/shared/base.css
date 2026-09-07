@@ -125,6 +125,13 @@ body::after{
 .form-grid .full{grid-column:1 / -1}
 .form-row{display:flex;gap:var(--pd2);align-items:center}
 .form-row .input{flex:1 1 auto}
+/* o modelo escolhido, logo abaixo do select: a frase do que ele e, e o
+   caminho das etapas em uma linha so — para escolher sem abrir nada */
+.tpl-note{margin:6px 0 0;font-size:12px;color:var(--ink-50);line-height:1.4}
+.tpl-chain{
+  margin:4px 0 0;font-family:var(--mono);font-size:11px;color:var(--ink-30);
+  line-height:1.5;overflow-wrap:anywhere;
+}
 
 /* ---------- linhas de lista ---------- */
 .list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:var(--pd3)}

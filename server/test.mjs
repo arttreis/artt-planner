@@ -88,9 +88,11 @@ function run(sql, a, mode) {
 
 /* intercepta o Resend para capturar o codigo em vez de mandar e-mail */
 let claudeAnswer = null;
+let claudeAsked = null;   /* o ultimo pedido que subiu, para conferir o contexto */
 globalThis.fetch = async (url, opts) => {
   if (String(url).includes("api.anthropic.com")) {
     const request = JSON.parse(opts.body);
+    claudeAsked = request.messages[0].content;
     check("merlin manda a chave", opts.headers["x-api-key"] === "sk-teste");
     check("merlin pede JSON no sistema", /JSON/.test(request.system));
     return new Response(JSON.stringify(claudeAnswer), { status: 200 });
@@ -273,6 +275,14 @@ claudeAnswer = { stop_reason: "end_turn", content: [{ type: "text", text: '{"sug
 r = await call("POST", "/merlin", { task: "expand", context: { title: "app", steps: [] } }, cookie);
 body = await r.json();
 check("merlin ramifica ideia", r.status === 200 && body.suggestions[0].type === "step");
+/* "da pra fazer com Claude?": a estimativa tem que subir junto, senao o
+   veredicto nao teria como falar em minutos */
+claudeAnswer = { stop_reason: "end_turn", content: [{ type: "text", text: '{"text":"**dá** — o Claude lê a planilha e escreve as descrições.\\n\\nMontar: escrever a skill de conferência"}' }] };
+r = await call("POST", "/merlin", { task: "delegate", context: { title: "conferir 400 anúncios", min: 180, where: "o backlog do cliente", client: "Loja X" } }, cookie);
+body = await r.json();
+check("merlin julga a demanda", r.status === 200 && /Montar:/.test(body.text), JSON.stringify(body));
+check("merlin recebe a estimativa da demanda", /180 minutos/.test(claudeAsked), String(claudeAsked).slice(0, 200));
+check("merlin recebe o cliente da demanda", /Loja X/.test(claudeAsked));
 claudeAnswer = { stop_reason: "end_turn", content: [{ type: "text", text: '{"text":"treino segurou; leitura caiu na segunda semana"}' }] };
 r = await call("POST", "/merlin", { task: "habits", context: { month: "set 2026", habits: ["treino · todo dia · 20/30 · sequência 4"] } }, cookie);
 body = await r.json();

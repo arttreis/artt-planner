@@ -79,8 +79,11 @@
 }
 .fe-library__top{display:flex;align-items:center;justify-content:space-between;color:var(--ink-30)}
 .fe-library__search{padding:6px 12px;font-size:12.5px;flex:none}
-.fe-library__grid:empty::after{content:"nenhum tipo com esse nome";font-size:12px;color:var(--ink-30);padding:8px 2px}
-.fe-library__grid{display:flex;flex-direction:column;gap:4px;overflow-y:auto;scrollbar-width:thin;padding-right:2px;margin-right:-2px}
+/* a biblioteca vem em prateleiras (aquisição, página, captura…): a rolagem
+   é do conjunto, não de cada grade, senão cada prateleira rolaria sozinha */
+.fe-library__shelves{display:flex;flex-direction:column;gap:13px;overflow-y:auto;scrollbar-width:thin;padding-right:2px;margin-right:-2px}
+.fe-shelf__name{margin:0 0 5px;color:var(--ink-30);font-size:9.5px;letter-spacing:.08em;text-transform:uppercase}
+.fe-library__grid{display:flex;flex-direction:column;gap:4px}
 .fe-type{
   display:flex;align-items:center;gap:10px;padding:5px 6px;
   border-radius:10px;background:var(--fill);border:1px solid var(--line-soft);
@@ -200,6 +203,38 @@ html.light .node-body{fill-opacity:.35}
 .edge-label-bg{fill:var(--surface-2);stroke:var(--line)}
 .edge.is-selected .edge-label-bg{stroke:var(--green)}
 .temp-link{fill:none;stroke:var(--green);stroke-width:1.6;stroke-dasharray:4 4;pointer-events:none}
+
+/* ---------- o fantasma: a etapa que ainda não existe ----------
+   tracejado e apagado porque ele não é dado, é convite: tem que dar pra ler
+   sem competir com o que já foi desenhado. só ganha corpo, borda verde e o
+   "+" preenchido quando o ponteiro chega — aí ele deixa de ser sugestão e
+   passa a ser uma coisa clicável. */
+.ghost{cursor:pointer}
+.ghost-link{fill:none;stroke:var(--ink-30);stroke-width:1.4;stroke-dasharray:4 4;opacity:.45;pointer-events:none;transition:opacity .15s,stroke .15s}
+.ghost-card{opacity:.55;transition:opacity .15s}
+.ghost:hover .ghost-card{opacity:1}
+.ghost:hover .ghost-link{opacity:.9;stroke:var(--green)}
+.ghost-box{fill:var(--surface);fill-opacity:.5;stroke:var(--ink-30);stroke-width:1.2;stroke-dasharray:5 4;transition:stroke .15s}
+.ghost:hover .ghost-box{fill-opacity:.96;stroke:var(--green);stroke-dasharray:none}
+.ghost-icon{color:var(--ink-50);fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.ghost-icon.is-conversion{color:var(--green-ink)}
+.ghost-type{fill:var(--ink-50);font-family:var(--mono);font-size:9px;letter-spacing:.08em;text-transform:uppercase}
+.ghost-why{fill:var(--ink-30);font-family:var(--sans);font-size:11px}
+.ghost:hover .ghost-type{fill:var(--ink-70)}
+.ghost:hover .ghost-why{fill:var(--ink-50)}
+.ghost-plus circle{fill:none;stroke:var(--ink-30);stroke-width:1.2;stroke-dasharray:3 2.6}
+.ghost-plus path{fill:none;stroke:var(--ink-30);stroke-width:1.6;stroke-linecap:round}
+.ghost:hover .ghost-plus circle{fill:var(--green);stroke:var(--green);stroke-dasharray:none}
+.ghost:hover .ghost-plus path{stroke:var(--on-green)}
+/* a única porta da tira para a rede — discreta, porque a gramática já
+   respondeu e o Merlin aqui é refinamento, não pré-requisito */
+.ghost-ask{cursor:pointer;opacity:.5;transition:opacity .15s}
+.ghost-ask:hover{opacity:1}
+.ghost-ask.is-thinking{cursor:default;opacity:.85}
+.ghost-ask-box{fill:var(--fill);stroke:var(--line-soft);stroke-width:1;transition:stroke .15s}
+.ghost-ask:hover .ghost-ask-box{stroke:var(--green)}
+.ghost-ask-text{fill:var(--ink-50);font-family:var(--mono);font-size:10px}
+.ghost-ask:hover .ghost-ask-text{fill:var(--green-ink)}
 .fe-empty{
   position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:2;
   text-align:center;max-width:300px;pointer-events:none;

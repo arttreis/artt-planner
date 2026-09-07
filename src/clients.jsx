@@ -10,8 +10,13 @@ import {
 import { useState, useEffect, useRef } from "react";
 import {
   mount, useCollection, useFronts, useHash, setHash, useKeydown, isTyping,
-  useFields, Form, Field, Dialog, Markdown, FrontBadge, frontOptionList, icon
+  useFields, Form, Field, Dialog, Markdown, FrontBadge, frontOptionList, icon,
+  useDelegate, DelegateDialog
 } from "./shared/ui.jsx";
+import {
+  CHANNEL_TYPES, CHANNEL_LABEL, CHANNEL_CHECKLISTS, FUNNEL_TEMPLATES, funnelGroups, funnelChain, buildFunnel
+} from "./shared/templates.js";
+import { layoutNodes } from "./shared/funnel-layout.js";
 
 initPage("clients");
 
@@ -27,26 +32,8 @@ const OFFER_LABEL = { product: "produto", service: "serviço", subscription: "as
 const JOURNAL_TYPES = ["note", "meeting", "decision", "delivery"];
 const JOURNAL_LABEL = { note: "nota", meeting: "reunião", decision: "decisão", delivery: "entrega" };
 
-const CHANNEL_TYPES = ["mercadolivre", "shopee", "tiktokshop", "amazon", "site", "instagram", "google", "whatsapp", "email", "other"];
-const CHANNEL_LABEL = {
-  mercadolivre: "mercado livre", shopee: "shopee", tiktokshop: "tiktok shop", amazon: "amazon",
-  site: "site", instagram: "instagram", google: "google", whatsapp: "whatsapp", email: "e-mail", other: "outro"
-};
-/* o modelo de cada canal: a estrutura do que precisa existir. entra como
-   itens nao feitos ao criar o canal, e dali pra frente e so texto editavel —
-   o modelo nao volta a ser consultado. */
-const CHANNEL_TEMPLATES = {
-  mercadolivre: ["conta e reputação", "catálogo cadastrado", "fotos e fichas técnicas", "frete/Mercado Envios", "Mercado Ads", "promoções/cupons", "atendimento e perguntas", "avaliações", "integração com ERP"],
-  shopee: ["conta e loja", "catálogo", "frete grátis/programa", "Shopee Ads", "cupons e lives", "avaliações", "atendimento"],
-  tiktokshop: ["conta seller", "catálogo", "afiliados/creators", "vídeos e lives de produto", "TikTok Ads", "logística"],
-  amazon: ["conta seller", "catálogo/ASINs", "FBA/frete", "Amazon Ads", "avaliações", "brand registry"],
-  site: ["domínio e hospedagem", "loja/CMS", "checkout (Stripe)", "pixel Meta e GA4", "SEO básico", "e-mail transacional", "políticas"],
-  instagram: ["bio e destaques", "linha editorial", "criativos", "Meta Ads", "WhatsApp/DM", "loja no Instagram"],
-  google: ["Google Business", "Google Ads", "GA4", "Search Console"],
-  whatsapp: ["número business", "catálogo", "automação (Manychat/API)", "scripts de atendimento"],
-  email: ["ferramenta", "listas/segmentos", "automações", "templates"],
-  other: []
-};
+/* o vocabulario de canal (tipos, rotulos e o checklist de cada um) mora em
+   shared/templates.js, junto dos funis de cada canal: e o mesmo assunto. */
 
 const TABS = [
   { id: "dashboard", label: "painel" },
@@ -686,7 +673,7 @@ function ChannelForm({ onClose, onAdd }) {
   const submit = () => {
     onAdd({
       id: newId(), type: v.type, name: v.name.trim() || CHANNEL_LABEL[v.type], url: "", note: "",
-      items: (CHANNEL_TEMPLATES[v.type] || []).map((text) => ({ id: newId(), text, done: false }))
+      items: (CHANNEL_CHECKLISTS[v.type] || []).map((text) => ({ id: newId(), text, done: false }))
     });
   };
   return (
@@ -704,16 +691,7 @@ function Channel({ doc, ch, ctx }) {
   const channelFunnels = funnels.all().filter((f) => f.client === doc.id && f.channel === ch.id);
   const channelsOf = (d) => d.channels;
   const itemsOf = (d) => { const c = d.channels.find((x) => x.id === ch.id); return c ? c.items : null; };
-  const newFunnel = () => {
-    const now = Date.now();
-    const f = {
-      id: newId(), name: doc.name + " · " + ch.name, client: doc.id, channel: ch.id, front: doc.front,
-      nodes: [], edges: [], creatives: [], automations: [], offers: [], triggers: [], snapshots: [],
-      createdAt: now, updatedAt: now
-    };
-    funnels.save(f);
-    location.href = "funnels.html#" + f.id;
-  };
+  const [funnelForm, setFunnelForm] = useState(false);
   return (
     <div className="channel block block--flat" data-id={ch.id}>
       <div className="item-head">
@@ -739,12 +717,63 @@ function Channel({ doc, ch, ctx }) {
       <label className="field-label mt2">nota</label>
       <textarea className="textarea" value={ch.note} onChange={(e) => updateItem(channelsOf, ch.id, (x) => { x.note = e.currentTarget.value; })} />
       <div className="channel-funnels">
-        <p className="heading"><span className="t-mono">funis</span><button className="pill pill--mini" type="button" onClick={newFunnel}>novo funil</button></p>
+        <p className="heading"><span className="t-mono">funis</span><button className="pill pill--mini" type="button" onClick={() => setFunnelForm(true)}>novo funil</button></p>
         {channelFunnels.length
           ? <ul className="list">{channelFunnels.map((f) => <li key={f.id} className="line"><a className="link name" href={"funnels.html#" + f.id}>{f.name}</a></li>)}</ul>
           : <p className="empty">nenhum funil ligado a este canal</p>}
       </div>
+      {funnelForm && <ChannelFunnelForm doc={doc} ch={ch} funnels={funnels} onClose={() => setFunnelForm(false)} />}
     </div>
+  );
+}
+
+/* o funil de um canal: o modelo ja vem filtrado pelo tipo do canal (dois por
+   canal, no minimo), e o funil nasce ligado ao cliente e ao canal — e abre. */
+function ChannelFunnelForm({ doc, ch, funnels, onClose }) {
+  const groups = funnelGroups(ch.type);
+  const [v, bind, set] = useFields({ name: doc.name + " · " + ch.name, template: "" });
+  const tpl = v.template ? FUNNEL_TEMPLATES.find((t) => t.id === v.template) : null;
+  const submit = () => {
+    const name = v.name.trim().slice(0, 80);
+    if (!name) { notify("o funil precisa de um nome"); return false; }
+    const now = Date.now();
+    const f = {
+      id: newId(), name, client: doc.id, channel: ch.id, front: doc.front,
+      nodes: [], edges: [], creatives: [], automations: [], offers: [], triggers: [],
+      period: { from: "", to: "" }, snapshots: [], createdAt: now, updatedAt: now
+    };
+    if (tpl) {
+      const parts = buildFunnel(tpl);
+      f.nodes = layoutNodes(parts.nodes, parts.edges);
+      f.edges = parts.edges;
+      f.creatives = parts.creatives;
+      f.automations = parts.automations;
+      f.offers = parts.offers;
+      f.triggers = parts.triggers;
+    }
+    funnels.save(f);
+    location.href = "funnels.html#" + f.id;
+  };
+  return (
+    <Form title="novo funil" sub={"do canal " + (CHANNEL_LABEL[ch.type] || ch.type)} submit="criar e abrir" onSubmit={submit} onClose={onClose}>
+      <Field label="nome" full><input className="input" maxLength="80" required {...bind("name")} /></Field>
+      <Field label="modelo" full>
+        <select className="select" value={v.template} onChange={(e) => set("template", e.currentTarget.value)}>
+          <option value="">funil em branco</option>
+          {groups.map((g) => (
+            <optgroup key={g.key} label={g.label}>
+              {g.items.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+            </optgroup>
+          ))}
+        </select>
+        {tpl && (
+          <>
+            <p className="tpl-note">{tpl.summary}</p>
+            <p className="tpl-chain">{funnelChain(tpl).join(" → ")}</p>
+          </>
+        )}
+      </Field>
+    </Form>
   );
 }
 
@@ -812,13 +841,29 @@ function Goal({ g, ctx }) {
   );
 }
 
-/* ---------- aba: backlog ---------- */
+/* ---------- aba: backlog ----------
+   e aqui que a demanda do cliente aparece antes de custar minuto: ao lado de
+   "puxar para o dia" mora a outra pergunta, a de quem talvez nao precise puxar
+   nada — "da pra fazer com Claude?". */
+
+/* o que o merlin precisa saber do cliente para julgar a demanda: quem e, o que
+   faz e por onde vende. o backlog inteiro e o diario seriam ruido aqui. */
+const aboutClient = (c) => [
+  c.name + (c.summary ? " — " + c.summary : ""),
+  c.channels.length ? "canais: " + c.channels.map((ch) => ch.name).join(", ") : ""
+].filter(Boolean).join(" · ");
+
 function Backlog({ doc, ctx }) {
   const [form, setForm] = useState(false);
+  const delegate = useDelegate();
   const { updateItem, removeFrom } = ctx;
   const backlogOf = (d) => d.backlog;
   const items = doc.backlog.slice().sort(compareBacklog);
   const pull = (b) => sendToDay({ title: b.text, min: b.min, front: doc.front, client: doc.id, origin: { type: "client", id: doc.id } });
+  const ask = (b) => delegate.ask({
+    id: b.id, title: b.text, min: b.min, due: b.due, front: doc.front, client: doc.id,
+    about: aboutClient(doc), where: "o backlog do cliente", origin: { type: "client", id: doc.id }
+  });
   return (
     <>
       <TabBar label="backlog" button="tarefa" id="add-backlog" onAdd={() => setForm(true)} />
@@ -831,6 +876,9 @@ function Backlog({ doc, ctx }) {
                 {b.min > 0 && <span className="measure">{formatMin(b.min)}</span>}
                 <input className="input backlog-due" type="date" title="prazo" value={b.due} onChange={(e) => updateItem(backlogOf, b.id, (x) => { x.due = e.currentTarget.value; })} />
                 <div className="row-actions">
+                  <button className="action" type="button" disabled={!!delegate.busy} data-thinking={delegate.busy === b.id ? "yes" : null}
+                    title={delegate.busy === b.id ? "pensando…" : "dá pra fazer com Claude?"}
+                    aria-label="Dá pra fazer com Claude" onClick={() => ask(b)}>{icon("spark")}</button>
                   <button className="action" type="button" aria-label="Puxar para o dia" onClick={() => pull(b)}>{icon("arrow")}</button>
                   <button className="action" type="button" aria-label="Remover" onClick={() => removeFrom(backlogOf, b.id, "item removido do backlog")}>{icon("trash")}</button>
                 </div>
@@ -838,6 +886,7 @@ function Backlog({ doc, ctx }) {
           </ul>
         : <p className="empty" id="backlog-empty">nada no backlog ainda</p>}
       {form && <BacklogForm onClose={() => setForm(false)} onAdd={(item) => ctx.update((d) => { d.backlog.push(item); })} />}
+      {delegate.answer && <DelegateDialog answer={delegate.answer} onClose={delegate.close} />}
     </>
   );
 }

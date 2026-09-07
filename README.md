@@ -9,7 +9,8 @@ Cada frente é **uma página**: um HTML na raiz, com o CSS dela inline, e um mó
 [`src/`](src/) com a tela. A tela é **React 19 com JSX**, e o build é o **Vite**, que cospe as
 páginas prontas em `server/site/` — a mesma pasta que o Worker serve. O que é comum vive em
 [`src/shared/`](src/shared/README.md): os tokens dos dois temas, a barra de navegação, a
-sessão, as coleções que sincronizam por documento e os componentes de tela.
+sessão, as coleções que sincronizam por documento, os componentes de tela e os **modelos** —
+o vocabulário de canal, 39 funis e 19 mapas prontos para começar de algum lugar.
 
 ```bash
 npm run dev      # servidor de desenvolvimento, com recarga na hora

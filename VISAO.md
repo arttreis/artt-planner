@@ -174,6 +174,10 @@ Referência: MindMaster / XMind. O que faz um mapa ser bom é **teclado e layout
 - Nó: título, nota, cor de ramo (as tintas + o verde), link.
 - Exportar PNG e outline em markdown.
 - Vários mapas, cada um ligado opcionalmente a ideia, cliente ou funil.
+- **Modelos**: 19 mapas prontos (plano de campanha, estrutura da oferta, avatar, roteiro de
+  VSL, cliente novo, ecossistema de canal, trimestre, decisão…), escolhidos na mesma caixa de
+  criar. O nome digitado vira a ideia central e os galhos do modelo nascem nela, cada um de
+  uma cor.
 - SVG próprio, sem biblioteca.
 
 ### 4.5 Funil (`funnels.html`)
@@ -181,13 +185,38 @@ Referência: MindMaster / XMind. O que faz um mapa ser bom é **teclado e layout
 Mapa com **tipos de nó**, **fluxo direcionado** e **números em cima**.
 
 - Grafo em camadas da esquerda para a direita; posição manual permitida.
-- Tipos: tráfego, anúncio, LP, VSL, captura, **CTA**, checkout, obrigado, e-mail/automação,
-  WhatsApp, remarketing, upsell/downsell/bump, personalizado. Cada um com campos próprios (URL,
-  plataforma, preço, custo). O checkout nasce com **Stripe**, que é o da casa.
+- **Só etapa entra como nó**, decidido em 07/09/2026. O teste é: dá para dizer "N pessoas
+  estiveram aqui" e "X% passaram daqui para a próxima"? O que não passa não é etapa. Por isso
+  **CTA** virou campo da página (o clique nele é a *aresta*, não o nó), **bump** virou oferta do
+  checkout (acontece na mesma tela, sem passagem) e **remarketing** virou automação (é caminho
+  de volta). Funis salvos e modelos antigos migram sozinhos na leitura, com as taxas médias
+  multiplicadas na costura: `lp>cta 30%` + `cta>checkout 90%` viram `lp>checkout 27%`.
+- 27 tipos, em prateleiras na ordem em que o lead anda: **aquisição** (tráfego, impressão,
+  anúncio, clique — separar impressão de clique é o que faz o CTR virar uma taxa visível),
+  **página** (LP, VSL, webinar, produto), **captura** (captura, qualificação, DM, grupo),
+  **relacionamento** (e-mail, WhatsApp), **venda** (agendamento, call, proposta, fechamento),
+  **compra** (carrinho, checkout, pagamento, obrigado — checkout iniciado ≠ pagamento aprovado,
+  e é no pix e no boleto que se perde depois da compra), **depois** (upsell, downsell, ativação,
+  recompra) e personalizado. Cada um com campos próprios (URL, plataforma, preço, custo). O
+  checkout nasce com **Stripe**, que é o da casa. O verde marca só onde entra dinheiro — a
+  página de obrigado ficou de fora, porque ela confirma a venda que já entrou no checkout.
+- **A próxima etapa aparece sozinha**, decidido em 07/09/2026. Ao soltar uma etapa, até três
+  cartões tracejados nascem à direita dela, cada um com o porquê ("a página sem formulário não
+  vira lead"); um clique vira etapa de verdade, já ligada, e a nova mostra a tira dela — o funil
+  se desenha a clique por etapa. Isso **não** é IA: é uma gramática local de 27 tipos e 65
+  passagens, que responde no mesmo quadro, offline e de graça. O Merlin entra só se chamado, na
+  linha embaixo da tira, e o que ele faz é trocar o genérico ("checkout") pelo concreto daquele
+  funil ("checkout Stripe do plano anual").
 - **Vazão**: cada nó tem pessoas no período; cada aresta mostra a taxa real (calculada) e uma
   **taxa média** esperada, digitada. Onde falta número real, o funil projeta a partir da média
   (em cinza, com "~"). A diferença entre real e média é o que a tela quer mostrar. Números
   continuam manuais; Meta Ads e pixel ficam para depois, por decisão.
+- **Modelos**: 39 funis prontos, com as etapas, as ligações e as taxas médias esperadas já
+  preenchidas — de captura com isca, tripwire, VSL perpétua, lançamento e high ticket a
+  carrinho abandonado e recompra. Pelo menos **dois por canal** (mercado livre, shopee, tiktok
+  shop, amazon, site, instagram, google, whatsapp, e-mail), que é o que amarra o funil ao canal
+  do cliente (4.6). Escolher é um `<select>` na caixa de criar; a taxa média vem como ponto de
+  partida, para ser corrigida com o número real.
 - Período selecionável; retratos com data para comparar.
 - Pertence a um cliente e a um **canal** (4.6), ou à frente.
 
@@ -202,8 +231,9 @@ Cliente pertence a uma frente. O que um cliente tem:
 - **Canais**: Mercado Livre, Shopee, TikTok Shop, Amazon, site próprio, Instagram, etc. Cada
   canal tem a **estrutura** dele: um checklist do que precisa existir (conta, catálogo, frete,
   anúncios, avaliações, pixel…), com o que já foi feito e o que falta. Vem de um modelo por tipo
-  de canal, editável por cliente. Um canal pode ter funis ligados. É o que responde "nesse
-  cliente ainda não fiz X".
+  de canal, editável por cliente. Um canal pode ter funis ligados — e o "novo funil" dentro do
+  canal já oferece os modelos daquele canal, criando o funil ligado ao cliente e ao canal. É o
+  que responde "nesse cliente ainda não fiz X".
 - **Objetivos** com resultado-chave e prazo, cada um com planejamento (checklist ou mapa).
 - **Backlog**: tarefas sem hora, com prazo opcional, frente e cliente já preenchidos; "puxar
   para o dia".
@@ -241,14 +271,36 @@ filtro por frente, conciliação bancária, extrato, NF.
 
 ### 4.8 Merlin, o conselheiro
 
-O que só uma IA faz bem, sempre passando pela decisão de quem está na tela: a sugestão abre num
-diálogo com caixas de marcar; nada entra sozinho.
+O que só uma IA faz bem, sempre passando pela decisão de quem está na tela: nada entra sozinho.
+A sugestão em lote abre num diálogo com caixas de marcar; a sugestão de um item só é desenhada
+tracejada no próprio palco, onde ela nasceria, e um clique é que a torna real.
 
 - **Feito**: rota `/api/merlin` no worker (chave `ANTHROPIC_API_KEY` como segredo, modelo
-  `claude-opus-5`) com seis tarefas: **ramos** (mapa mental, nó selecionado), **funil** (o que
-  falta: etapas, automações, criativos, ofertas, gatilhos), **ramificar** (perguntas, caminhos
+  `claude-opus-5`) com dez tarefas: **ramos** (mapa mental, nó selecionado), **funil** (o que
+  falta: etapas, automações, criativos, ofertas, gatilhos), **próxima etapa** (o que vem depois
+  de uma etapa só, para refinar a tira de fantasmas do funil), **ramificar** (perguntas, caminhos
   e passos para uma ideia), **semana** (resumo do que fechou e ficou, por frente), **reunião**
-  (pauta com um cliente, que pode ir para o diário) e **números** (onde o funil está perdendo).
+  (pauta com um cliente, que pode ir para o diário), **números** (onde o funil está perdendo),
+  **hábitos** (o mês que passou), **revisão** (o período de planejamento) e **delegar**, abaixo.
+- **Ramos do mapa como fantasma**, decidido em 07/09/2026. O `S` continua sendo o gatilho, mas
+  a resposta deixou de ser um diálogo de caixinhas: os ramos aparecem tracejados no lugar exato
+  onde nasceriam, e clicar em um fica com aquele — os outros somem. Eles nunca entram no
+  documento (vivem só na árvore que vai para o layout), então o espaço já fica reservado, nada
+  pula quando um vira real, e não há o que desfazer se você dispensar com `Esc`.
+- **"Dá pra fazer com Claude?"** (`task: "delegate"`), decidido em 07/09/2026. A pergunta que o
+  Arthur já faz sozinho o tempo todo vira botão nos dois lugares onde a demanda aparece antes
+  de custar minuto: a linha da fila do dia (*isso* dá pra fazer com Claude?) e o item de backlog
+  do cliente (*essa demanda* dá pra fazer com Claude?). O Merlin responde com um veredicto —
+  **dá**, **dá em parte** ou **não dá** —, o que exatamente o Claude faria e com qual forma
+  (Claude Code numa pasta, uma skill, um agente ligado por MCP a uma ferramenta que ele já usa,
+  um artifact, um agente agendado, ou a API dentro de um produto), o que precisa existir antes,
+  o que continua sendo trabalho do Arthur e, quando há estimativa, em quantos minutos a demanda
+  ficaria com o Claude fazendo a parte dele. É o que amarra a feature ao princípio da casa: o
+  veredicto mexe em minutos.
+  Nada é gravado. Quando o veredicto é de que dá, a resposta termina numa linha `Montar: …` e
+  um botão manda **isso** — o que precisa ser montado, não a demanda — para a caixa de entrada
+  do dia, sem duração, porque minutos são assunto do dia. Quando não dá, não há linha nem
+  botão: o Merlin não inventa trabalho para justificar a própria resposta.
 - **Depois**: entrada em linguagem natural para o sistema todo.
 
 ---
@@ -311,7 +363,7 @@ qualquer gráfico antes de existir um mês inteiro de marcas.
 
 | # | Etapa | Estado |
 | --- | --- | --- |
-| 0 | Fundação: nome, tema claro, navegação, `shared/`, `/api/docs`, trava de e-mail | em construção |
+| 0 | Fundação: nome, tema claro, navegação, `shared/`, `/api/docs`, trava de e-mail | feito |
 | 1 | Ideias | feito |
 | 2 | Semana | feito |
 | 3 | Clientes com frentes e canais | feito |
@@ -321,8 +373,10 @@ qualquer gráfico antes de existir um mês inteiro de marcas.
 | 7 | Vazão real (Meta Ads, pixel) | depois |
 | 8 | Merlin conselheiro (mapa, funil, ideias, semana, reunião, números) | feito |
 | 9 | Sidebar, busca global, cofre cifrado, taxa média no funil, cartões de hoje no dia | feito |
-| 10 | Migração para o Preact e para o inglês (`MIGRATION.md`) | em construção |
-| 11 | Hábitos (`habits.html`) e Planos (`plans.html`) | depois da migração |
+| 10 | Migração para o Preact e para o inglês (`MIGRATION.md`) | feito |
+| 11 | Hábitos (`habits.html`) e Planos (`plans.html`) | feito |
+| 12 | Segunda migração: Preact → React 19 com Vite (`MIGRATION.md`, seção 10) | feito |
+| 13 | Entrada em linguagem natural para o sistema todo (seção 4.8) | depois |
 
 ---
 

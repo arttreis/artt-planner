@@ -270,6 +270,9 @@ export const cloud = {
   async syncAll() {
     if (!this.signedIn) return;
     for (const c of collections.values()) await c.sync();
+    /* se a primeira carga pegou a rede fora, as sementes ficaram para tras;
+       a sincronizacao seguinte (voltar para a aba, entrar) e a segunda chance */
+    seedFronts();
   },
   async signOut() {
     await api("/sign-out", { method: "POST" }).catch(() => {});
@@ -343,15 +346,19 @@ export function collection(type, options = {}) {
   let data = read();
   let uploadTimer = null;
   let syncing = false;
+  /* um download ja voltou nesta sessao — quem precisa saber se a nuvem ja
+     falou antes de decidir alguma coisa (as sementes das frentes) pergunta */
+  let downloaded = false;
 
   function read() {
     let raw = null;
     try { raw = JSON.parse(localStorage.getItem(key)); } catch (e) {}
-    const d = { items: {}, serverV: 0, dirty: [] };
+    const d = { items: {}, serverV: 0, dirty: [], refused: {} };
     if (raw && typeof raw === "object") {
       if (raw.items && typeof raw.items === "object") d.items = raw.items;
       d.serverV = +raw.serverV || 0;
       d.dirty = Array.isArray(raw.dirty) ? raw.dirty : [];
+      if (raw.refused && typeof raw.refused === "object") d.refused = raw.refused;
     }
     return d;
   }
@@ -364,6 +371,12 @@ export function collection(type, options = {}) {
   function docOf(item) {
     if (!item || !item.doc || item.doc.deleted) return null;
     return normalize({ ...item.doc });
+  }
+  /* entra na fila de subida. um documento e ou sujo ou recusado, nunca os
+     dois: gravar de novo e a segunda chance de quem o servidor recusou. */
+  function enqueue(id) {
+    delete data.refused[id];
+    if (!data.dirty.includes(id)) data.dirty.push(id);
   }
 
   const c = {
@@ -379,7 +392,7 @@ export function collection(type, options = {}) {
       const v = STAMP();
       const clean = { ...doc, id: String(doc.id), v };
       data.items[clean.id] = { v, doc: clean };
-      if (!data.dirty.includes(clean.id)) data.dirty.push(clean.id);
+      enqueue(clean.id);
       persist();
       scheduleUpload();
       emit("local");
@@ -391,7 +404,7 @@ export function collection(type, options = {}) {
         const v = STAMP();
         const clean = { ...doc, id: String(doc.id), v };
         data.items[clean.id] = { v, doc: clean };
-        if (!data.dirty.includes(clean.id)) data.dirty.push(clean.id);
+        enqueue(clean.id);
       });
       persist(); scheduleUpload(); emit("local");
     },
@@ -402,6 +415,7 @@ export function collection(type, options = {}) {
       return before;
     },
     onChange(fn) { listeners.add(fn); return () => listeners.delete(fn); },
+    hasDownloaded() { return downloaded; },
     async sync() {
       if (!cloud.signedIn || syncing) return;
       syncing = true;
@@ -426,6 +440,7 @@ export function collection(type, options = {}) {
         if (!local || d.v > local.v) { data.items[d.id] = { v: d.v, doc: { ...d.doc, id: d.id, v: d.v } }; changed = true; }
       });
       persist();
+      downloaded = true;
       if (changed) emit("cloud");
       cloud.setStatus("synced");
     } catch (e) { cloud.setStatus("offline"); }
@@ -434,6 +449,7 @@ export function collection(type, options = {}) {
   async function upload() {
     if (!cloud.signedIn) return;
     const queue = data.dirty.slice();
+    let refused = 0;
     for (const id of queue) {
       const item = data.items[id];
       if (!item) { data.dirty = data.dirty.filter((x) => x !== id); continue; }
@@ -457,10 +473,29 @@ export function collection(type, options = {}) {
           emit("cloud");
         } else if (r.status === 401) {
           cloud.signedIn = false; cloud.setStatus("local"); cloud.emit(); break;
+        } else if (r.status >= 400 && r.status < 500) {
+          /* recusa definitiva — documento invalido (400) ou grande demais
+             (413). tentar de novo daria a mesma resposta, e parar aqui
+             trancaria a fila inteira: tudo o que veio depois deste documento
+             nunca subiria, em silencio. entao ele sai da fila, fica anotado
+             em `refused` e a proxima gravacao dele tenta outra vez. o que
+             esta gravado neste navegador nao se perde; so nao sobe. */
+          data.dirty = data.dirty.filter((x) => x !== id);
+          data.refused[id] = { v: item.v, why: (r.body && r.body.error) || ("erro " + r.status) };
+          console.warn("documento recusado pelo servidor", type, id, data.refused[id].why);
+          refused++;
         } else { cloud.setStatus("error"); break; }
       } catch (e) { cloud.setStatus("offline"); break; }
     }
     persist();
+    if (refused) {
+      /* a fila pode ter escoado toda, mesmo com recusa: o indicador diz a
+         verdade (nada pendente), e o aviso conta o que ficou para tras. */
+      if (!data.dirty.length) cloud.setStatus("synced");
+      notify(refused === 1
+        ? "o servidor recusou um item; ele fica só neste navegador"
+        : "o servidor recusou " + refused + " itens; eles ficam só neste navegador");
+    }
   }
 
   function scheduleUpload() {
@@ -496,11 +531,21 @@ export const SEED_FRONTS = [
 ];
 
 export function fronts() {
-  const c = collection("fronts", {
+  return collection("fronts", {
     normalize: (d) => ({ id: d.id, name: String(d.name || "").slice(0, 60), color: +d.color || 0, order: +d.order || 99, v: d.v })
   });
+}
+
+/* as sementes so entram quando se sabe que nao ha nada la em cima. plantar
+   ao abrir a pagina, como era, faz um aparelho novo criar cinco frentes com
+   carimbo de agora e subi-las por cima das que ja existem: renomear a frente
+   num aparelho e abrir o Merlin noutro apagaria o nome. sem sessao este
+   navegador e o unico dono e pode semear na hora; com sessao, so depois de um
+   download que voltou — se a rede falhou, semear e chutar no escuro. */
+export function seedFronts() {
+  const c = fronts();
+  if (cloud.signedIn && !c.hasDownloaded()) return;
   if (!c.all().length) c.saveMany(SEED_FRONTS);
-  return c;
 }
 export const listFronts = () => fronts().all().sort((a, b) => a.order - b.order || a.name.localeCompare(b.name));
 /* o numero da cor da frente (0 se nao ha), para quem pinta alem do selo */
@@ -603,5 +648,9 @@ export function initPage(id) {
   if (renderShell) renderShell(id);
   fronts();
   clients();
-  cloud.resume();
+  /* semear e a ultima coisa: resume() descobre se ha sessao e baixa o que a
+     nuvem tem; so entao faz sentido perguntar se faltam frentes. a pagina
+     desenha antes disso com a lista vazia e redesenha quando elas chegam —
+     todas as telas escutam a colecao pelo useFronts. */
+  cloud.resume().finally(seedFronts);
 }

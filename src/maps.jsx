@@ -10,6 +10,7 @@ import {
   mount, useCollection, useFronts, useClients, useHash, useKeydown, isTyping, useFields,
   Form, Field, Dialog, Markdown, FrontBadge, frontOptionList, icon
 } from "./shared/ui.jsx";
+import { MAP_TEMPLATES, mapGroups, mapBranches, buildMap } from "./shared/templates.js";
 
 initPage("maps");
 
@@ -56,6 +57,36 @@ function findNode(current, id, parent, index) {
 }
 function collectIds(node, target) { target.add(node.id); (node.children || []).forEach((c) => collectIds(c, target)); }
 function newNode(title) { return { id: newId(), title: title || "", note: "", color: 0, collapsed: false, link: "", children: [] }; }
+
+/* ---------- ramos fantasma ----------
+   o que o merlin propos, desenhado no proprio mapa em vez de numa lista de
+   caixinhas: cada ramo aparece no lugar exato onde ele nasceria, tracejado
+   e apagado, e um clique nele o torna real — os outros somem junto, porque
+   quem nao foi clicado nao era para existir.
+   o fantasma nunca entra no documento. ele vive so na arvore que vai para
+   o computeLayout, o que da tres coisas de graca: o layout ja reserva o
+   espaco dele (nada pula quando um vira real), ele nao grava, e nao entra
+   no desfazer. o id com prefixo e o que separa os dois mundos: findNode
+   nunca acha um fantasma, entao nada que mexe no documento o alcanca. */
+const GHOST_PREFIX = "ghost:";
+const isGhostId = (id) => typeof id === "string" && id.indexOf(GHOST_PREFIX) === 0;
+function withGhosts(root, targetId, list) {
+  if (!list || !list.length || !targetId) return root;
+  function walk(node) {
+    if (node.id === targetId) {
+      const extra = list.map((s, i) => ({
+        id: GHOST_PREFIX + i, title: String(s.title || "").slice(0, 300), note: String(s.note || ""),
+        color: 0, collapsed: false, link: "", children: [], ghost: true
+      }));
+      return { ...node, collapsed: false, children: [...(node.children || []), ...extra] };
+    }
+    const children = node.children || [];
+    let changed = false;
+    const next = children.map((c) => { const r = walk(c); if (r !== c) changed = true; return r; });
+    return changed ? { ...node, children: next } : node;
+  }
+  return walk(root);
+}
 const cloneDoc = (d) => JSON.parse(JSON.stringify(d));
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
@@ -219,13 +250,14 @@ function edgeColor(color) { return color ? colorVar(color) : "var(--mp-edge)"; }
 
 function svgPill(info, node, isRoot, state) {
   const w = info.w, h = info.h, lines = info.lines, rx = h / 2;
-  const selected = state === "selected";
-  const fill = selected ? "var(--green)" : isRoot ? "var(--ink)" : "var(--mp-pill)";
-  const ink = selected ? "var(--on-green)" : isRoot ? "var(--bg)" : "var(--mp-pill-ink)";
-  const stroke = selected || isRoot ? "none" : "var(--mp-pill-border)";
+  const selected = state === "selected", ghost = state === "ghost";
+  const fill = ghost ? "var(--mp-canvas)" : selected ? "var(--green)" : isRoot ? "var(--ink)" : "var(--mp-pill)";
+  const ink = ghost ? "var(--ink-50)" : selected ? "var(--on-green)" : isRoot ? "var(--bg)" : "var(--mp-pill-ink)";
+  const stroke = ghost ? "var(--ink-30)" : selected || isRoot ? "none" : "var(--mp-pill-border)";
   const firstY = -(lines.length * LINE_H) / 2 + LINE_H * 0.72;
   return [
-    <rect key="pill" className="mp-pill" data-state={selected ? "selected" : "normal"} x={-w / 2} y={-h / 2} width={w} height={h} rx={rx} fill={fill} stroke={stroke} strokeWidth="1" />,
+    <rect key="pill" className="mp-pill" data-state={ghost ? "ghost" : selected ? "selected" : "normal"} x={-w / 2} y={-h / 2} width={w} height={h} rx={rx}
+      fill={fill} stroke={stroke} strokeWidth="1" strokeDasharray={ghost ? "5 4" : null} />,
     lines.map((l, i) => <text key={i} x="0" y={(firstY + i * LINE_H).toFixed(1)} textAnchor="middle" fontFamily="Sora, system-ui, sans-serif"
       fontSize={isRoot ? 14 : 13} fontWeight={isRoot ? 600 : 500} fill={ink} textDecoration={node.link ? "underline" : null} pointerEvents="none">{l}</text>)
   ];
@@ -233,7 +265,7 @@ function svgPill(info, node, isRoot, state) {
 
 function svgNode(info, node, isRoot, pos, selectedId, drag) {
   const w = info.w, h = info.h, rx = h / 2;
-  const state = node.id === selectedId ? "selected" : "normal";
+  const state = node.ghost ? "ghost" : node.id === selectedId ? "selected" : "normal";
   const dragged = drag && drag.descendants.has(node.id);
   const childTarget = drag && drag.target && drag.target.type === "child" && drag.target.id === node.id;
   const extras = [];
@@ -243,7 +275,16 @@ function svgNode(info, node, isRoot, pos, selectedId, drag) {
     extras.push(<rect key="alvo" x={-w / 2 - 4} y={-h / 2 - 4} width={w + 8} height={h + 8} rx={rx + 4} fill="none" stroke="var(--green-ink)" strokeWidth="1.5" pointerEvents="none" />);
   }
   const decorations = [];
-  if (node.note) decorations.push(<circle key="nota" data-note="1" cx={w / 2 - 4} cy={-h / 2 + 4} r="3.5" fill="var(--green-ink)" stroke="var(--mp-canvas)" strokeWidth="1.5"><title>abrir a nota</title></circle>);
+  /* o fantasma nao tem nota nem filhos para decorar: ele ganha um "+", que
+     e a unica coisa que da para fazer com ele */
+  if (node.ghost) {
+    const sx = info.side === "left" ? -1 : 1;
+    decorations.push(
+      <g key="mais" pointerEvents="none" transform={"translate(" + (sx * (w / 2 - 1)) + ",0)"}>
+        <circle r="7" fill="var(--mp-canvas)" stroke="var(--ink-30)" strokeWidth="1" strokeDasharray="2.6 2.2" />
+        <path d="M-3.2 0h6.4M0 -3.2v6.4" stroke="var(--ink-30)" strokeWidth="1.4" strokeLinecap="round" fill="none" /></g>
+    );
+  } else if (node.note) decorations.push(<circle key="nota" data-note="1" cx={w / 2 - 4} cy={-h / 2 + 4} r="3.5" fill="var(--green-ink)" stroke="var(--mp-canvas)" strokeWidth="1.5"><title>abrir a nota</title></circle>);
   const children = node.children || [];
   const badge = (label, fill, tx) => {
     const lw = 14 + label.length * 6.5;
@@ -266,7 +307,7 @@ function svgNode(info, node, isRoot, pos, selectedId, drag) {
     decorations.push(badge("+" + (countNodes(node) - 1), "var(--ink)", (lw) => w / 2 + 2 + lw / 2));
   }
   return (
-    <g key={node.id} className={"mp-node" + (dragged ? " mp-node--dragged" : "")} data-id={node.id} transform={"translate(" + pos.x.toFixed(1) + "," + pos.y.toFixed(1) + ")"}>
+    <g key={node.id} className={"mp-node" + (dragged ? " mp-node--dragged" : "") + (node.ghost ? " mp-node--ghost" : "")} data-id={node.id} transform={"translate(" + pos.x.toFixed(1) + "," + pos.y.toFixed(1) + ")"}>
       {extras}{svgPill(info, node, isRoot, state)}{decorations}</g>
   );
 }
@@ -285,8 +326,10 @@ function svgEdgesOf(parentInfo, childrenInfo, posOf) {
   const xT = (x1 + nearest) / 2;
   const parentColor = edgeColor(parentInfo.branchColor);
   let k = 0; // a chave da aresta e a ordem em que ela nasce neste barramento
-  const seg = (ax, ay, bx, by, color) => <line key={k++} x1={ax} y1={ay} x2={bx} y2={by} stroke={color} strokeWidth="1.5" pointerEvents="none" />;
-  const path = (d, color) => <path key={k++} d={d} fill="none" stroke={color} strokeWidth="1.5" pointerEvents="none" />;
+  /* `ghost` deixa o ramo tracejado e apagado: o desenho tem que dizer que
+     aquele galho ainda e proposta, sem precisar de legenda */
+  const seg = (ax, ay, bx, by, color, ghost) => <line key={k++} x1={ax} y1={ay} x2={bx} y2={by} stroke={color} strokeWidth="1.5" pointerEvents="none" strokeDasharray={ghost ? "5 4" : null} opacity={ghost ? ".5" : null} />;
+  const path = (d, color, ghost) => <path key={k++} d={d} fill="none" stroke={color} strokeWidth="1.5" pointerEvents="none" strokeDasharray={ghost ? "5 4" : null} opacity={ghost ? ".5" : null} />;
   const out = [];
   const ys = childrenInfo.map((c) => { const y = posOf(c).y; return Math.abs(y - y1) < 1 ? y1 : y; });
   const yMin = Math.min.apply(null, ys.concat([y1])), yMax = Math.max.apply(null, ys.concat([y1]));
@@ -305,10 +348,10 @@ function svgEdgesOf(parentInfo, childrenInfo, posOf) {
     out.push(path("M" + x1 + " " + y1 + " H" + (xT - sx * r) + " Q" + xT + " " + y1 + " " + xT + " " + (y1 - r) + " V" + top, parentColor));
   }
   childrenInfo.forEach((c) => {
-    const y2 = posOf(c).y, x2 = childEdge(c), color = edgeColor(c.branchColor);
-    if (Math.abs(y2 - y1) < 1) { out.push(seg(xT, y2, x2, y2, color)); return; }
+    const y2 = posOf(c).y, x2 = childEdge(c), color = edgeColor(c.branchColor), ghost = !!c.node.ghost;
+    if (Math.abs(y2 - y1) < 1) { out.push(seg(xT, y2, x2, y2, color, ghost)); return; }
     const sy = y2 > y1 ? 1 : -1;
-    out.push(path("M" + xT + " " + (y2 - sy * r) + " Q" + xT + " " + y2 + " " + (xT + sx * r) + " " + y2 + " H" + x2, color));
+    out.push(path("M" + xT + " " + (y2 - sy * r) + " Q" + xT + " " + y2 + " " + (xT + sx * r) + " " + y2 + " H" + x2, color, ghost));
   });
   return out;
 }
@@ -536,6 +579,7 @@ function createMapEngine(mapId, handlers) {
     let found = null;
     layout.forEach((info, id) => {
       if (excludeIds && excludeIds.has(id)) return;
+      if (isGhostId(id)) return; // um ramo que ainda nao existe nao recebe outro em cima
       if (px >= info.x - info.w / 2 && px <= info.x + info.w / 2 && py >= info.y - info.h / 2 && py <= info.y + info.h / 2) found = id;
     });
     return found;
@@ -619,7 +663,9 @@ function createMapEngine(mapId, handlers) {
     } else if (mode === "node-pending" || mode === "node") {
       if (mode === "node-pending") {
         const info = layout.get(pendingId);
-        if (!info || info.side === "root") { mode = "root-stuck"; return; } // a raiz nao sai do centro
+        /* a raiz nao sai do centro, e o fantasma nao se arrasta: ele so
+           existe para ser clicado ou ignorado */
+        if (!info || info.side === "root" || isGhostId(pendingId)) { mode = "root-stuck"; return; }
         const p0 = pointSvg(pointerOrigin.x, pointerOrigin.y);
         const descendants = new Set(); collectIds(info.node, descendants);
         drag = { id: pendingId, pos: { x: info.x, y: info.y }, offset: { x: p0.x - info.x, y: p0.y - info.y }, target: null, descendants };
@@ -871,17 +917,26 @@ function RenameInput({ map, maps, onDone }) {
     onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); confirm(); } else if (e.key === "Escape") { e.preventDefault(); cancel(); } }} />;
 }
 
-/* criar e um botao e uma caixa, como em todo o sistema: nome e frente, e o
-   mapa ja abre com o nome como ideia central */
+/* criar e um botao e uma caixa, como em todo o sistema: nome, modelo e
+   frente. o mapa ja abre com o nome como ideia central; com modelo, os
+   galhos dele ja nascem pendurados nela, cada um de uma cor. */
 function MapForm({ maps, onClose }) {
-  const [v, bind] = useFields({ name: "", front: "" });
+  const [v, bind, set] = useFields({ name: "", front: "", template: "" });
+  const tpl = v.template ? MAP_TEMPLATES.find((t) => t.id === v.template) : null;
+  /* escolher o modelo batiza o mapa, quando o nome ainda esta vazio */
+  const pickTemplate = (e) => {
+    const id = e.currentTarget.value;
+    set("template", id);
+    const chosen = MAP_TEMPLATES.find((t) => t.id === id);
+    if (chosen && !v.name.trim()) set("name", chosen.name);
+  };
   const submit = () => {
     const name = v.name.trim();
     if (!name) { notify("o mapa precisa de um nome"); return false; }
     const now = Date.now();
     const doc = {
       id: newId(), name,
-      root: { id: newId(), title: name, note: "", color: 0, collapsed: false, link: "", children: [] },
+      root: tpl ? buildMap(tpl, name) : { id: newId(), title: name, note: "", color: 0, collapsed: false, link: "", children: [] },
       front: v.front || "", client: "", idea: "", funnel: "", createdAt: now, updatedAt: now
     };
     maps.save(doc);
@@ -890,6 +945,22 @@ function MapForm({ maps, onClose }) {
   return (
     <Form title="novo mapa" submit="criar e abrir" onSubmit={submit} onClose={onClose}>
       <Field label="nome" full><input className="input" maxLength="120" required placeholder="a ideia central" {...bind("name")} /></Field>
+      <Field label="modelo" full>
+        <select className="select" id="map-template" value={v.template} onChange={pickTemplate}>
+          <option value="">mapa em branco</option>
+          {mapGroups().map((g) => (
+            <optgroup key={g.key} label={g.label}>
+              {g.items.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+            </optgroup>
+          ))}
+        </select>
+        {tpl && (
+          <>
+            <p className="tpl-note">{tpl.summary}</p>
+            <p className="tpl-chain">{mapBranches(tpl).join(" · ")}</p>
+          </>
+        )}
+      </Field>
       <Field label="frente"><select className="select" {...bind("front")}>{frontOptionList("sem frente")}</select></Field>
     </Form>
   );
@@ -921,7 +992,10 @@ function Editor({ id, maps }) {
 
   /* o layout e funcao pura do documento; a fonte carregando depois muda as
      medidas, por isso recalcula quando ela chega */
-  const layout = useMemo(() => computeLayout(doc.root), [doc.root, fontsReady]);
+  const layout = useMemo(
+    () => computeLayout(suggestions ? withGhosts(doc.root, suggestions.targetId, suggestions.list) : doc.root),
+    [doc.root, suggestions, fontsReady]
+  );
   useEffect(() => {
     let alive = true;
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { if (alive) setFontsReady(true); });
@@ -995,7 +1069,12 @@ function Editor({ id, maps }) {
   }), [maps, id]);
 
   /* ---- selecao e navegacao ---- */
-  const select = (nid) => { setSelectedId(nid); if (nid) engine.ensureVisible(nid); };
+  const select = (nid) => {
+    if (isGhostId(nid)) { acceptGhost(nid); return; } // fantasma nao se seleciona: ele se aceita
+    setSuggestions(null); // trocar de nó descarta a tira: ela era daquele nó
+    setSelectedId(nid);
+    if (nid) engine.ensureVisible(nid);
+  };
   const navigate = (dir) => {
     const d = docRef.current;
     if (!selectedId) { select(d.root.id); return; }
@@ -1183,28 +1262,35 @@ function Editor({ id, maps }) {
     if (r.status === 401) { notify("entre para usar o Merlin"); return; }
     if (r.status === 503) { notify((r.body && r.body.error) || "faltou configurar a chave do Merlin"); return; }
     if (!r.ok) { notify((r.body && r.body.error) || "o Merlin não respondeu"); return; }
-    const list = Array.isArray(r.body.suggestions) ? r.body.suggestions.slice(0, 12) : [];
+    /* seis ramos ja e o teto do que cabe em volta de um no sem virar
+       parede; a lista antiga ia ate doze porque era rolavel numa caixa */
+    const list = Array.isArray(r.body.suggestions) ? r.body.suggestions.slice(0, 6) : [];
     if (!list.length) { notify("o Merlin não teve sugestões para esse nó"); return; }
     setSuggestions({ targetId: nid, list });
   };
-  const addSuggestions = (chosen) => {
-    const targetId = suggestions.targetId;
+  /* clicar num fantasma: aquele ramo — e so aquele — vira real, no mesmo
+     lugar em que ja estava desenhado. os outros somem, porque a tira era um
+     conjunto de propostas, nao uma lista de tarefas a cumprir. */
+  const acceptGhost = (ghostId) => {
+    const s = suggestions;
     setSuggestions(null);
-    if (!chosen.length || !targetId) return;
-    const ok = mutate((d) => { // o lote inteiro e uma unica entrada no desfazer
-      const f = findNode(d.root, targetId);
+    if (!s) return;
+    const item = s.list[+ghostId.slice(GHOST_PREFIX.length)];
+    if (!item) return;
+    let freshId = null;
+    const ok = mutate((d) => {
+      const f = findNode(d.root, s.targetId);
       if (!f) return false;
+      const fresh = newNode(String(item.title || "").slice(0, 300));
+      fresh.note = String(item.note || "").slice(0, 4000);
+      freshId = fresh.id;
       f.node.children = f.node.children || [];
-      chosen.forEach((s) => {
-        const fresh = newNode(String(s.title || "").slice(0, 300));
-        fresh.note = String(s.note || "").slice(0, 4000);
-        f.node.children.push(fresh);
-      });
+      f.node.children.push(fresh);
       f.node.collapsed = false;
     });
-    if (!ok) return;
-    setSelectedId(targetId);
-    engine.frameNodeNext(targetId);
+    if (!ok || !freshId) return;
+    setSelectedId(freshId); // fica selecionado: o S pede os ramos dele em seguida
+    engine.frameNodeNext(freshId);
   };
 
   /* ---- exportacao ---- */
@@ -1276,8 +1362,10 @@ function Editor({ id, maps }) {
 
   /* ---- teclado ---- */
   useKeydown((e) => {
-    if (suggestions) return; // o dialogo de sugestoes engole as teclas; Esc fecha pelo Dialog
     if (isTyping()) { if (e.key === "Escape") document.activeElement.blur(); return; }
+    /* a tira de fantasmas está no palco, não numa caixa por cima: Esc é o
+       jeito de dispensá-la sem aceitar nenhum, e vem antes de tudo */
+    if (suggestions && e.key === "Escape") { e.preventDefault(); setSuggestions(null); return; }
     if (editing) return; // o proprio overlay trata suas teclas
 
     const mod = e.ctrlKey || e.metaKey;
@@ -1322,7 +1410,6 @@ function Editor({ id, maps }) {
   const editInfo = editing ? layout.get(editing.id) : null;
   useEffect(() => { if (editing && !editInfo) setEditing(null); }, [editing, editInfo]);
 
-  const suggestionTarget = suggestions ? findNode(doc.root, suggestions.targetId) : null;
 
   return (
     <>
@@ -1333,7 +1420,7 @@ function Editor({ id, maps }) {
           <select className="select mp-front" id="mp-front" aria-label="Frente do mapa" value={doc.front}
             onChange={(e) => { const v = e.currentTarget.value; mutate((d) => { d.front = v; }, { history: false }); }}>{frontOptionList("sem frente")}</select>
           <span className="spacer"></span>
-          <button className="pill" type="button" id="mp-suggest" disabled={thinking} title="Merlin sugere ramos para o nó selecionado (tecla S)" onClick={() => askSuggestions(selectedId || doc.root.id)}>
+          <button className="pill" type="button" id="mp-suggest" disabled={thinking} title="Merlin desenha ramos tracejados no nó selecionado; clique num deles para ficar com ele (tecla S)" onClick={() => askSuggestions(selectedId || doc.root.id)}>
             <SparkIcon /><span id="mp-suggest-text">{thinking ? "pensando…" : "sugerir"}</span>
           </button>
           <button className="pill pill--icon" type="button" id="mp-frame" title="Enquadrar (Ctrl+0)" onClick={() => engine.frame()}><FrameIcon /></button>
@@ -1355,8 +1442,7 @@ function Editor({ id, maps }) {
         onColor={(c) => withSelected((n) => { n.color = c; })}
         onPull={pullToDay} onIdea={toIdea} />}
       {helpOpen && <HelpDialog onClose={() => setHelpOpen(false)} />}
-      {suggestions && <SuggestionsDialog target={suggestionTarget ? (suggestionTarget.node.title || "(sem título)") : ""} list={suggestions.list}
-        onAdd={addSuggestions} onClose={() => setSuggestions(null)} />}
+      {suggestions && <p className="mp-ghost-hint" id="mp-ghost-hint">clique num ramo tracejado para ficar com ele · <kbd>Esc</kbd> dispensa</p>}
     </>
   );
 }
@@ -1475,7 +1561,7 @@ function HelpDialog({ onClose }) {
     [<><kbd>Ctrl</kbd> <kbd>0</kbd></>, "enquadra o mapa"],
     [<><kbd>Ctrl</kbd> <kbd>+</kbd> / <kbd>−</kbd></>, "zoom"],
     [<kbd>N</kbd>, "abre a nota do nó selecionado"],
-    [<kbd>S</kbd>, "merlin sugere ramos para o nó selecionado"],
+    [<kbd>S</kbd>, "merlin desenha ramos tracejados no nó selecionado; clique num deles para ficar com ele"],
     [<kbd>Esc</kbd>, "cancela a edição / fecha o painel"]
   ];
   return (
@@ -1487,27 +1573,5 @@ function HelpDialog({ onClose }) {
   );
 }
 
-/* ---------- sugestoes do merlin: tudo marcado, cada item desmarcavel ---------- */
-function SuggestionsDialog({ target, list, onAdd, onClose }) {
-  const [checked, setChecked] = useState(() => list.map(() => true));
-  const n = checked.filter(Boolean).length;
-  const toggle = (i, value) => setChecked((c) => c.map((x, j) => (j === i ? value : x)));
-  return (
-    <Dialog title="sugestões do merlin" sub={'para "' + target + '" — desmarque o que não interessa'} label="Sugestões do Merlin" wide onClose={onClose}
-      actions={<>
-        <button className="pill" type="button" id="suggestions-discard" onClick={onClose}>descartar</button>
-        <button className="pill pill--green" type="button" id="suggestions-add" disabled={!n} onClick={() => onAdd(list.filter((s, i) => checked[i]))}>{"adicionar " + n + (n === 1 ? " ramo" : " ramos")}</button>
-      </>}>
-      <ul className="list" id="suggestions-list">
-        {list.map((s, i) => (
-          <li key={i} className="line"><label className="row mp-suggestion">
-            <input type="checkbox" checked={checked[i]} onChange={(e) => toggle(i, e.currentTarget.checked)} />
-            <span><strong>{s.title || "(sem título)"}</strong>{s.note && <div className="mp-suggestion-note">{s.note}</div>}</span>
-          </label></li>
-        ))}
-      </ul>
-    </Dialog>
-  );
-}
 
 mount(<Maps />, "app");

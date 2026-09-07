@@ -65,6 +65,18 @@ html.light{
 .mp-node .mp-pill{transition:fill 120ms}
 .mp-node:hover .mp-pill[data-state="normal"]{fill:var(--mp-pill-hover)}
 .mp-node--dragged{opacity:.25}
+/* o ramo que o merlin propôs: apagado e tracejado porque ainda não é do
+   mapa. o ponteiro em cima é o momento em que ele deixa de ser proposta —
+   ganha corpo, a borda fecha e o cursor vira mão. */
+.mp-node--ghost{cursor:pointer;opacity:.6;transition:opacity 120ms}
+.mp-node--ghost:hover{opacity:1}
+.mp-node--ghost:hover .mp-pill{fill:var(--mp-pill);stroke:var(--green-ink);stroke-dasharray:none}
+.mp-ghost-hint{
+  position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:6;margin:0;
+  padding:6px 13px;border-radius:var(--br-pill);
+  background:var(--surface);border:1px solid var(--line-soft);box-shadow:var(--sombra-2);
+  font-size:12px;color:var(--ink-50);pointer-events:none;white-space:nowrap;
+}
 .mp-ghost{pointer-events:none;filter:drop-shadow(0 10px 22px rgba(0,0,0,.5))}
 .mp-toggle{cursor:pointer}
 .mp-toggle:hover circle,.mp-toggle:hover rect{filter:brightness(1.25)}
@@ -124,9 +136,6 @@ html.light{
 .pill:disabled{opacity:.5;cursor:default}
 
 /* ---------- sugestoes do merlin ---------- */
-.mp-suggestion{align-items:flex-start;gap:10px;cursor:pointer;flex:1 1 auto;min-width:0}
-.mp-suggestion input{margin-top:3px;flex:0 0 auto}
-.mp-suggestion-note{color:var(--ink-50);font-size:12px;margin-top:2px}
 
 @media (max-width:640px){
   .mp-panel{width:100vw}

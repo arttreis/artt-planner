@@ -15,6 +15,12 @@ Vite; o build sai em `server/site/`. O que é comum vive aqui:
   **casca** (sidebar, busca, tema, nuvem, entrar, aviso). É o que uma página importa para
   desenhar. Ele se registra no core com `setShellRenderer`, e é por isso que `initPage(id)` —
   que vem do core — já monta a casca.
+- `templates.js` — os **modelos**: o vocabulário de canal (tipos, rótulos e o checklist de
+  cada um), 39 funis prontos e 19 mapas prontos, com `buildFunnel(tpl)` e `buildMap(tpl, nome)`
+  para virarem documento. Dado puro, sem React. Ver "Modelos", abaixo.
+- `funnel-layout.js` — onde cada etapa do funil fica no palco (camadas da esquerda para a
+  direita). Mora fora da página porque duas telas criam funil: a lista de funis e o canal do
+  cliente.
 
 Identificadores, chaves, campos e classes são em inglês; texto de tela e comentários, em
 português. O dicionário completo está em [`MIGRATION.md`](../MIGRATION.md).
@@ -122,6 +128,8 @@ vezes numa montagem (esvaziar a caixa de entrada, gerar a recorrência da semana
 | `<Meter label value className?>` | o número grande com legenda |
 | `<MoneyInput value onChange/>` | dinheiro em centavos; só reformata ao sair do campo |
 | `<NewItemRow placeholder button onAdd/>` | "novo item" no pé de uma lista, Enter adiciona |
+| `useDelegate()` → `{ask, busy, answer, close}` | "dá pra fazer com Claude?": `ask({id, title, min?, due?, front?, client?, about?, where, origin})` pergunta ao Merlin; `busy` é o id em análise |
+| `<DelegateDialog answer onClose/>` | o veredicto, com o botão que manda o que há para montar à caixa de entrada do dia |
 | `<FrontBadge id/>`, `<ClientBadge id/>` | os selos |
 | `frontOptionList("sem frente")`, `clientOptionList("sem cliente", front?)` | `<option>`s; o escolhido vai no `value` do `<select>` |
 | `icon("plus")` | um ícone de `icons.jsx` como elemento. SVG só desta página vira um componente no topo do arquivo dela |
@@ -184,6 +192,31 @@ devolve `false` para manter a caixa aberta (reclamando com `notify`). `Esc`, o �
 "cancelar" e o clique fora fecham. Criar e editar são a mesma caixa.
 
 Nenhuma tela tem formulário aberto no meio da lista, e nenhuma tela tem filtro.
+
+## Modelos (`templates.js`)
+
+Funil e mapa nascem em branco ou a partir de um modelo, escolhido num `<select>` dentro da
+mesma caixa de criar — sem galeria, sem tela nova. Abaixo do select aparecem o resumo do
+modelo (`.tpl-note`) e o caminho dele em uma linha (`.tpl-chain`), para escolher sem abrir
+nada; escolher um modelo também batiza o item, quando o nome ainda está vazio.
+
+Um modelo de funil declara as etapas e o fluxo:
+
+```js
+stages: { lp: ["lp", "página de captura"], form: ["capture", "formulário", { what: "e-mail" }] }
+flow:   "lp>form 35"   // 35 = taxa média esperada, em %
+```
+
+A chave curta (`lp`, `form`) só existe no arquivo, para o `flow` apontar; `buildFunnel` troca
+por id de verdade, devolve as arestas com a taxa média preenchida e liga ofertas, automações,
+gatilhos e criativos às etapas. Quem chama roda `layoutNodes` (de `funnel-layout.js`) para as
+etapas nascerem arrumadas. Um modelo de mapa é a árvore literal — `["galho", ["filho"]]` —, e
+`buildMap` põe o nome digitado na raiz e dá uma cor a cada galho de primeiro nível.
+
+Modelo é ponto de partida, não vínculo: depois de criado é um documento comum, e mexer nele
+não mexe no modelo. Os funis de canal (dois por canal, no mínimo) têm `channel` preenchido —
+por isso o funil criado a partir de um deles já nasce ligado ao canal do cliente, e o botão
+"novo funil" dentro de um canal só oferece os modelos daquele canal.
 
 ## Mandar para o dia
 

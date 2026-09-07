@@ -10,7 +10,7 @@ import {
 import { useState, useEffect, useLayoutEffect, useRef } from "react";
 import {
   mount, useCollection, useFronts, useClients, useKeydown, isTyping,
-  FrontBadge, ClientBadge, icon
+  useDelegate, DelegateDialog, FrontBadge, ClientBadge, icon
 } from "./shared/ui.jsx";
 
 initPage("day");
@@ -335,6 +335,7 @@ function Day() {
   const ideasCol = useCollection("ideas", { normalize: normalizeIdea });
   useFronts();
   useClients();
+  const delegate = useDelegate();               /* "da pra fazer com Claude?" */
   const [, setTick] = useState(0);              /* o relogio: redesenha a cada 30s */
   const [toast, setToast] = useState(null);     /* texto do aviso | null */
   const [windowOpen, setWindowOpen] = useState(false);
@@ -345,6 +346,7 @@ function Day() {
   const [dragging, setDragging] = useState(null);
   const [dragOrder, setDragOrder] = useState(null);
   const undoStack = useRef([]);
+  const touchedCards = useRef([]);               /* cartoes da semana que o passo atual desvinculou */
   const toastTimer = useRef(null);
   const serverV = useRef(0);                    /* maior carimbo que ja vi vindo de la */
   const uploadTimer = useRef(null);
@@ -395,7 +397,12 @@ function Day() {
       ideas: ideasCol.all().map((i) => ({ ...i })),
       label
     };
+    /* so os cartoes que a acao desvinculou entram no passo — a semana inteira
+       em cada desfazer seria peso a toa. concluir tambem toca na semana e de
+       proposito nao entra aqui: fechar o cartao e registro, nao espelho. */
+    touchedCards.current = [];
     action();
+    before.cards = touchedCards.current;
     undoStack.current.push(before);
     if (undoStack.current.length > UNDO_DEPTH) undoStack.current.shift();
     showToast(label);
@@ -406,6 +413,10 @@ function Day() {
     const step = stack.pop();
     commit({ ...docRef.current, tasks: step.tasks, day: step.day, start: step.start, end: step.end });
     restoreIdeas(step.ideas);
+    /* a tarefa voltou para a fila, entao o cartao volta a apontar para ela:
+       sem isto o cartao ficaria puxavel e o dia ganharia a mesma tarefa duas
+       vezes na proxima sincronizacao */
+    (step.cards || []).forEach((c) => { if (week.has(c.id)) week.save({ ...c, updatedAt: Date.now() }); });
     /* ainda ha passos atras: o aviso continua, apontando para o proximo */
     if (stack.length) showToast(stack[stack.length - 1].label);
     else closeToast();
@@ -475,11 +486,12 @@ function Day() {
   const remove = (id) => {
     const i = findIndex(id);
     if (i < 0) return;
-    const title = docRef.current.tasks[i].title;
+    const { title, origin } = docRef.current.tasks[i];
     withUndo("apaguei “" + shortTitle(title) + "”", () => {
       const d = docRef.current;
       if (!d.tasks.some((t) => t.id === id)) return;
       commit({ ...d, tasks: d.tasks.filter((t) => t.id !== id) });
+      if (origin && origin.type === "week") unlinkWeek(origin.id, id);
     });
   };
 
@@ -723,6 +735,16 @@ function Day() {
     const c = week.get(cardId);
     if (c && !c.done) week.save({ ...c, done: true, updatedAt: Date.now() });
   };
+  /* o contrario: a tarefa saiu da fila sem ser concluida, entao o cartao volta
+     a poder ser puxado. quem escreveu `inDay` foi o dia, e e o dia quem apaga
+     — sem isto o cartao fica para sempre com o selo "no dia" apontando para
+     uma tarefa que nao existe mais, e o gesto de puxar nunca mais aparece. */
+  const unlinkWeek = (cardId, taskId) => {
+    const c = week.get(cardId);
+    if (!c || c.inDay !== taskId) return;
+    touchedCards.current.push({ ...c });
+    week.save({ ...c, inDay: "", updatedAt: Date.now() });
+  };
 
   /* ---------- matriz: aplicar e uma reordenacao em lote ----------
      ao contrario do arrasto da fila, que move uma linha por vez e voce ve
@@ -936,7 +958,13 @@ function Day() {
   const { b, slots, cut } = distribute(doc, open);
   const done = doneOf(doc);
   const reserves = reservesOf(doc);
-  const rowActions = { complete, remove, rename, move, setDuration, dragStart };
+  /* a pergunta do merlin sobre uma tarefa da fila: ele so responde, e o que
+     precisar ser montado volta pela caixa de entrada como qualquer outra coisa */
+  const askDelegate = (t) => delegate.ask({
+    id: t.id, title: t.title, min: t.min, front: t.front, client: t.client,
+    where: "a fila de hoje", origin: { type: "task", id: t.id }
+  });
+  const rowActions = { complete, remove, rename, move, setDuration, dragStart, delegate: askDelegate, thinking: delegate.busy };
 
   /* uma lista plana com chave por linha: e assim que a linha arrastada
      sobrevive ao redesenho em vez de ser recriada */
@@ -986,6 +1014,13 @@ function Day() {
       <div className="side" id="side-right">
         <Matrix doc={doc} open={pendingOf(doc)} onApply={applyMatrix} />
       </div>
+
+      {/* o que ha para montar cai no campo do dia, sem duracao: o pedagio e
+          perguntado ali, como em qualquer coisa que entra na fila */}
+      {delegate.answer && (
+        <DelegateDialog answer={delegate.answer} onClose={delegate.close}
+          onBuild={(setup) => { setText(setup); if (fieldRef.current) fieldRef.current.focus(); }} />
+      )}
     </>
   );
 }
@@ -1209,6 +1244,9 @@ function TaskRow({ t, start, slot, fits, dragging, leaving, actions }) {
       </div>
       <div className="actions">
         {clickupLink(t)}
+        <button className="action" type="button" disabled={!!actions.thinking} data-thinking={actions.thinking === t.id ? "yes" : null}
+          title={actions.thinking === t.id ? "pensando…" : "dá pra fazer com Claude?"}
+          aria-label={"Dá pra fazer com Claude: " + t.title} onClick={() => actions.delegate(t)}>{icon("spark")}</button>
         <button className="action" type="button" aria-label={"Excluir: " + t.title} onClick={() => actions.remove(t.id)}>{icon("trash")}</button>
       </div>
       <button className="grip" type="button" aria-label={"Arrastar para reordenar: " + t.title} onPointerDown={(e) => actions.dragStart(e, t.id)}>{icon("grip")}</button>

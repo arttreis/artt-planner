@@ -260,6 +260,25 @@ html.light .knob__sun{opacity:1;transform:none}
 .dialog__sub{margin:0 0 var(--pd);font-size:12.5px;color:var(--ink-50)}
 .dialog__actions{display:flex;justify-content:flex-end;gap:var(--pd2);margin-top:var(--pd);flex-wrap:wrap}
 
+/* ---------- o que o merlin escreve ----------
+   o markdown das respostas dele, igual em toda tela que pergunta alguma coisa:
+   a leitura do mes, a pauta da reuniao, o veredicto de "da pra fazer com
+   Claude?". mora aqui e nao na pagina porque o dia tambem pergunta. */
+.merlin-body{font-size:13px;line-height:1.55;color:var(--ink-70);max-height:52vh;overflow-y:auto}
+.merlin-body p{margin:0 0 10px}
+.merlin-body ul,.merlin-body ol{margin:0 0 10px;padding-left:20px}
+.merlin-body h3,.merlin-body h4,.merlin-body h5{margin:14px 0 6px;color:var(--ink);font-size:13.5px}
+.merlin-body code{font-family:var(--mono);font-size:12px;background:var(--fill);padding:1px 5px;border-radius:4px}
+/* o que ainda precisa ser montado, quando o veredicto e de que da */
+.delegate__setup{
+  display:flex;align-items:baseline;gap:8px;margin:var(--pd) 0 0;padding-top:var(--pd2);
+  border-top:1px solid var(--line);font-size:13px;color:var(--ink);
+}
+.delegate__setup .t-mono{color:var(--ink-30);flex:none}
+/* o botao da pergunta enquanto ela esta no ar, em qualquer lista */
+.action:disabled{opacity:.45;cursor:default}
+.action[data-thinking="yes"]{color:var(--green-ink);opacity:1}
+
 /* ---------- entrar (login) ---------- */
 .signin-input{
   width:100%;background:var(--fill);border:1px solid var(--line);border-radius:var(--br2);

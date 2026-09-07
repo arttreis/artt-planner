@@ -376,6 +376,16 @@ async function uploadDoc(req, env, person) {
 
 const MODEL = "claude-opus-5";
 const MAX_SUGGESTIONS = 12;
+/* o vocabulario de etapas que a tela aceita. se NODE_TYPES mudar em
+   funnels.jsx, muda aqui junto: sugestao com tipo que nao existe do outro
+   lado e descartada em silencio, e o Merlin parece ter ficado mudo. */
+const NODE_TYPES = [
+  "traffic", "impression", "ad", "click", "lp", "vsl", "webinar", "product",
+  "capture", "quiz", "dm", "group", "email", "whatsapp",
+  "booking", "call", "proposal", "closing",
+  "cart", "checkout", "payment", "thanks",
+  "upsell", "downsell", "onboarding", "repurchase", "custom"
+].join(", ");
 
 const SYSTEM = [
   "Você é o Merlin, conselheiro do Arthur Reis — consultor de growth, branding e desenvolvimento;",
@@ -395,7 +405,8 @@ const LIST_TASKS = {
   branches: (c) => ({
     instruction:
       "Sugira ramos filhos para um nó de mapa mental. Cada ramo é uma ideia, pergunta ou próximo passo que desenvolve o nó. " +
-      "Não repita o que já existe entre os irmãos ou filhos listados. Máximo " + MAX_SUGGESTIONS + " ramos, 2 a 6 palavras cada, com uma nota curta (até 20 palavras) explicando o porquê. " +
+      "Não repita o que já existe entre os irmãos ou filhos listados. No máximo 6 ramos — eles são desenhados em volta do nó, não numa lista, então poucos e bons valem mais que muitos. " +
+      "2 a 6 palavras cada, com uma nota curta (até 20 palavras) explicando o porquê. " +
       'Formato: {"suggestions":[{"title":"…","note":"…"}]}',
     context:
       "Mapa: " + String(c.map || "").slice(0, 120) + "\n" +
@@ -412,8 +423,9 @@ const LIST_TASKS = {
     instruction:
       "Analise este funil de marketing e vendas e sugira o que falta ou o que pode melhorar: etapas ausentes, automações (remarketing, recuperação de carrinho, sequências), criativos (ângulos), ofertas (bump, upsell, downsell) e gatilhos mentais. " +
       "Não repita o que já existe. Máximo " + MAX_SUGGESTIONS + " sugestões, cada uma com type, título curto (até 8 palavras) e note (até 30 palavras). " +
-      "Valores válidos de type: node (com campo nodeType entre traffic, ad, lp, vsl, capture, cta, checkout, thanks, email, whatsapp, remarketing, upsell, downsell, bump), automation, creative, offer, trigger. " +
-      'Formato: {"suggestions":[{"type":"node","nodeType":"remarketing","title":"…","note":"…"},{"type":"automation","title":"…","note":"…"}]}',
+      "Valores válidos de type: node (com o campo nodeType em " + NODE_TYPES + "), automation, creative, offer, trigger. " +
+      "Uma etapa (node) é um lugar onde dá para contar quanta gente esteve e qual fração passou adiante. CTA, order bump e remarketing NÃO são etapas: o CTA é elemento da página, o bump acontece dentro do checkout e o remarketing é caminho de volta — sugira esses como creative, offer e automation. " +
+      'Formato: {"suggestions":[{"type":"node","nodeType":"payment","title":"…","note":"…"},{"type":"automation","title":"…","note":"…"}]}',
     context:
       "Funil: " + String(c.name || "").slice(0, 120) + "\n" +
       (c.client ? "Cliente: " + String(c.client).slice(0, 60) + "\n" : "") +
@@ -424,6 +436,27 @@ const LIST_TASKS = {
       "Ofertas: " + listOf(c.offers) + "\n" +
       "Gatilhos: " + listOf(c.triggers) + "\n" +
       (c.numbers ? "Números do período: " + String(c.numbers).slice(0, 400) + "\n" : "")
+  }),
+  /* o que vem depois de UMA etapa. a tela ja pintou o palpite da gramatica
+     local antes de chamar aqui; o que se pede ao modelo e a versao concreta
+     desse palpite — com nome de produto, de ferramenta e de oferta dentro.
+     por isso o teto e 3: e uma tira de cartoes no palco, nao uma lista. */
+  nextStage: (c) => ({
+    instruction:
+      "Diga quais são as próximas etapas do funil logo depois da etapa indicada. No máximo 3, da mais provável para a menos. " +
+      "Uma etapa é um lugar onde dá para contar quanta gente esteve e qual fração passou adiante — CTA, order bump e remarketing não são etapas e não podem ser sugeridos. " +
+      "Não repita o que já sai da etapa. Cada item traz nodeType (obrigatório, um de " + NODE_TYPES + "), title concreto deste funil (até 5 palavras, com nome de ferramenta ou de oferta quando o contexto der) e note com o porquê em até 15 palavras. " +
+      "Se a etapa já for o fim natural deste funil, devolva a lista vazia. " +
+      'Formato: {"suggestions":[{"nodeType":"payment","title":"pagamento aprovado no pix","note":"…"}]}',
+    context:
+      "Funil: " + String(c.name || "").slice(0, 120) + "\n" +
+      (c.client ? "Cliente: " + String(c.client).slice(0, 60) + "\n" : "") +
+      "Etapa em questão: " + String(c.stage || "").slice(0, 120) + "\n" +
+      (Array.isArray(c.fields) && c.fields.length ? "O que ela tem preenchido: " + listOf(c.fields) + "\n" : "") +
+      "Vem antes dela: " + listOf(c.before) + "\n" +
+      "Já sai dela: " + listOf(c.after) + "\n" +
+      "Funil inteiro na ordem: " + (Array.isArray(c.stages) ? c.stages.map((e) => String(e).slice(0, 80)).join(" -> ") : "") + "\n" +
+      "Ofertas do funil: " + listOf(c.offers) + "\n"
   }),
   /* uma ideia da caixa: perguntas, caminhos e proximos passos */
   expand: (c) => ({
@@ -510,6 +543,30 @@ const TEXT_TASKS = {
       (c.cost ? "Custo de tráfego no período: " + String(c.cost).slice(0, 40) + "\n" : "") +
       (c.cpl ? "CPL: " + String(c.cpl).slice(0, 40) + "\n" : "") +
       (c.cac ? "CAC: " + String(c.cac).slice(0, 40) + "\n" : "")
+  }),
+  /* uma demanda: da pra fazer com o Claude, e o que sobra pro Arthur.
+     quando da, a resposta termina numa linha "Montar: ..." — e ela que a tela
+     transforma em tarefa do dia. quando nao da, a linha nao vem e nao ha botao:
+     o merlin nao inventa trabalho para justificar a propria resposta. */
+  delegate: (c) => ({
+    instruction:
+      "Diga se esta demanda pode ser feita com o Claude. Comece com uma linha só, em negrito, com o veredicto — **dá**, **dá em parte** ou **não dá** — seguida de uma frase curta dizendo por quê. " +
+      "Depois, em markdown simples e no máximo 170 palavras: o que exatamente o Claude faria e de que forma; o que precisa existir antes (arquivo, acesso, conta, um exemplo do resultado certo); e o que continua sendo trabalho do Arthur. " +
+      "As formas possíveis são: Claude Code numa pasta ou repositório (lê e escreve arquivos, roda comandos, mexe em planilha e CSV, escreve e publica código); uma skill, que são instruções salvas ensinando uma tarefa recorrente (ele já tem uma para gerar criativos com o Nano Banana); um agente ligado por MCP a uma ferramenta que ele já usa (ClickUp, Meta Ads, Miro, HeyGen, Magnific, Resend, Supabase, Google Drive, Google Agenda, Stripe); um artifact, que é uma página publicada com link para mandar ao cliente (relatório, painel, formulário); um agente agendado, que roda sozinho num horário; ou a API dentro de um produto, como este próprio Merlin. Escolha uma e diga qual — nunca responda que \"dá para automatizar\" sem dizer com o quê. " +
+      "Seja honesto e sem entusiasmo: o que depende do julgamento dele, de estar presente, da relação com o cliente ou de apertar botão em ferramenta sem API é **não dá**, e uma linha explica. " +
+      (+c.min > 0
+        ? "A estimativa de hoje é " + Math.round(+c.min) + " minutos: diga em quantos minutos a demanda ficaria com o Claude fazendo a parte dele, contando o que sobra como supervisão. "
+        : "") +
+      "Se o veredicto for **dá** ou **dá em parte**, termine com uma última linha exatamente neste formato, sem negrito e sem nada depois: Montar: <o que precisa ser montado antes, começando por um verbo, até 8 palavras>. Se for **não dá**, não escreva essa linha. " +
+      'Formato: {"text":"…"}',
+    context:
+      "Demanda: " + String(c.title || "").slice(0, 200) + "\n" +
+      (c.where ? "Onde ela está: " + String(c.where).slice(0, 60) + "\n" : "") +
+      (+c.min > 0 ? "Estimativa atual: " + Math.round(+c.min) + " minutos\n" : "Estimativa atual: ainda não tem\n") +
+      (c.due ? "Prazo: " + String(c.due).slice(0, 30) + "\n" : "") +
+      (c.front ? "Frente (empresa): " + String(c.front).slice(0, 60) + "\n" : "") +
+      (c.client ? "Cliente: " + String(c.client).slice(0, 60) + "\n" : "") +
+      (c.about ? "Sobre o cliente: " + String(c.about).slice(0, 800) + "\n" : "")
   })
 };
 

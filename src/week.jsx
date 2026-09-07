@@ -118,6 +118,14 @@ function columnLabel(monday, col) {
   return col.label + " " + dayNumber(addDays(monday, 5)) + "–" + dayNumber(addDays(monday, 6));
 }
 
+/* ---------- o vinculo com o dia ----------
+   `inDay` guarda o id da tarefa que o dia criou a partir do cartao, e e o dia
+   quem escreve isso. mudar o cartao de dia desfaz o vinculo: a frase que ele
+   diz e "isto ja esta na fila de hoje", e depois de arrastar para quinta — ou
+   de trazer um atrasado para esta semana — ela deixa de ser verdade. sem isto
+   o cartao fica com o selo "no dia" e sem o gesto de puxar, para sempre. */
+const keepLink = (card, day) => (card.day === day ? card.inDay : "");
+
 /* ---------- ordenacao dentro do grupo: aberto por ordem, feito no fim ---------- */
 function sortGroup(list) {
   const open = list.filter((c) => !c.done).sort((a, b) => a.order - b.order || a.createdAt - b.createdAt);
@@ -182,7 +190,11 @@ function Week() {
   /* ---------- acoes ---------- */
   const shiftWeek = (n) => setMonday((m) => addDays(m, n * 7));
   const openNew = (day) => setForm({ id: "", day: day || (isCurrentWeek ? todayColumn() : monday) });
-  const toggleDone = (c, value) => week.save({ ...c, done: value, updatedAt: Date.now() });
+  /* reabrir e dizer que nao acabou. se o cartao tinha ido para o dia e foi
+     fechado la, o vinculo com aquela tarefa morre aqui — senao ele reabre sem
+     poder voltar para a fila. */
+  const toggleDone = (c, value) =>
+    week.save({ ...c, done: value, inDay: value ? c.inDay : "", updatedAt: Date.now() });
   const removeCard = (id) => {
     const before = week.remove(id);
     if (before) notify("cartão apagado", () => week.save(before));
@@ -192,7 +204,7 @@ function Week() {
     if (!late.length) return;
     const before = late.map((c) => ({ ...c }));
     const day = todayColumn();
-    week.saveMany(late.map((c) => ({ ...c, day, updatedAt: Date.now() })));
+    week.saveMany(late.map((c) => ({ ...c, day, inDay: keepLink(c, day), updatedAt: Date.now() })));
     notify(late.length + (late.length === 1 ? " cartão trazido" : " cartões trazidos") + " para esta semana", () => week.saveMany(before));
   };
   const archiveLate = () => {
@@ -280,7 +292,7 @@ function Week() {
     } else {
       order = siblings.length ? siblings[siblings.length - 1].order + 1 : Date.now();
     }
-    week.save({ ...original, day, front, order, updatedAt: Date.now() });
+    week.save({ ...original, day, front, order, inDay: keepLink(original, day), updatedAt: Date.now() });
   };
 
   const actions = { toggleDone, removeCard, pull, edit: (id) => setForm({ id }), editing, setEditing, week, dragging, onDragStart, onDragEnd };
@@ -443,7 +455,7 @@ function CardForm({ week, monday, id, presetDay, onClose, onRemove }) {
     const min = parseDuration(v.duration).min || parsed.min;
     const front = v.front || parsed.front, client = v.client || parsed.client;
     const now = Date.now();
-    if (c) week.save({ ...c, title, day: v.day, front, client, min, recurring: v.recurring, updatedAt: now });
+    if (c) week.save({ ...c, title, day: v.day, front, client, min, recurring: v.recurring, inDay: keepLink(c, v.day), updatedAt: now });
     else week.save({ id: newId(), title, day: v.day, front, client, min, done: false, recurring: v.recurring, order: now, createdAt: now, updatedAt: now });
   };
   return (
