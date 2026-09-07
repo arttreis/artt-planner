@@ -1,0 +1,849 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0d0d0d">
+<title>merlin · financeiro</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 472.5 472.5' fill='%232EE86B'><path d='M236.31,236.23c-3.63,128.42,107.71,238.95,236.22,236.22v-118.11c-64.78,2.88-121-53.42-118.11-118.11h-118.11Z'/><path d='M236.22,0C239.85,128.42,128.52,238.95,0,236.22v-118.11C64.78,120.99,121,64.69,118.11,0h118.11Z'/><path d='M315.07,0h77.61c44.09,0,79.89,35.8,79.89,79.89v77.61h-157.5V0h0Z'/><path d='M79.96,315H.07v78.75h78.75v78.75h78.75v-79.89c0-42.86-34.75-77.61-77.61-77.61Z'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="compartilhado/base.css">
+<script>/* anti-flash do tema: antes de qualquer pintura */
+try{var t=localStorage.getItem("merlin:tema");if(t?t==="claro":matchMedia("(prefers-color-scheme: light)").matches)document.documentElement.classList.add("light")}catch(e){}</script>
+<style>
+/* financeiro: so o que base.css ainda nao cobre. o resto (bloco, medidor,
+   tabela, dialogo, selo, barra, abas) e o mesmo vocabulario de sempre. */
+
+/* a linha do dia expande em vez de navegar: cursor de mao avisa que ela
+   responde a clique sem precisar de um icone so pra isso */
+.linha-dia{cursor:pointer}
+.linha-detalhe td{background:var(--surface-2);padding:var(--pd)}
+
+/* convite discreto: mesma familia do .nota, mas com uma acao — por isso
+   fica em pilula tracejada, nao em texto solto, senao ninguem clica */
+.convite{
+  display:flex;align-items:center;justify-content:space-between;gap:var(--pd);
+  padding:9px 14px;margin:0 0 var(--pd);flex-wrap:wrap;
+  border:1px dashed var(--line);border-radius:var(--br2);
+  color:var(--ink-50);font-size:12.5px;
+}
+
+/* o numero do medidor nunca quebra em duas linhas: menor que o clamp de
+   base.css, que foi feito para dois ou tres numeros por linha, nao seis */
+.medidor .num{white-space:nowrap;font-size:clamp(18px,2vw,28px)}
+.medidores{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+
+/* ---------- painel: as quatro tabelas da planilha ----------
+   cada bloco e uma tabela com o total no rotulo e o "+" ao lado — a linha
+   inteira abre a edicao, entao ela tem cursor de mao e nenhum lapis. */
+.painel-bloco .rotulo{margin-bottom:4px}
+.painel-bloco .rotulo .total{font-family:var(--mono);font-size:12.5px;color:var(--ink)}
+.painel-bloco .rotulo .fileira{gap:6px}
+.tabela tr[data-editar]{cursor:pointer}
+.tabela td.fraco{color:var(--ink-30)}
+.tabela .barra{width:72px;display:inline-block;vertical-align:middle}
+.tabela .acoes-linha{justify-content:flex-end}
+.tabela tr:hover .acoes-linha{opacity:1}
+
+/* ---------- ano: doze meses lado a lado, como a aba anual da planilha ----------
+   cada mes e uma coluna estreita com o saldo de cada dia; positivo leva
+   um tom de verde, negativo leva hachura — nunca vermelho. rola por
+   dentro do proprio envoltorio para o body nunca ganhar barra horizontal. */
+.ano-rolagem{overflow-x:auto;padding-bottom:6px;margin:0 -2px}
+.ano{display:grid;grid-template-columns:repeat(12,minmax(118px,1fr));gap:6px;padding:0 2px}
+.ano__mes{background:var(--surface);border:1px solid var(--line-soft);border-radius:var(--br3);overflow:hidden}
+.ano__mes.is-atual{border-color:var(--ink-30)}
+.ano__cab{
+  display:flex;justify-content:space-between;align-items:baseline;gap:6px;
+  padding:8px 9px 7px;border-bottom:1px solid var(--line-soft);cursor:pointer;
+  transition:background var(--t);
+}
+.ano__cab:hover{background:var(--fill)}
+.ano__cab b{font-size:12.5px;font-weight:600;letter-spacing:-.01em}
+.ano__mes.is-atual .ano__cab b{color:var(--green-ink)}
+.ano__cab span{font-family:var(--mono);font-size:10.5px;color:var(--ink-50);white-space:nowrap}
+.ano__dia{
+  display:flex;justify-content:space-between;gap:4px;padding:1px 8px;
+  font-family:var(--mono);font-size:10.5px;line-height:1.7;color:var(--ink-50);white-space:nowrap;
+}
+.ano__dia i{font-style:normal;color:var(--ink-30)}
+.ano__dia.is-mov{color:var(--ink)}
+.ano__dia.is-pos{background:color-mix(in srgb,var(--green) 9%,transparent)}
+.ano__dia.is-neg{background:repeating-linear-gradient(135deg,var(--line-soft) 0 2px,transparent 2px 6px)}
+.ano__dia.is-hoje{box-shadow:inset 0 0 0 1px var(--green)}
+.ano__dia.is-vazio{visibility:hidden}
+
+/* categorias dentro da config: chips com o x, e um campo para a nova */
+.cf-cats{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.cf-nova{display:flex;gap:6px}
+.cf-nova .campo{flex:1 1 auto}
+
+@media (max-width:640px){
+  .ano{grid-template-columns:repeat(12,124px)}
+}
+</style>
+</head>
+<body>
+<main class="pagina">
+
+  <div class="cabeca">
+    <div>
+      <h1>financeiro</h1>
+      <p class="sub">o mês dia a dia, e o que é fixo — do jeito da planilha</p>
+    </div>
+    <div class="acoes">
+      <button class="pill" type="button" data-acao="config">config</button>
+    </div>
+  </div>
+
+  <p class="convite" id="convite" hidden>
+    <span>ainda não tenho um saldo inicial pra partir a conta — sem ele o saldo começa do zero.</span>
+    <button class="link" type="button" data-acao="config">definir agora</button>
+  </p>
+
+  <div class="abas" role="tablist">
+    <button class="aba" type="button" role="tab" data-aba="mes" aria-selected="true">mês</button>
+    <button class="aba" type="button" role="tab" data-aba="ano" aria-selected="false">ano</button>
+    <button class="aba" type="button" role="tab" data-aba="painel" aria-selected="false">painel</button>
+  </div>
+
+  <div id="painel"></div>
+
+</main>
+<script type="module">
+import {
+  iniciarPagina, colecao, $, escapar, novoId, hoje, mostrarAviso,
+  seloFrente, opcoesFrente, ICONE, brl, lerValor,
+  ehDia, somarDias, diaDaSemana, rotuloMes, rotuloData,
+  abrirFormulario, campoForm
+} from "./compartilhado/nucleo.js";
+
+iniciarPagina("financeiro");
+
+const pad = (n) => String(n).padStart(2, "0");
+const emReais = (centavos) => centavos ? (centavos / 100).toFixed(2).replace(".", ",") : "";
+const MESES_CURTOS = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+
+/* categorias padrao: as da planilha, ate a config guardar a lista propria */
+const CATEGORIAS_PADRAO = ["Básicas/PF", "Básicas/PJ", "Lazer", "Recorrente", "Ferramentas", "Freela", "Investimento", "Outros"];
+
+/* ================================================================
+   o coracao do modulo: saldo e projecoes
+   ================================================================
+   estas funcoes sao puras — recebem tudo que precisam em `ctx` e nao leem
+   a colecao nem o DOM. e o que permite chamar a mesma conta de varios
+   lugares (o medidor do mes, a tabela dia a dia, os doze meses do ano) sem
+   arriscar que cada um implemente sua propria versao e um dia elas
+   divirjam; e testar com `node` puro, porque um numero errado aqui e
+   dinheiro errado.
+   ================================================================ */
+
+function diasNoMes(ano, mes) {
+  /* dia 0 do mes seguinte (1-based) e o ultimo dia do mes atual — cobre
+     fevereiro de ano bissexto sem precisar de tabela de excecoes */
+  return new Date(ano, mes, 0).getDate();
+}
+function diaEfetivo(ano, mes, diaDoMes) {
+  /* fixo/divida/parcela com diaDoMes 31 cai no ultimo dia do mes nos
+     meses que nao tem 31 — nunca "vaza" pro dia 1 do mes seguinte */
+  return Math.min(diaDoMes, diasNoMes(ano, mes));
+}
+/* meses entre "2026-09" e "2026-12" = 3; negativo se `ate` vem antes */
+function mesesEntre(de, ate) {
+  const [a1, m1] = de.split("-").map(Number), [a2, m2] = ate.split("-").map(Number);
+  return (a2 - a1) * 12 + (m2 - m1);
+}
+const parcelaCartao = (c) => c.parcelas ? Math.round(c.total / c.parcelas) : 0;
+/* que numero de parcela cai no mes `aaaamm`: 1 na primeira, 0 antes dela,
+   acima de `parcelas` depois da ultima */
+const numeroParcela = (c, aaaamm) => c.inicio ? mesesEntre(c.inicio, aaaamm) + 1 : 0;
+
+/* uma projecao ja virou lancamento real naquele mes? sem isso, confirmar
+   um fixo faria ele contar duas vezes: uma como lancamento pago, outra
+   como projecao do mesmo dia */
+function jaLancado(lancamentos, tipoOrigem, id, dia) {
+  const mesDoDia = dia.slice(0, 7);
+  return (lancamentos || []).some((l) =>
+    l.origem && l.origem.tipo === tipoOrigem && l.origem.id === id && l.data.slice(0, 7) === mesDoDia);
+}
+
+/* tudo que o dia `dia` teria alem dos lancamentos ja gravados: a
+   recorrencia dos fixos, a parcela de uma divida (enquanto ela nao
+   quitar) e a parcela de uma compra no cartao (enquanto houver parcela).
+   nada aqui grava documento nenhum — e so a pergunta "o que cai neste
+   dia?" respondida sem efeito colateral, pra poder chamar de novo a
+   vontade (o mes inteiro, o saldoAte, o ano). */
+function projecoesDoDia(dia, ctx) {
+  const [ano, mes, diaNum] = dia.split("-").map(Number);
+  const aaaamm = dia.slice(0, 7);
+  const proj = [];
+
+  (ctx.fixos || []).forEach((f) => {
+    if (!f.ativo) return;
+    if (diaEfetivo(ano, mes, f.diaDoMes) !== diaNum) return;
+    if (jaLancado(ctx.lancamentos, "fixo", f.id, dia)) return;
+    proj.push({
+      id: "proj-fixo-" + f.id + "-" + dia, nome: f.nome, valor: f.valor, sentido: f.sentido,
+      categoria: f.categoria, frente: f.frente, origem: { tipo: "fixo", id: f.id }
+    });
+  });
+
+  (ctx.dividas || []).forEach((d) => {
+    if (d.pago >= d.total) return; /* quitada: para de projetar */
+    if (diaEfetivo(ano, mes, d.diaDoMes) !== diaNum) return;
+    if (jaLancado(ctx.lancamentos, "divida", d.id, dia)) return;
+    const restante = d.total - d.pago;
+    proj.push({
+      id: "proj-divida-" + d.id + "-" + dia, nome: d.nome, valor: Math.min(d.parcela || restante, restante),
+      sentido: "saida", categoria: "Dívida", frente: d.frente, origem: { tipo: "divida", id: d.id }
+    });
+  });
+
+  (ctx.cartoes || []).forEach((c) => {
+    const n = numeroParcela(c, aaaamm);
+    if (n < 1 || n > c.parcelas) return;
+    if (diaEfetivo(ano, mes, c.diaDoMes) !== diaNum) return;
+    if (jaLancado(ctx.lancamentos, "cartao", c.id, dia)) return;
+    proj.push({
+      id: "proj-cartao-" + c.id + "-" + dia, nome: c.nome + " · " + n + "/" + c.parcelas, valor: parcelaCartao(c),
+      sentido: "saida", categoria: "Cartão", frente: c.frente, origem: { tipo: "cartao", id: c.id }
+    });
+  });
+
+  return proj;
+}
+
+/* a data mais antiga entre os lancamentos: usada so quando ainda nao existe
+   saldoInicial, pra a tela nao ficar zerada por falta de configuracao */
+function dataMaisAntiga(lancamentos) {
+  let menor = null;
+  (lancamentos || []).forEach((l) => { if (!menor || l.data < menor) menor = l.data; });
+  return menor;
+}
+
+/* saldo no fim do dia `dia`: parte do saldo inicial e anda dia a dia,
+   somando lancamentos (pago ou nao — um lancamento nao pago ja e a propria
+   previsao) e as projecoes. e dia a dia, e nao "soma tudo com data <= dia",
+   porque so assim o diaEfetivo se aplica mes a mes igual um calendario. */
+function saldoAte(dia, ctx) {
+  const antiga = dataMaisAntiga(ctx.lancamentos);
+  const cfg = ctx.saldoInicial || (antiga ? { data: antiga, valor: 0 } : null);
+  if (!cfg) return 0;
+  if (dia < cfg.data) return cfg.valor;
+  let saldo = cfg.valor;
+  let d = cfg.data;
+  while (d <= dia) {
+    (ctx.lancamentos || []).forEach((l) => {
+      if (l.data !== d) return;
+      saldo += l.sentido === "entrada" ? l.valor : -l.valor;
+    });
+    projecoesDoDia(d, ctx).forEach((p) => { saldo += p.sentido === "entrada" ? p.valor : -p.valor; });
+    d = somarDias(d, 1);
+  }
+  return saldo;
+}
+
+/* o mes inteiro, dia a dia: um saldoAte() so pro dia anterior ao 1, depois
+   anda dia a dia — em vez de chamar saldoAte() pra cada linha */
+function construirMes(aaaamm, ctx, saldoAntes) {
+  const [ano, mes] = aaaamm.split("-").map(Number);
+  const nDias = diasNoMes(ano, mes);
+  let saldo = saldoAntes != null ? saldoAntes : saldoAte(somarDias(aaaamm + "-01", -1), ctx);
+  /* antes do marco (saldo inicial, ou o lancamento mais antigo) nao ha
+     conta: o dia aparece vazio, e o saldo fica parado no valor inicial —
+     a mesma regra do saldoAte, senao o ano e o mes discordariam */
+  const marco = (ctx.saldoInicial || {}).data || dataMaisAntiga(ctx.lancamentos) || "";
+  const dias = [];
+  for (let i = 1; i <= nDias; i++) {
+    const dia = aaaamm + "-" + pad(i);
+    if (marco && dia < marco) { dias.push({ dia, entradas: 0, saidas: 0, saldo, itens: [], antes: true }); continue; }
+    const itens = ctx.lancamentos.filter((l) => l.data === dia).concat(projecoesDoDia(dia, ctx));
+    const entradas = itens.filter((x) => x.sentido === "entrada").reduce((s, x) => s + x.valor, 0);
+    const saidas = itens.filter((x) => x.sentido === "saida").reduce((s, x) => s + x.valor, 0);
+    saldo += entradas - saidas;
+    dias.push({ dia, entradas, saidas, saldo, itens });
+  }
+  return dias;
+}
+function mesAdjacente(aaaamm, delta) {
+  const [ano, mes] = aaaamm.split("-").map(Number);
+  let m = mes + delta, a = ano;
+  if (m < 1) { m = 12; a--; } else if (m > 12) { m = 1; a++; }
+  return a + "-" + pad(m);
+}
+
+/* ---------- colecao e normalizacao ----------
+   uma colecao so, varios tipos — o proprio documento diz o que ele e, e a
+   normalizacao decide os campos por tipo. os tipos sao os quatro blocos da
+   planilha (fixo de saida/entrada, cartao, divida), mais o lancamento do
+   dia a dia e a config. */
+
+function normalizarOrigem(o) {
+  if (!o || !o.tipo) return null;
+  return { tipo: String(o.tipo), id: String(o.id || "") };
+}
+
+function normalizar(d) {
+  const base = {
+    id: String(d.id || ""),
+    tipo: String(d.tipo || ""),
+    frente: String(d.frente || ""),
+    criada: Number.isFinite(+d.criada) ? +d.criada : Date.now(),
+    atualizada: Number.isFinite(+d.atualizada) ? +d.atualizada : Date.now()
+  };
+  const dia = (v, padrao) => Math.min(31, Math.max(1, Math.round(+v) || padrao));
+  switch (base.tipo) {
+    case "lancamento":
+      return {
+        ...base,
+        data: ehDia(d.data) ? d.data : hoje(),
+        nome: String(d.nome || "").slice(0, 140),
+        valor: Math.round(Math.abs(+d.valor)) || 0,
+        sentido: d.sentido === "entrada" ? "entrada" : "saida",
+        categoria: String(d.categoria || ""),
+        pago: !!d.pago,
+        origem: normalizarOrigem(d.origem)
+      };
+    case "fixo":
+      return {
+        ...base,
+        nome: String(d.nome || "").slice(0, 140),
+        valor: Math.round(Math.abs(+d.valor)) || 0,
+        sentido: d.sentido === "entrada" ? "entrada" : "saida",
+        categoria: String(d.categoria || ""),
+        diaDoMes: dia(d.diaDoMes, 1),
+        ativo: d.ativo !== false
+      };
+    case "cartao":
+      /* uma compra parcelada no cartao: total, quantas parcelas, em que mes
+         cai a primeira e em que dia vence — a parcela sai do total */
+      return {
+        ...base,
+        nome: String(d.nome || "").slice(0, 140),
+        cartao: String(d.cartao || "").slice(0, 40),
+        total: Math.round(Math.abs(+d.total)) || 0,
+        parcelas: Math.max(1, Math.round(+d.parcelas) || 1),
+        inicio: /^\d{4}-\d{2}$/.test(d.inicio) ? d.inicio : hoje().slice(0, 7),
+        diaDoMes: dia(d.diaDoMes, 10)
+      };
+    case "divida":
+      return {
+        ...base,
+        nome: String(d.nome || "").slice(0, 140),
+        credor: String(d.credor || "").slice(0, 80),
+        total: Math.round(Math.abs(+d.total)) || 0,
+        pago: Math.max(0, Math.round(+d.pago) || 0),
+        parcela: Math.round(Math.abs(+d.parcela)) || 0,
+        diaDoMes: dia(d.diaDoMes, 1)
+      };
+    case "config":
+      return {
+        ...base,
+        id: "config",
+        saldoInicial: d.saldoInicial && ehDia(d.saldoInicial.data)
+          ? { data: d.saldoInicial.data, valor: Math.round(+d.saldoInicial.valor) || 0 }
+          : null,
+        divisao: {
+          despesas: Number.isFinite(+((d.divisao || {}).despesas)) ? +d.divisao.despesas : 50,
+          gastos: Number.isFinite(+((d.divisao || {}).gastos)) ? +d.divisao.gastos : 30,
+          ativos: Number.isFinite(+((d.divisao || {}).ativos)) ? +d.divisao.ativos : 20
+        },
+        categorias: Array.isArray(d.categorias) && d.categorias.length ? d.categorias.map(String) : CATEGORIAS_PADRAO.slice()
+      };
+    default:
+      return { ...base, ...d };
+  }
+}
+
+const financeiro = colecao("financeiro", { normalizar });
+const porTipo = (tipo) => financeiro.todos().filter((d) => d.tipo === tipo);
+function obterConfig() { return financeiro.obter("config") || normalizar({ id: "config", tipo: "config" }); }
+function gravarConfig(parcial) {
+  const atual = obterConfig();
+  financeiro.gravar({ ...atual, ...parcial, id: "config", tipo: "config", atualizada: Date.now() });
+}
+function opcoesCategoria(sel) {
+  return obterConfig().categorias.map((c) => '<option value="' + escapar(c) + '"' + (c === sel ? " selected" : "") + ">" + escapar(c) + "</option>").join("");
+}
+function contexto() {
+  return {
+    lancamentos: porTipo("lancamento"),
+    fixos: porTipo("fixo"),
+    dividas: porTipo("divida"),
+    cartoes: porTipo("cartao"),
+    saldoInicial: obterConfig().saldoInicial
+  };
+}
+
+/* ---------- estado da tela ---------- */
+let abaAtual = "mes";
+let mesAtual = hoje().slice(0, 7);
+let anoAtual = +hoje().slice(0, 4);
+let diaAberto = "";
+
+/* ---------- render ---------- */
+function render() {
+  $("convite").hidden = !!obterConfig().saldoInicial;
+  document.querySelectorAll(".aba").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.aba === abaAtual)));
+  const fn = { mes: renderMes, ano: renderAno, painel: renderPainel }[abaAtual];
+  $("painel").innerHTML = fn ? fn() : "";
+}
+
+const SETA_VOLTA = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H6M12 5l-7 7 7 7"/></svg>';
+const botaoMais = (acao, extra, titulo) =>
+  '<button class="acao" type="button" data-acao="' + acao + '"' + (extra || "") + ' title="' + escapar(titulo) + '" aria-label="' + escapar(titulo) + '">' + ICONE.mais + "</button>";
+
+/* ----- mês ----- */
+function linhaDia(d, ehHoje) {
+  const rotulo = diaDaSemana(d.dia) + " " + (+d.dia.slice(8, 10));
+  let html = '<tr class="linha-dia' + (ehHoje ? " is-hoje" : "") + '" data-dia="' + d.dia + '">' +
+    "<td>" + escapar(rotulo) + "</td>" +
+    '<td class="num">' + (d.entradas ? brl(d.entradas, true) : "—") + "</td>" +
+    '<td class="num">' + (d.saidas ? brl(-d.saidas) : "—") + "</td>" +
+    '<td class="num' + (d.saldo < 0 ? " negativo" : "") + (d.antes ? " fraco" : "") + '">' + (d.antes ? "—" : brl(d.saldo)) + "</td></tr>";
+  if (diaAberto === d.dia) html += '<tr class="linha-detalhe"><td colspan="4">' + detalheDia(d) + "</td></tr>";
+  return html;
+}
+function detalheDia(d) {
+  const lista = d.itens.length ? '<ul class="lista">' + d.itens.map((it) => {
+    const proj = it.id.startsWith("proj-");
+    const sinal = it.sentido === "entrada" ? "+" : "−";
+    const acoes = proj
+      ? '<button class="acao" type="button" data-acao="confirmar-projecao" data-dia="' + d.dia + '" data-origem-tipo="' + it.origem.tipo + '" data-origem-id="' + escapar(it.origem.id) + '" title="confirmar: virou lançamento">' + ICONE.check + "</button>"
+      : '<button class="acao" type="button" data-acao="alternar-pago" data-id="' + it.id + '" title="' + (it.pago ? "marcar como previsto" : "marcar como pago") + '">' + ICONE.check + "</button>" +
+        '<button class="acao" type="button" data-acao="editar-lancamento" data-id="' + it.id + '" title="editar">' + ICONE.lapis + "</button>";
+    return '<li class="linha">' +
+      '<span class="nome' + (proj ? " fraco" : "") + '">' + escapar(it.nome) +
+        (it.categoria ? " <small>#" + escapar(it.categoria) + "</small>" : "") +
+        (!proj && !it.pago ? " <small>previsto</small>" : "") + "</span>" +
+      (it.frente ? seloFrente(it.frente) : "") +
+      '<span class="medida mono">' + sinal + " " + brl(it.valor) + "</span>" +
+      '<span class="acoes-linha">' + acoes + "</span></li>";
+  }).join("") + "</ul>" : '<p class="vazio">nada neste dia</p>';
+  return lista + '<p class="mt2"><button class="pill pill--mini" type="button" data-acao="novo-lancamento" data-dia="' + d.dia + '">+ lançamento neste dia</button></p>';
+}
+
+function renderMes() {
+  const ctx = contexto();
+  const dias = construirMes(mesAtual, ctx);
+  const [ano, mes] = mesAtual.split("-").map(Number);
+  const nDias = diasNoMes(ano, mes);
+  const hj = hoje();
+  const ehMesDeHoje = mesAtual === hj.slice(0, 7);
+  const diaHojeNum = ehMesDeHoje ? +hj.slice(8, 10) : 0;
+
+  const saldoHoje = saldoAte(hj, ctx);
+  const saldoFimMes = dias[dias.length - 1].saldo;
+  /* o "diario" da planilha: o que sobra no fim do mes dividido pelos dias
+     que ainda faltam — mesma logica da barra do dia */
+  const diasQueFaltam = ehMesDeHoje ? (nDias - diaHojeNum + 1) : nDias;
+  const diario = diasQueFaltam > 0 ? Math.round(saldoFimMes / diasQueFaltam) : 0;
+  const entradasMes = dias.reduce((s, d) => s + d.entradas, 0);
+  const saidasMes = dias.reduce((s, d) => s + d.saidas, 0);
+
+  return '<div class="fileira mb">' +
+      '<button class="pill pill--icone" type="button" data-acao="mes-anterior" aria-label="mês anterior">' + SETA_VOLTA + "</button>" +
+      '<strong class="mono">' + escapar(rotuloMes(mesAtual)) + "</strong>" +
+      '<button class="pill pill--icone" type="button" data-acao="mes-seguinte" aria-label="mês seguinte">' + ICONE.seta + "</button>" +
+      '<span class="espaco"></span>' +
+      '<button class="pill pill--verde" type="button" data-acao="novo-lancamento">' + ICONE.mais + "lançamento</button>" +
+    "</div>" +
+
+    '<div class="medidores mb">' +
+      '<div class="medidor"><span class="leg">saldo hoje</span><span class="num mono' + (saldoHoje < 0 ? " is-negativo" : "") + '">' + brl(saldoHoje) + "</span></div>" +
+      '<div class="medidor"><span class="leg">fim do mês</span><span class="num mono' + (saldoFimMes < 0 ? " is-negativo" : "") + '">' + brl(saldoFimMes) + "</span></div>" +
+      '<div class="medidor"><span class="leg">' + (diario < 0 ? "não fecha" : "diário") + '</span><span class="num mono' + (diario < 0 ? " is-negativo" : " is-verde") + '">' + brl(diario) + "</span></div>" +
+      '<div class="medidor"><span class="leg">entradas</span><span class="num mono">' + brl(entradasMes) + "</span></div>" +
+      '<div class="medidor"><span class="leg">saídas</span><span class="num mono">' + brl(saidasMes) + "</span></div>" +
+    "</div>" +
+
+    '<div class="tabela-rolagem"><table class="tabela"><thead><tr><th>dia</th><th class="num">entradas</th><th class="num">saídas</th><th class="num">saldo</th></tr></thead><tbody>' +
+      dias.map((d) => linhaDia(d, ehMesDeHoje && d.dia === hj)).join("") +
+    "</tbody></table></div>";
+}
+
+/* ----- ano ----- */
+function renderAno() {
+  const ctx = contexto();
+  const hj = hoje();
+  /* o saldo entra em janeiro uma vez e desce mes a mes: doze construirMes
+     encadeados, em vez de doze saldoAte() que recalculariam do inicio */
+  let saldo = saldoAte(somarDias(anoAtual + "-01-01", -1), ctx);
+  const meses = [];
+  for (let m = 1; m <= 12; m++) {
+    const aaaamm = anoAtual + "-" + pad(m);
+    const dias = construirMes(aaaamm, ctx, saldo);
+    saldo = dias[dias.length - 1].saldo;
+    meses.push({ aaaamm, dias });
+  }
+  const colunas = meses.map((mesObj, i) => {
+    const fim = mesObj.dias[mesObj.dias.length - 1].saldo;
+    const linhas = [];
+    for (let d = 1; d <= 31; d++) {
+      const dia = mesObj.dias[d - 1];
+      if (!dia) { linhas.push('<div class="ano__dia is-vazio"><i>' + pad(d) + "</i><span>—</span></div>"); continue; }
+      if (dia.antes) { linhas.push('<div class="ano__dia"><i>' + pad(d) + "</i><span class=\"fraco\">—</span></div>"); continue; }
+      const mov = dia.entradas || dia.saidas;
+      const cls = (dia.saldo < 0 ? " is-neg" : (mov ? " is-pos" : "")) + (mov ? " is-mov" : "") + (dia.dia === hj ? " is-hoje" : "");
+      linhas.push('<div class="ano__dia' + cls + '" title="' + escapar(rotuloData(dia.dia, true)) + (dia.entradas ? " · +" + brl(dia.entradas) : "") + (dia.saidas ? " · −" + brl(dia.saidas) : "") + '"><i>' + pad(d) + "</i><span>" + brl(dia.saldo) + "</span></div>");
+    }
+    return '<div class="ano__mes' + (mesObj.aaaamm === hj.slice(0, 7) ? " is-atual" : "") + '">' +
+      '<div class="ano__cab" data-acao="abrir-mes" data-mes="' + mesObj.aaaamm + '" title="abrir ' + MESES_CURTOS[i] + '"><b>' + MESES_CURTOS[i] + "</b><span>" + brl(fim) + "</span></div>" +
+      linhas.join("") + "</div>";
+  });
+  return '<div class="fileira mb">' +
+      '<button class="pill pill--icone" type="button" data-acao="ano-anterior" aria-label="ano anterior">' + SETA_VOLTA + "</button>" +
+      '<strong class="mono">' + anoAtual + "</strong>" +
+      '<button class="pill pill--icone" type="button" data-acao="ano-seguinte" aria-label="ano seguinte">' + ICONE.seta + "</button>" +
+      '<span class="pequeno fraco">saldo previsto no fim de cada dia · clique no mês para abrir</span>' +
+    "</div>" +
+    '<div class="ano-rolagem"><div class="ano">' + colunas.join("") + "</div></div>";
+}
+
+/* ----- painel: as quatro tabelas da planilha ----- */
+function tabela(cabecalhos, linhas, vazio) {
+  if (!linhas.length) return '<p class="vazio">' + escapar(vazio) + "</p>";
+  return '<div class="tabela-rolagem"><table class="tabela"><thead><tr>' +
+    cabecalhos.map((h) => "<th" + (h.num ? ' class="num"' : "") + ">" + escapar(h.t) + "</th>").join("") +
+    "</tr></thead><tbody>" + linhas.join("") + "</tbody></table></div>";
+}
+function blocoPainel(titulo, total, acaoMais, corpo) {
+  return '<div class="col-6"><div class="bloco painel-bloco">' +
+    '<p class="rotulo"><span class="t-mono">' + escapar(titulo) + '</span><span class="fileira"><span class="total">' + total + "</span>" + botaoMais(acaoMais.acao, acaoMais.extra, acaoMais.titulo) + "</span></p>" +
+    corpo + "</div></div>";
+}
+
+function renderPainel() {
+  const ctx = contexto();
+  const hj = hoje(), mesHoje = hj.slice(0, 7);
+  const div = obterConfig().divisao;
+
+  const fixosDe = (sentido) => ctx.fixos.filter((f) => f.sentido === sentido).sort((a, b) => a.diaDoMes - b.diaDoMes);
+  const saidas = fixosDe("saida"), entradas = fixosDe("entrada");
+  const totalSaidas = saidas.reduce((s, f) => s + f.valor, 0);
+  const totalEntradas = entradas.reduce((s, f) => s + f.valor, 0);
+  const linhaFixo = (f) => '<tr data-editar="fixo" data-id="' + f.id + '">' +
+    "<td>" + escapar(f.nome) + (f.ativo ? "" : ' <span class="selo">pausado</span>') + "</td>" +
+    '<td class="fraco">' + escapar(f.categoria) + "</td>" +
+    '<td class="num fraco">' + f.diaDoMes + "/mês</td>" +
+    '<td class="num">' + brl(f.valor) + "</td></tr>";
+  const cabFixo = (rotuloValor) => [{ t: "nome" }, { t: "categoria" }, { t: "dia", num: true }, { t: rotuloValor, num: true }];
+
+  /* cartao: a parcela que cai neste mes, e quantas ainda faltam */
+  const cartoes = ctx.cartoes.slice().sort((a, b) => a.inicio.localeCompare(b.inicio) || a.diaDoMes - b.diaDoMes);
+  const restanteCartao = (c) => { const n = Math.max(0, Math.min(c.parcelas, numeroParcela(c, mesHoje) - 1)); return c.total - n * parcelaCartao(c); };
+  const totalCartao = cartoes.reduce((s, c) => s + Math.max(0, restanteCartao(c)), 0);
+  const linhaCartao = (c) => {
+    const n = numeroParcela(c, mesHoje);
+    const parcelamento = n < 1 ? "começa " + MESES_CURTOS[+c.inicio.slice(5, 7) - 1] : (n > c.parcelas ? "quitado" : n + "/" + c.parcelas);
+    return '<tr data-editar="cartao" data-id="' + c.id + '">' +
+      "<td>" + escapar(c.nome) + "</td>" +
+      '<td class="fraco">' + escapar(c.cartao) + "</td>" +
+      '<td class="num fraco">' + escapar(parcelamento) + "</td>" +
+      '<td class="num">' + brl(c.total) + "</td></tr>";
+  };
+
+  const dividas = ctx.dividas.slice().sort((a, b) => (a.pago >= a.total) - (b.pago >= b.total) || b.total - a.total);
+  const totalDevido = dividas.reduce((s, d) => s + Math.max(0, d.total - d.pago), 0);
+  const linhaDivida = (d) => {
+    const pct = d.total ? Math.min(100, Math.round(d.pago / d.total * 100)) : 0;
+    const quitada = d.pago >= d.total;
+    return '<tr data-editar="divida" data-id="' + d.id + '">' +
+      "<td>" + escapar(d.nome) + "</td>" +
+      '<td class="fraco">' + escapar(d.credor) + "</td>" +
+      '<td class="num">' + brl(d.total) + "</td>" +
+      '<td class="num">' + (quitada ? '<span class="selo selo--verde">pago</span>' :
+        '<span class="barra" title="' + brl(d.pago) + ' de ' + brl(d.total) + '"><i style="width:' + pct + '%"></i></span>') + "</td>" +
+      '<td class="num">' + (quitada ? "" : '<span class="acoes-linha"><button class="pill pill--mini" type="button" data-acao="pagar-parcela" data-id="' + d.id + '" title="paga uma parcela hoje">pagar</button></span>') + "</td></tr>";
+  };
+
+  return '<div class="grade">' +
+      blocoPainel("saídas fixas", brl(totalSaidas), { acao: "novo-fixo", extra: ' data-sentido="saida"', titulo: "nova saída fixa" },
+        tabela(cabFixo("saída"), saidas.map(linhaFixo), "nenhuma saída fixa — aluguel, luz, academia…")) +
+      blocoPainel("entradas fixas", brl(totalEntradas), { acao: "novo-fixo", extra: ' data-sentido="entrada"', titulo: "nova entrada fixa" },
+        tabela(cabFixo("entrada"), entradas.map(linhaFixo), "nenhuma entrada fixa — o que entra todo mês")) +
+      blocoPainel("cartão de crédito", brl(totalCartao), { acao: "novo-cartao", titulo: "nova compra parcelada" },
+        tabela([{ t: "nome" }, { t: "cartão" }, { t: "parcelamento", num: true }, { t: "total", num: true }], cartoes.map(linhaCartao), "nenhuma compra parcelada")) +
+      blocoPainel("dívidas", brl(totalDevido), { acao: "nova-divida", titulo: "nova dívida" },
+        tabela([{ t: "nome" }, { t: "pessoa" }, { t: "valor", num: true }, { t: "pago", num: true }, { t: "", num: true }], dividas.map(linhaDivida), "nenhuma dívida")) +
+    "</div>" +
+
+    '<div class="bloco mt"><p class="rotulo"><span class="t-mono">divisão ' + div.despesas + "/" + div.gastos + "/" + div.ativos + '</span><span class="pequeno fraco">sobre as entradas fixas</span></p>' +
+      '<div class="medidores">' +
+        '<div class="medidor"><span class="leg">despesas · ' + div.despesas + '%</span><span class="num mono">' + brl(Math.round(totalEntradas * div.despesas / 100)) + "</span></div>" +
+        '<div class="medidor"><span class="leg">gastos · ' + div.gastos + '%</span><span class="num mono">' + brl(Math.round(totalEntradas * div.gastos / 100)) + "</span></div>" +
+        '<div class="medidor"><span class="leg">ativos · ' + div.ativos + '%</span><span class="num mono">' + brl(Math.round(totalEntradas * div.ativos / 100)) + "</span></div>" +
+        '<div class="medidor"><span class="leg">sobra dos fixos</span><span class="num mono' + (totalEntradas - totalSaidas < 0 ? " is-negativo" : " is-verde") + '">' + brl(totalEntradas - totalSaidas) + "</span></div>" +
+      "</div></div>";
+}
+
+/* ---------- formularios (todos em pop-up) ----------
+   o mesmo abrirFormulario do nucleo: criar e editar sao a mesma caixa, a
+   diferenca e ter ou nao um documento por baixo. */
+const campoValor = (nome, rotulo, valor) => campoForm(rotulo, '<input class="campo campo--num" name="' + nome + '" inputmode="decimal" placeholder="0,00" value="' + emReais(valor) + '">');
+const campoDia = (nome, rotulo, valor) => campoForm(rotulo, '<input class="campo campo--num" name="' + nome + '" type="number" min="1" max="31" value="' + (valor || "") + '">');
+const campoFrente = (valor) => campoForm("frente", '<select class="campo-sel" name="frente">' + opcoesFrente(valor || "", "sem frente") + "</select>");
+const campoCategoria = (valor) => campoForm("categoria", '<select class="campo-sel" name="categoria">' + opcoesCategoria(valor || "") + "</select>");
+const campoSentido = (valor) => campoForm("tipo", '<select class="campo-sel" name="sentido"><option value="saida"' + (valor !== "entrada" ? " selected" : "") + '>saída</option><option value="entrada"' + (valor === "entrada" ? " selected" : "") + ">entrada</option></select>");
+const checkbox = (nome, rotulo, marcado) => '<label class="fileira inteiro"><input type="checkbox" name="' + nome + '"' + (marcado ? " checked" : "") + "> " + escapar(rotulo) + "</label>";
+
+function apagarComAviso(id, texto) {
+  const antes = financeiro.apagar(id);
+  mostrarAviso(texto, antes ? () => financeiro.gravar(antes) : null);
+}
+function gravar(doc, ex, texto) {
+  financeiro.gravar({ ...doc, criada: ex ? ex.criada : Date.now(), atualizada: Date.now() });
+  mostrarAviso(texto);
+}
+
+function formLancamento(id, diaPre) {
+  const l = id ? financeiro.obter(id) : null;
+  abrirFormulario({
+    titulo: l ? "lançamento" : "novo lançamento",
+    campos:
+      campoForm("nome", '<input class="campo" name="nome" required maxlength="140" value="' + escapar(l ? l.nome : "") + '">', true) +
+      campoValor("valor", "valor", l && l.valor) +
+      campoForm("data", '<input class="campo" name="data" type="date" value="' + (l ? l.data : (diaPre || hoje())) + '">') +
+      campoSentido(l && l.sentido) +
+      campoCategoria(l && l.categoria) +
+      campoFrente(l && l.frente) +
+      checkbox("pago", "já pago", l ? l.pago : true),
+    enviar: l ? "salvar" : "adicionar",
+    apagar: l ? "apagar" : "",
+    aoApagar: () => { apagarComAviso(id, "lançamento apagado"); render(); },
+    aoEnviar: (v) => {
+      const valor = lerValor(v.valor);
+      if (!v.nome.trim() || !valor) { mostrarAviso("preciso de um nome e um valor"); return false; }
+      gravar({
+        id: l ? l.id : novoId(), tipo: "lancamento", nome: v.nome.trim(), valor,
+        data: ehDia(v.data) ? v.data : hoje(), sentido: v.sentido, categoria: v.categoria, frente: v.frente,
+        pago: v.pago, origem: l ? l.origem : null
+      }, l, l ? "lançamento atualizado" : "lançamento criado");
+      render();
+    }
+  });
+}
+
+function formFixo(id, sentidoPre) {
+  const f = id ? financeiro.obter(id) : null;
+  const sentido = f ? f.sentido : (sentidoPre || "saida");
+  abrirFormulario({
+    titulo: f ? (sentido === "entrada" ? "entrada fixa" : "saída fixa") : (sentido === "entrada" ? "nova entrada fixa" : "nova saída fixa"),
+    sub: "cai todo mês no mesmo dia; na tabela do mês aparece como previsto até você confirmar",
+    campos:
+      campoForm("nome", '<input class="campo" name="nome" required maxlength="140" value="' + escapar(f ? f.nome : "") + '">', true) +
+      campoValor("valor", "valor", f && f.valor) +
+      campoDia("diaDoMes", "dia do mês", f && f.diaDoMes) +
+      campoCategoria(f ? f.categoria : (sentido === "entrada" ? "Recorrente" : "")) +
+      campoFrente(f && f.frente) +
+      '<input type="hidden" name="sentido" value="' + sentido + '">' +
+      (f ? checkbox("ativo", "ativo (desmarque para pausar sem apagar)", f.ativo) : ""),
+    enviar: f ? "salvar" : "adicionar",
+    apagar: f ? "apagar" : "",
+    aoApagar: () => { apagarComAviso(id, "fixo apagado"); render(); },
+    aoEnviar: (v) => {
+      const valor = lerValor(v.valor);
+      if (!v.nome.trim() || !valor) { mostrarAviso("preciso de um nome e um valor"); return false; }
+      gravar({
+        id: f ? f.id : novoId(), tipo: "fixo", nome: v.nome.trim(), valor, sentido: v.sentido,
+        categoria: v.categoria, frente: v.frente, diaDoMes: +v.diaDoMes || 1, ativo: f ? !!v.ativo : true
+      }, f, f ? "fixo atualizado" : "fixo criado");
+      render();
+    }
+  });
+}
+
+function formCartao(id) {
+  const c = id ? financeiro.obter(id) : null;
+  abrirFormulario({
+    titulo: c ? "compra no cartão" : "nova compra parcelada",
+    sub: "a parcela sai do total e cai todo mês no dia do vencimento, até acabar",
+    campos:
+      campoForm("o que", '<input class="campo" name="nome" required maxlength="140" value="' + escapar(c ? c.nome : "") + '">', true) +
+      campoForm("cartão", '<input class="campo" name="cartao" maxlength="40" placeholder="Nubank, C6…" value="' + escapar(c ? c.cartao : "") + '">') +
+      campoValor("total", "total", c && c.total) +
+      campoForm("parcelas", '<input class="campo campo--num" name="parcelas" type="number" min="1" max="120" value="' + (c ? c.parcelas : 1) + '">') +
+      campoForm("primeira parcela", '<input class="campo" name="inicio" type="month" value="' + (c ? c.inicio : hoje().slice(0, 7)) + '">') +
+      campoDia("diaDoMes", "dia do vencimento", c ? c.diaDoMes : 10) +
+      campoFrente(c && c.frente),
+    enviar: c ? "salvar" : "adicionar",
+    apagar: c ? "apagar" : "",
+    aoApagar: () => { apagarComAviso(id, "compra apagada"); render(); },
+    aoEnviar: (v) => {
+      const total = lerValor(v.total);
+      if (!v.nome.trim() || !total) { mostrarAviso("preciso do que foi comprado e do total"); return false; }
+      gravar({
+        id: c ? c.id : novoId(), tipo: "cartao", nome: v.nome.trim(), cartao: v.cartao.trim(), total,
+        parcelas: +v.parcelas || 1, inicio: v.inicio, diaDoMes: +v.diaDoMes || 10, frente: v.frente
+      }, c, c ? "compra atualizada" : "compra parcelada criada");
+      render();
+    }
+  });
+}
+
+function formDivida(id) {
+  const d = id ? financeiro.obter(id) : null;
+  abrirFormulario({
+    titulo: d ? "dívida" : "nova dívida",
+    sub: "com parcela e dia, ela cai todo mês como previsto até quitar; sem parcela, é só o que você deve",
+    campos:
+      campoForm("nome", '<input class="campo" name="nome" required maxlength="140" value="' + escapar(d ? d.nome : "") + '">', true) +
+      campoForm("pessoa / credor", '<input class="campo" name="credor" maxlength="80" value="' + escapar(d ? d.credor : "") + '">') +
+      campoValor("total", "total", d && d.total) +
+      campoValor("pago", "já pago", d && d.pago) +
+      campoValor("parcela", "parcela (opcional)", d && d.parcela) +
+      campoDia("diaDoMes", "dia do mês", d && d.diaDoMes) +
+      campoFrente(d && d.frente),
+    enviar: d ? "salvar" : "adicionar",
+    apagar: d ? "apagar" : "",
+    aoApagar: () => { apagarComAviso(id, "dívida apagada"); render(); },
+    aoEnviar: (v) => {
+      const total = lerValor(v.total);
+      if (!v.nome.trim() || !total) { mostrarAviso("preciso de um nome e do total"); return false; }
+      gravar({
+        id: d ? d.id : novoId(), tipo: "divida", nome: v.nome.trim(), credor: v.credor.trim(), total,
+        pago: Math.min(total, lerValor(v.pago)), parcela: lerValor(v.parcela), diaDoMes: +v.diaDoMes || 1, frente: v.frente
+      }, d, d ? "dívida atualizada" : "dívida criada");
+      render();
+    }
+  });
+}
+
+function formConfig() {
+  const cfg = obterConfig();
+  const chipsCategorias = (lista) => lista.map((c) =>
+    '<button class="chip" type="button" data-cat="' + escapar(c) + '" title="remover">' + escapar(c) + " ✕</button>").join("");
+  abrirFormulario({
+    titulo: "config",
+    sub: "o ponto de partida do saldo, a divisão das entradas e as categorias",
+    campos:
+      campoForm("saldo inicial · data", '<input class="campo" name="data" type="date" value="' + (cfg.saldoInicial ? cfg.saldoInicial.data : hoje()) + '">') +
+      campoValor("valor", "saldo inicial · valor", cfg.saldoInicial && cfg.saldoInicial.valor) +
+      campoForm("despesas %", '<input class="campo campo--num" name="despesas" type="number" min="0" max="100" value="' + cfg.divisao.despesas + '">') +
+      campoForm("gastos %", '<input class="campo campo--num" name="gastos" type="number" min="0" max="100" value="' + cfg.divisao.gastos + '">') +
+      campoForm("ativos %", '<input class="campo campo--num" name="ativos" type="number" min="0" max="100" value="' + cfg.divisao.ativos + '">') +
+      '<div class="inteiro"><label class="rotulo-campo">categorias</label>' +
+        '<div class="cf-cats" id="cf-cats">' + chipsCategorias(cfg.categorias) + "</div>" +
+        '<div class="cf-nova"><input class="campo" id="cf-nova" placeholder="nova categoria" maxlength="30"><button class="pill pill--icone" type="button" id="cf-add" aria-label="adicionar categoria">+</button></div>' +
+      "</div>",
+    aoAbrir: (form) => {
+      /* as categorias gravam na hora, sem esperar o salvar: sao uma lista,
+         nao um campo — e o Enter no campo delas nao pode fechar a caixa */
+      const redesenhar = () => { form.querySelector("#cf-cats").innerHTML = chipsCategorias(obterConfig().categorias); };
+      const adicionar = () => {
+        const inp = form.querySelector("#cf-nova"), nome = inp.value.trim();
+        if (!nome) return;
+        const atual = obterConfig().categorias;
+        if (!atual.includes(nome)) gravarConfig({ categorias: atual.concat([nome]) });
+        inp.value = ""; redesenhar();
+      };
+      form.querySelector("#cf-add").addEventListener("click", adicionar);
+      form.querySelector("#cf-nova").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); adicionar(); } });
+      form.querySelector("#cf-cats").addEventListener("click", (e) => {
+        const b = e.target.closest("[data-cat]"); if (!b) return;
+        gravarConfig({ categorias: obterConfig().categorias.filter((c) => c !== b.dataset.cat) });
+        redesenhar();
+      });
+    },
+    aoEnviar: (v) => {
+      gravarConfig({
+        saldoInicial: ehDia(v.data) ? { data: v.data, valor: lerValor(v.valor) } : null,
+        divisao: { despesas: +v.despesas || 0, gastos: +v.gastos || 0, ativos: +v.ativos || 0 }
+      });
+      mostrarAviso("configuração salva");
+      render();
+    }
+  });
+}
+
+/* ---------- acoes ---------- */
+function confirmarProjecao(dia, origemTipo, origemId) {
+  const proj = projecoesDoDia(dia, contexto()).find((p) => p.origem.tipo === origemTipo && p.origem.id === origemId);
+  if (!proj) return;
+  financeiro.gravar({
+    id: novoId(), tipo: "lancamento", data: dia, nome: proj.nome, valor: proj.valor,
+    sentido: proj.sentido, categoria: proj.categoria, frente: proj.frente,
+    pago: true, origem: proj.origem, criada: Date.now(), atualizada: Date.now()
+  });
+  if (origemTipo === "divida") {
+    const d = financeiro.obter(origemId);
+    if (d) financeiro.gravar({ ...d, pago: Math.min(d.total, d.pago + proj.valor), atualizada: Date.now() });
+  }
+  mostrarAviso("confirmado — virou lançamento");
+}
+function alternarPago(id) {
+  const doc = financeiro.obter(id);
+  if (doc) financeiro.gravar({ ...doc, pago: !doc.pago, atualizada: Date.now() });
+}
+function pagarParcela(id) {
+  const d = financeiro.obter(id);
+  if (!d) return;
+  const valor = Math.min(d.parcela || (d.total - d.pago), d.total - d.pago);
+  if (valor <= 0) return;
+  financeiro.gravar({
+    id: novoId(), tipo: "lancamento", data: hoje(), nome: "parcela · " + d.nome, valor,
+    sentido: "saida", categoria: "Dívida", frente: d.frente, pago: true,
+    origem: { tipo: "divida", id: d.id }, criada: Date.now(), atualizada: Date.now()
+  });
+  financeiro.gravar({ ...d, pago: d.pago + valor, atualizada: Date.now() });
+  mostrarAviso("parcela paga — virou lançamento de hoje");
+}
+
+/* ---------- delegacao de eventos ----------
+   o conteudo de #painel e trocado inteiro a cada render(): delegar no
+   documento evita reprender listener em cada elemento novo que nasce */
+const ACOES = {
+  "mes-anterior": () => { mesAtual = mesAdjacente(mesAtual, -1); diaAberto = ""; render(); },
+  "mes-seguinte": () => { mesAtual = mesAdjacente(mesAtual, 1); diaAberto = ""; render(); },
+  "ano-anterior": () => { anoAtual--; render(); },
+  "ano-seguinte": () => { anoAtual++; render(); },
+  "abrir-mes": (b) => { mesAtual = b.dataset.mes; abaAtual = "mes"; diaAberto = ""; render(); },
+  "confirmar-projecao": (b) => { confirmarProjecao(b.dataset.dia, b.dataset.origemTipo, b.dataset.origemId); render(); },
+  "alternar-pago": (b) => { alternarPago(b.dataset.id); render(); },
+  "editar-lancamento": (b) => formLancamento(b.dataset.id),
+  "novo-lancamento": (b) => formLancamento("", b.dataset.dia || (mesAtual === hoje().slice(0, 7) ? hoje() : mesAtual + "-01")),
+  "novo-fixo": (b) => formFixo("", b.dataset.sentido),
+  "novo-cartao": () => formCartao(""),
+  "nova-divida": () => formDivida(""),
+  "pagar-parcela": (b) => { pagarParcela(b.dataset.id); render(); },
+  "config": () => formConfig()
+};
+const EDITAR = { fixo: formFixo, cartao: formCartao, divida: formDivida };
+
+document.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-acao]");
+  if (b && ACOES[b.dataset.acao]) { ACOES[b.dataset.acao](b); return; }
+  if (e.target.closest("button, a, input, select")) return;
+  const trDia = e.target.closest("tr.linha-dia");
+  if (trDia) { diaAberto = diaAberto === trDia.dataset.dia ? "" : trDia.dataset.dia; render(); return; }
+  const trEd = e.target.closest("tr[data-editar]");
+  if (trEd && EDITAR[trEd.dataset.editar]) EDITAR[trEd.dataset.editar](trEd.dataset.id);
+});
+
+document.querySelectorAll(".aba").forEach((btn) => {
+  btn.addEventListener("click", () => { abaAtual = btn.dataset.aba; diaAberto = ""; render(); });
+});
+
+/* atalhos: n abre um lancamento novo, alt+setas troca de mes ou de ano —
+   os mesmos habitos do resto do sistema */
+document.addEventListener("keydown", (e) => {
+  const marca = document.activeElement && document.activeElement.tagName;
+  const digitando = marca === "INPUT" || marca === "TEXTAREA" || marca === "SELECT";
+  if (e.key === "n" && !digitando && !e.ctrlKey && !e.metaKey && !e.altKey) { e.preventDefault(); ACOES["novo-lancamento"]({ dataset: {} }); return; }
+  if (e.altKey && (e.key === "ArrowLeft" || e.key === "ArrowRight")) {
+    e.preventDefault();
+    const delta = e.key === "ArrowLeft" ? -1 : 1;
+    if (abaAtual === "ano") anoAtual += delta;
+    else { mesAtual = mesAdjacente(mesAtual, delta); abaAtual = "mes"; }
+    diaAberto = "";
+    render();
+  }
+});
+
+financeiro.aoMudar(render);
+render();
+</script>
+</body>
+</html>

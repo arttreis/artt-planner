@@ -1,0 +1,1155 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0d0d0d">
+<title>merlin · ideias</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 472.5 472.5' fill='%232EE86B'><path d='M236.31,236.23c-3.63,128.42,107.71,238.95,236.22,236.22v-118.11c-64.78,2.88-121-53.42-118.11-118.11h-118.11Z'/><path d='M236.22,0C239.85,128.42,128.52,238.95,0,236.22v-118.11C64.78,120.99,121,64.69,118.11,0h118.11Z'/><path d='M315.07,0h77.61c44.09,0,79.89,35.8,79.89,79.89v77.61h-157.5V0h0Z'/><path d='M79.96,315H.07v78.75h78.75v78.75h78.75v-79.89c0-42.86-34.75-77.61-77.61-77.61Z'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="compartilhado/base.css">
+<script>/* anti-flash do tema: antes de qualquer pintura */
+try{var t=localStorage.getItem("merlin:tema");if(t?t==="claro":matchMedia("(prefers-color-scheme: light)").matches)document.documentElement.classList.add("light")}catch(e){}</script>
+<style>
+/* ideias.html — uma caixa de entrada.
+   a ideia chega como uma mensagem chega: vira uma linha na lista da
+   esquerda, agrupada por dia, e abre no painel da direita sem sair da
+   tela. nada de modal — o painel e a tela. a pagina ocupa a altura toda e
+   cada coluna rola sozinha, como um cliente de e-mail. */
+.pagina--inbox{padding:0;height:100dvh;display:flex;flex-direction:column;overflow:hidden}
+@media (max-width:899px){.pagina--inbox{padding-top:var(--nav-h)}}
+
+/* ---------- cabecalho fino ---------- */
+.ix-topo{
+  flex:0 0 auto;display:flex;align-items:center;gap:var(--pd2);
+  height:56px;padding:0 var(--pd) 0 clamp(16px,2.5vw,28px);
+  border-bottom:1px solid var(--line-soft);
+}
+.ix-topo h1{margin:0;font-size:18px;font-weight:600;letter-spacing:-.02em}
+.ix-topo .conta{font-family:var(--mono);font-size:11px;color:var(--ink-30);letter-spacing:.06em}
+.ix-topo .conta::before{content:"·";margin:0 8px;color:var(--ink-30)}
+.ix-visoes{display:flex;gap:2px;margin-left:auto}
+
+/* ---------- as duas colunas ---------- */
+.ix-tela{flex:1 1 auto;min-height:0;display:flex}
+.ix-lista{
+  flex:0 0 min(440px,46%);display:flex;flex-direction:column;min-width:0;
+  border-right:1px solid var(--line-soft);
+}
+.ix-painel{flex:1 1 auto;min-width:0;display:flex;flex-direction:column}
+
+.ix-lista__rolo{flex:1 1 auto;min-height:0;overflow-y:auto;padding:4px 8px 24px}
+.ix-grupo{margin:12px 6px 6px;font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-30)}
+.ix-grupo:first-child{margin-top:8px}
+
+/* a linha: avatar da frente, titulo + previa, hora que vira acoes no hover */
+.ix-item{
+  display:flex;align-items:flex-start;gap:12px;padding:10px 10px;border-radius:var(--br3);
+  cursor:pointer;position:relative;transition:background var(--t);
+}
+.ix-item:hover{background:var(--fill)}
+.ix-item.is-ativa{background:var(--fill-hover)}
+.ix-item.is-ativa::before{
+  content:"";position:absolute;left:-8px;top:12px;bottom:12px;width:3px;border-radius:0 2px 2px 0;
+  background:var(--green);box-shadow:0 0 10px var(--green-glow);
+}
+.av{
+  width:32px;height:32px;flex:0 0 auto;border-radius:50%;display:grid;place-items:center;
+  font-family:var(--mono);font-size:12px;font-weight:500;text-transform:uppercase;
+  color:var(--ink-50);background:var(--fill-hover);margin-top:1px;
+}
+.av[data-cor]{background:color-mix(in srgb,currentColor 16%,transparent)}
+.av[data-cor="1"]{color:#6bb8ff}.av[data-cor="2"]{color:#ffb35c}.av[data-cor="3"]{color:#ff7a9a}
+.av[data-cor="4"]{color:#c58bff}.av[data-cor="5"]{color:var(--green-ink)}.av[data-cor="6"]{color:#5ce0d8}
+html.light .av[data-cor="1"]{color:#1c6fc4}html.light .av[data-cor="2"]{color:#b8600a}html.light .av[data-cor="3"]{color:#c4234f}
+html.light .av[data-cor="4"]{color:#7a3bd8}html.light .av[data-cor="6"]{color:#127f79}
+.av--sm{width:22px;height:22px;font-size:9.5px;margin:0}
+.ix-item__texto{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:2px}
+.ix-item__linha1{display:flex;align-items:baseline;gap:8px}
+.ix-item__titulo{flex:1 1 auto;min-width:0;font-size:13.5px;font-weight:500;color:var(--ink);overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.ix-item__quando{flex:0 0 auto;font-size:11.5px;color:var(--ink-30);white-space:nowrap;font-variant-numeric:tabular-nums}
+.ix-item__previa{font-size:12.5px;color:var(--ink-50);overflow:hidden;white-space:nowrap;text-overflow:ellipsis;display:flex;align-items:center;gap:6px}
+.ix-item__previa .selo{height:18px;font-size:9.5px}
+.ix-item__previa .est{flex:0 0 auto;color:var(--ink-30);font-family:var(--mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase}
+.ix-item__previa .est.is-verde{color:var(--green-ink)}
+.ix-item__previa .frase{min-width:0;overflow:hidden;text-overflow:ellipsis}
+/* a bolinha verde: ideia que ainda e semente sem corpo nem passo — chegou e
+   ninguem mexeu, como uma mensagem nao lida */
+.ix-item__nova{width:7px;height:7px;border-radius:50%;background:var(--green);flex:0 0 auto;align-self:center;box-shadow:0 0 8px var(--green-glow)}
+.ix-item__acoes{
+  position:absolute;right:8px;top:8px;display:flex;gap:2px;opacity:0;
+  background:var(--surface-2);border:1px solid var(--line-soft);border-radius:var(--br2);padding:1px;
+  transition:opacity var(--t);
+}
+.ix-item:hover .ix-item__acoes,.ix-item:focus-within .ix-item__acoes{opacity:1}
+.ix-item:hover .ix-item__quando{visibility:hidden}
+.ix-item__acoes .acao{width:26px;height:26px}
+@media (hover:none){.ix-item__acoes{display:none}}
+
+.ix-vazio{padding:40px 20px;text-align:center;color:var(--ink-30);font-size:13px}
+
+/* ---------- painel ---------- */
+.ix-painel__vazio{
+  flex:1 1 auto;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;
+  color:var(--ink-30);font-size:13px;text-align:center;padding:var(--pd);
+}
+.ix-painel__vazio svg{width:36px;height:36px;opacity:.5}
+.ix-painel__vazio kbd{margin:0 2px}
+.ix-painel__barra{
+  flex:0 0 auto;display:flex;align-items:center;gap:4px;height:48px;padding:0 12px;
+  border-bottom:1px solid var(--line-soft);
+}
+.ix-painel__barra .sep{width:1px;height:18px;background:var(--line-soft);margin:0 6px}
+.ix-painel__barra .pill{height:28px;padding:0 10px;font-size:12px}
+.ix-painel__barra .pill:disabled{opacity:.5;cursor:default}
+.btn-voltar{display:none}
+.ix-painel__rolo{flex:1 1 auto;min-height:0;overflow-y:auto;padding:clamp(16px,2.5vw,28px) clamp(16px,3vw,36px) 60px}
+.ix-painel__corpo{max-width:760px}
+
+.ix-titulo{
+  width:100%;background:none;border:0;padding:0;margin:0 0 14px;
+  font-size:clamp(20px,2.4vw,26px);font-weight:600;letter-spacing:-.03em;line-height:1.2;color:var(--ink);
+}
+.ix-titulo:focus{outline:none}
+.ix-titulo::placeholder{color:var(--ink-30)}
+.ix-desc{
+  width:100%;background:none;border:0;padding:0;margin:0;resize:none;overflow:hidden;
+  font-size:13.5px;line-height:1.55;color:var(--ink-70);min-height:44px;
+}
+.ix-desc:focus{outline:none;color:var(--ink)}
+.ix-desc::placeholder{color:var(--ink-30)}
+.ix-md{font-size:13.5px;line-height:1.55;color:var(--ink-70);min-height:44px}
+.ix-md :first-child{margin-top:0}
+.ix-md p{margin:0 0 8px}
+.ix-md ul,.ix-md ol{margin:0 0 8px;padding-left:20px}
+.ix-md h3,.ix-md h4,.ix-md h5{margin:0 0 6px;font-size:13.5px;font-weight:600;color:var(--ink)}
+.ix-md li.chk{list-style:none;margin-left:-20px}
+.ix-md li.chk::before{content:"☐ ";color:var(--ink-30)}
+.ix-md li.chk.is-feita::before{content:"☑ ";color:var(--green-ink)}
+.ix-md li.chk.is-feita{color:var(--ink-30);text-decoration:line-through}
+.ix-salvo{font-size:11.5px;color:var(--ink-30);opacity:0;transition:opacity .3s var(--ease);margin-right:8px}
+.ix-painel__barra .link{padding:0 6px}
+.ix-salvo.is-visivel{opacity:1}
+
+/* a ficha: rotulo a esquerda, valor a direita, como a tabela de metadados
+   de uma tarefa. os selects sao pilulas, nao campos: aqui se le mais do que
+   se escreve. */
+.ix-ficha{display:grid;grid-template-columns:100px 1fr;gap:8px 12px;align-items:center;margin:20px 0 0;padding:16px 0;border-top:1px solid var(--line-soft);border-bottom:1px solid var(--line-soft)}
+.ix-ficha .k{font-size:12.5px;color:var(--ink-50)}
+.ix-ficha .v{display:flex;align-items:center;gap:6px;min-width:0;flex-wrap:wrap}
+.sel-pilula{
+  appearance:none;-webkit-appearance:none;height:26px;padding:0 24px 0 10px;
+  border-radius:var(--br-pill);background:var(--fill);border:1px solid var(--line-soft);
+  font-size:12px;color:var(--ink);cursor:pointer;max-width:100%;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 7px center;background-size:12px;
+  transition:background var(--t),border-color var(--t);
+}
+.sel-pilula:hover{background-color:var(--fill-hover);border-color:var(--line)}
+.sel-pilula:focus{outline:none;border-color:var(--ink-30)}
+.sel-pilula option{background:var(--surface);color:var(--ink)}
+.sel-pilula--estagio{font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;padding-left:22px;position:relative}
+.v--estagio{position:relative}
+.v--estagio .ponto-est{position:absolute;left:9px;top:50%;transform:translateY(-50%);width:8px;height:8px;border-radius:50%;border:1.5px solid var(--ink-50);pointer-events:none}
+.v--estagio[data-estagio="semente"] .ponto-est{border-color:var(--ink-30)}
+.v--estagio[data-estagio="explorando"] .ponto-est{background:linear-gradient(90deg,var(--ink-50) 50%,transparent 50%)}
+.v--estagio[data-estagio="definida"] .ponto-est{background:var(--ink-50)}
+.v--estagio[data-estagio="executando"] .ponto-est{border-color:var(--green);background:var(--green);box-shadow:0 0 8px var(--green-glow)}
+.v--estagio[data-estagio="arquivada"] .ponto-est{border-style:dashed;border-color:var(--ink-30)}
+.ix-ficha .v .fraco{font-size:12.5px}
+.ix-ficha .v .t-mono{font-size:10.5px;color:var(--ink-50)}
+
+/* ---------- secoes: passos e atividade ---------- */
+.ix-secao{margin-top:20px}
+.ix-secao__cab{display:flex;align-items:center;gap:8px;margin:0 0 6px;cursor:pointer;user-select:none;color:var(--ink)}
+.ix-secao__cab svg{width:14px;height:14px;color:var(--ink-30);transition:transform var(--t)}
+.ix-secao__cab .titulo{font-size:13.5px;font-weight:500}
+.ix-secao__cab .conta{font-family:var(--mono);font-size:11px;color:var(--ink-30)}
+.ix-secao[data-aberta="nao"] .ix-secao__cab svg{transform:rotate(-90deg)}
+.ix-secao[data-aberta="nao"] .ix-secao__corpo{display:none}
+.ix-secao__cab .barra{flex:0 0 90px;margin-left:auto;height:4px}
+
+.passo{display:flex;align-items:center;gap:10px;padding:6px 4px;border-radius:var(--br2);transition:background var(--t)}
+.passo:hover{background:var(--fill)}
+.passo__check{
+  flex:0 0 auto;width:20px;height:20px;border-radius:50%;
+  border:1.5px solid var(--line);display:grid;place-items:center;color:transparent;
+  transition:background var(--t),border-color var(--t),color var(--t);
+}
+.passo__check:hover{border-color:var(--ink-50)}
+.passo__check svg{width:11px;height:11px}
+.passo.is-feito .passo__check{background:var(--green);border-color:var(--green);color:var(--on-green)}
+.passo__texto{flex:1 1 auto;min-width:0;font-size:13.5px;overflow-wrap:anywhere}
+.passo.is-feito .passo__texto{color:var(--ink-30);text-decoration:line-through}
+.passo__acoes{flex:0 0 auto;display:flex;gap:2px;opacity:0;transition:opacity var(--t)}
+.passo:hover .passo__acoes,.passo:focus-within .passo__acoes{opacity:1}
+@media (hover:none){.passo__acoes{opacity:1}}
+.passo--novo{padding-left:4px}
+.passo--novo .passo__check{border-style:dashed;color:var(--ink-30);cursor:default}
+.passo--novo .passo__check svg{width:10px;height:10px}
+.passo--novo input{flex:1 1 auto;min-width:0;background:none;border:0;padding:0;font-size:13.5px;color:var(--ink)}
+.passo--novo input:focus{outline:none}
+.passo--novo input::placeholder{color:var(--ink-30)}
+
+.ix-ativ{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+.ix-ativ li{display:flex;align-items:center;gap:10px;padding:5px 4px;font-size:12.5px;color:var(--ink-50);min-width:0}
+.ix-ativ li b{font-weight:500;color:var(--ink)}
+.ix-ativ li .quando{margin-left:auto;flex:0 0 auto;font-size:11.5px;color:var(--ink-30);white-space:nowrap}
+.ix-ativ li .txt{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ix-ativ li .tt{display:inline-flex;align-items:center;height:18px;padding:0 7px;border-radius:var(--br-pill);border:1px solid var(--line-soft);background:var(--fill);font-family:var(--mono);font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-50);margin:0 2px}
+
+.ix-rodape-acoes{margin-top:28px;display:flex;justify-content:flex-end}
+
+/* ---------- quadro por estagio (visao alternativa) ---------- */
+.ix-quadro{flex:1 1 auto;min-width:0;overflow:auto;padding:var(--pd)}
+.quadro{display:flex;gap:var(--pd2);align-items:flex-start;min-width:min-content;min-height:100%}
+.quadro__col{
+  flex:0 0 240px;display:flex;flex-direction:column;gap:6px;
+  background:var(--fill);border:1px solid var(--line-soft);border-radius:var(--br3);
+  padding:var(--pd2);
+}
+.quadro__titulo{display:flex;align-items:center;justify-content:space-between;gap:var(--pd2);margin:2px 4px;color:var(--ink-50)}
+.quadro__conta{font-family:var(--mono);font-size:10px;color:var(--ink-30)}
+.quadro__soltar{display:flex;flex-direction:column;gap:6px;min-height:48px;border-radius:var(--br2);transition:background var(--t)}
+.quadro__soltar[data-sobre="sim"]{background:var(--fill-hover)}
+.quadro__vazio{margin:0;padding:8px 4px;font-size:11.5px;color:var(--ink-30)}
+.quadro__card{cursor:grab}
+.quadro__card.arrastando{opacity:.4}
+.quadro__card-topo{display:flex;align-items:flex-start;justify-content:space-between;gap:6px;margin:0 0 6px}
+.quadro__card-titulo{margin:0;font-size:13px;color:var(--ink);overflow-wrap:anywhere}
+.quadro__pega{flex:0 0 auto;color:var(--ink-30)}
+.quadro__pega svg{width:13px;height:13px;display:block}
+@media (max-width:640px){.quadro__col{flex-basis:78vw}}
+
+/* ---------- sugestoes do merlin ---------- */
+.sug-lista{display:flex;flex-direction:column;gap:2px}
+.sug-item{display:flex;align-items:flex-start;gap:var(--pd2);padding:6px 4px;border-radius:var(--br2);cursor:pointer;transition:background var(--t)}
+.sug-item:hover{background:var(--fill)}
+.sug-item input[type="checkbox"]{flex:0 0 auto;width:16px;height:16px;margin-top:2px;accent-color:var(--green)}
+.sug-texto{flex:1 1 auto;min-width:0;font-size:13px;display:flex;flex-direction:column;gap:2px}
+.sug-texto b{font-weight:600;color:var(--ink)}
+.sug-nota{color:var(--ink-50);font-size:12px}
+
+/* ---------- celular: lista OU painel ---------- */
+@media (max-width:880px){
+  .ix-lista{flex:1 1 auto;border-right:0}
+  .ix-tela[data-vista="painel"] .ix-lista{display:none}
+  .ix-tela[data-vista="lista"] .ix-painel{display:none}
+  .btn-voltar{display:inline-grid}
+  .ix-painel__barra{overflow-x:auto;scrollbar-width:none}
+  .ix-painel__barra .pill span{display:none}
+  .ix-painel__barra .pill{width:28px;padding:0;justify-content:center}
+  .ix-ficha{grid-template-columns:84px 1fr}
+}
+</style>
+</head>
+<body>
+<main class="pagina pagina--inbox">
+
+  <div class="ix-topo">
+    <h1>ideias</h1>
+    <span class="conta" id="conta"></span>
+    <button class="pill pill--verde pill--mini" type="button" id="btn-nova" title="nova ideia (n)" style="margin-left:auto"></button>
+    <div class="ix-visoes" role="tablist" aria-label="Visão" style="margin-left:0">
+      <button class="acao" type="button" id="visao-lista" role="tab" aria-selected="true" title="lista">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h10"/></svg>
+      </button>
+      <button class="acao" type="button" id="visao-quadro" role="tab" aria-selected="false" title="quadro por estágio">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="5" height="16" rx="1.5"/><rect x="9.5" y="4" width="5" height="11" rx="1.5"/><rect x="16" y="4" width="5" height="8" rx="1.5"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <div class="ix-tela" id="tela" data-vista="lista" data-visao="lista">
+
+    <section class="ix-lista" id="col-lista">
+      <div class="ix-lista__rolo" id="rolo-lista">
+        <div id="lista" role="list"></div>
+        <p class="ix-vazio" id="vazio" hidden>Nada aqui. O "+" em cima guarda o que ainda não é tarefa; o quadro mostra as arquivadas.</p>
+      </div>
+    </section>
+
+    <section class="ix-quadro" id="col-quadro" hidden>
+      <p class="ix-vazio" id="quadro-vazio" hidden>Nada aqui. Escreve na lista o que ainda não é tarefa.</p>
+      <div class="quadro" id="quadro"></div>
+    </section>
+
+    <section class="ix-painel" id="col-painel">
+      <div class="ix-painel__vazio" id="painel-vazio">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18h6M10 21h4M12 3a6 6 0 00-3.5 10.9c.7.5 1 1.3 1 2.1h5c0-.8.3-1.6 1-2.1A6 6 0 0012 3z"/></svg>
+        <p>escolha uma ideia ao lado, ou escreva uma nova.<br><span class="pequeno"><kbd>/</kbd> foca o campo · <kbd>↑</kbd><kbd>↓</kbd> percorrem a lista</span></p>
+      </div>
+
+      <div id="painel" hidden>
+        <div class="ix-painel__barra">
+          <button class="acao btn-voltar" type="button" id="btn-voltar" title="voltar para a lista" aria-label="Voltar">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 6l-6 6 6 6"/></svg>
+          </button>
+          <button class="pill" type="button" id="p-puxar" title="puxar para o dia"></button>
+          <button class="pill" type="button" id="p-mapa" title="abrir como mapa mental"></button>
+          <button class="pill" type="button" id="p-virar-cliente" title="virar projeto de cliente"></button>
+          <span class="sep"></span>
+          <button class="pill" type="button" id="p-ramificar" title="o Merlin sugere perguntas, caminhos e passos"></button>
+          <span class="espaco"></span>
+          <span class="ix-salvo" id="p-salvo" aria-live="polite"></span>
+          <button class="link" type="button" id="p-ver">ver</button>
+          <span class="sep"></span>
+          <button class="acao" type="button" id="p-arquivar" title="arquivar"></button>
+          <button class="acao" type="button" id="p-apagar" title="apagar ideia"></button>
+        </div>
+
+        <div class="ix-painel__rolo" id="rolo-painel">
+          <div class="ix-painel__corpo">
+            <input class="ix-titulo" id="p-titulo" maxlength="300" placeholder="título da ideia" aria-label="Título da ideia">
+            <textarea class="ix-desc" id="p-corpo" rows="2" placeholder="o que é essa ideia… (markdown simples)" aria-label="Corpo da ideia"></textarea>
+            <div class="ix-md" id="p-corpo-md" hidden></div>
+
+            <div class="ix-ficha">
+              <span class="k">estágio</span>
+              <span class="v v--estagio" id="p-v-estagio">
+                <i class="ponto-est" aria-hidden="true"></i>
+                <select class="sel-pilula sel-pilula--estagio" id="p-estagio" aria-label="Estágio">
+                  <option value="semente">semente</option>
+                  <option value="explorando">explorando</option>
+                  <option value="definida">definida</option>
+                  <option value="executando">executando</option>
+                  <option value="arquivada">arquivada</option>
+                </select>
+              </span>
+              <span class="k">frente</span>
+              <span class="v"><select class="sel-pilula" id="p-frente" aria-label="Frente"></select></span>
+              <span class="k">cliente</span>
+              <span class="v"><select class="sel-pilula" id="p-cliente" aria-label="Cliente"></select></span>
+              <span class="k">criada</span>
+              <span class="v"><span class="fraco" id="p-criada"></span></span>
+              <span class="k">passos</span>
+              <span class="v"><span class="t-mono" id="p-progresso"></span></span>
+            </div>
+
+            <div class="ix-secao" id="sec-passos" data-aberta="sim">
+              <div class="ix-secao__cab" data-alterna="sec-passos">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+                <span class="titulo">passos</span>
+                <span class="conta" id="passos-conta"></span>
+                <span class="barra" id="passos-barra" hidden><i></i></span>
+              </div>
+              <div class="ix-secao__corpo">
+                <div id="lista-passos"></div>
+                <form class="passo passo--novo" id="form-passo" autocomplete="off">
+                  <span class="passo__check" aria-hidden="true"></span>
+                  <input id="novo-passo" maxlength="200" placeholder="um próximo passo… (Enter adiciona)" aria-label="Novo passo">
+                </form>
+              </div>
+            </div>
+
+            <div class="ix-secao" id="sec-ativ" data-aberta="sim">
+              <div class="ix-secao__cab" data-alterna="sec-ativ">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+                <span class="titulo">atividade</span>
+              </div>
+              <div class="ix-secao__corpo">
+                <ul class="ix-ativ" id="lista-ativ"></ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+</main>
+
+<!-- as sugestoes do Merlin nunca gravam direto: elas passam por aqui, com
+     checkbox marcado por padrao, porque o modelo erra tom e contexto de vez
+     em quando — uma pergunta ruim virando passo sozinha polui o checklist
+     mais rapido do que ajuda. o filtro e a leitura de quem pediu, antes de
+     qualquer coisa ser gravada. -->
+<div class="dialogo" id="dialogo-sugestoes" hidden role="dialog" aria-modal="true" aria-label="Sugestões do Merlin">
+  <div class="dialogo__caixa">
+    <button class="dialogo__fechar" type="button" id="sug-fechar" aria-label="Fechar">✕</button>
+    <p class="dialogo__titulo">sugestões do merlin</p>
+    <p class="dialogo__sub">escolha o que vira passo ou entra no corpo — nada muda sem confirmar</p>
+    <div id="sug-grupos"></div>
+    <div class="dialogo__acoes">
+      <button class="link" type="button" id="sug-descartar">descartar</button>
+      <button class="pill pill--verde" type="button" id="sug-adicionar">adicionar</button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import { iniciarPagina, colecao, $, escapar, novoId, mostrarAviso, mandarParaODia,
+         opcoesFrente, opcoesCliente, md, ICONE, debounce, lerArrobas,
+         api, frentes, nomeCliente, diaDe, hoje, somarDias, rotuloData,
+         abrirFormulario, campoForm, formularioAberto }
+  from "./compartilhado/nucleo.js";
+
+/* icones proprios: so esta pagina usa. a faisca e o gesto de pedir ajuda ao
+   Merlin; a caixa e arquivar; a pessoa e "virar projeto de cliente". */
+const FAISCA = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3z"/><path d="M19 15.5l.7 2 2 .7-2 .7-.7 2-.7-2-2-.7 2-.7.7-2z"/></svg>';
+const CAIXA = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7h18v3H3zM5 10v9h14v-9M10 14h4"/></svg>';
+const PESSOA = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path d="M5 20a7 7 0 0114 0"/></svg>';
+
+iniciarPagina("ideias");   // monta a barra, carrega frentes e clientes, retoma a sessao
+
+/* os 5 estagios, na ordem em que aparecem no quadro. e a unica fonte da
+   verdade da lista: chips e select do painel sao html fixo, mas a
+   normalizacao e o quadro leem daqui. */
+const ESTAGIOS = [
+  { id: "semente", rotulo: "semente" },
+  { id: "explorando", rotulo: "explorando" },
+  { id: "definida", rotulo: "definida" },
+  { id: "executando", rotulo: "executando" },
+  { id: "arquivada", rotulo: "arquivada" }
+];
+const ESTAGIOS_VALIDOS = ESTAGIOS.map((e) => e.id);
+
+const ideias = colecao("ideias", {
+  normalizar: (d) => ({
+    ...d,
+    titulo: String(d.titulo || "").slice(0, 300),
+    corpo: String(d.corpo || ""),
+    estagio: ESTAGIOS_VALIDOS.includes(d.estagio) ? d.estagio : "semente",
+    frente: d.frente || "",
+    cliente: d.cliente || "",
+    passos: Array.isArray(d.passos) ? d.passos : [],
+    saidas: Array.isArray(d.saidas) ? d.saidas : [],
+    historico: Array.isArray(d.historico) ? d.historico : [],
+    criada: d.criada || d.atualizada || Date.now(),
+    atualizada: d.atualizada || d.criada || Date.now()
+  })
+});
+
+/* ---------- estado da tela (nao do documento) ---------- */
+let ideiaAbertaId = null;
+let modoVerCorpo = false;
+
+const CHAVE_VISAO = "merlin:ideias:visao";  // unica excecao ao "nao grave no localStorage": preferencia de tela
+let visao = "lista";
+try { visao = localStorage.getItem(CHAVE_VISAO) === "quadro" ? "quadro" : "lista"; } catch (e) {}
+
+const elTela = $("tela");
+
+/* ---------- tempo, do jeito que uma caixa de entrada mostra ---------- */
+
+const H = 3600000;
+function diaDoCarimbo(ms) { return diaDe(new Date(ms)); }
+/* dentro do grupo de hoje o que importa e "ha quanto tempo"; nos outros
+   dias, a hora do dia — o proprio grupo ja diz que dia foi */
+function quandoCurto(ms) {
+  const dif = Date.now() - ms;
+  if (diaDoCarimbo(ms) === hoje()) {
+    if (dif < 60000) return "agora";
+    if (dif < H) return Math.round(dif / 60000) + " min";
+    return Math.round(dif / H) + " h";
+  }
+  const d = new Date(ms);
+  return String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
+}
+function quandoLongo(ms) {
+  const dif = Date.now() - ms;
+  if (dif < 60000) return "agora";
+  if (dif < H) return "há " + Math.round(dif / 60000) + " min";
+  if (dif < 24 * H && diaDoCarimbo(ms) === hoje()) return "há " + Math.round(dif / H) + " h";
+  const dia = diaDoCarimbo(ms);
+  if (dia === somarDias(hoje(), -1)) return "ontem";
+  return rotuloData(dia, dia.slice(0, 4) !== hoje().slice(0, 4));
+}
+function rotuloGrupo(dia) {
+  if (dia === hoje()) return "hoje";
+  if (dia === somarDias(hoje(), -1)) return "ontem";
+  return rotuloData(dia, dia.slice(0, 4) !== hoje().slice(0, 4));
+}
+
+/* ---------- avatar da frente ---------- */
+
+function avatarFrente(id, pequeno) {
+  const f = id && frentes().obter(id);
+  const cls = "av" + (pequeno ? " av--sm" : "");
+  if (!f) return '<span class="' + cls + '" aria-hidden="true">·</span>';
+  return '<span class="' + cls + '" data-cor="' + f.cor + '" title="' + escapar(f.nome) + '">' + escapar(String(f.nome).trim().charAt(0)) + "</span>";
+}
+
+/* ---------- filtragem e ordenacao ---------- */
+
+/* arquivada nao aparece na lista — senao ela ficaria acumulando para
+   sempre, do mesmo jeito que uma tarefa feita nao volta a poluir a fila do
+   dia. quem quer ver as arquivadas usa o quadro, que tem a coluna delas. */
+function itensDaLista() {
+  return ideias.todos().filter((d) => d.estagio !== "arquivada")
+    .sort((a, b) => (b.atualizada || 0) - (a.atualizada || 0));
+}
+function itensDoQuadro() { return ideias.todos(); }
+
+/* ---------- visao (lista / quadro) ---------- */
+
+function aplicarVisao() {
+  $("visao-lista").setAttribute("aria-selected", String(visao === "lista"));
+  $("visao-quadro").setAttribute("aria-selected", String(visao === "quadro"));
+  elTela.dataset.visao = visao;
+  $("col-lista").hidden = visao !== "lista";
+  $("col-quadro").hidden = visao !== "quadro";
+  /* o painel so faz sentido ao lado da lista: no quadro a ideia abre
+     voltando para a lista, e o quadro toma a largura toda */
+  $("col-painel").hidden = visao !== "lista";
+}
+function mudarVisao(v) {
+  visao = v;
+  try { localStorage.setItem(CHAVE_VISAO, v); } catch (e) {}
+  aplicarVisao();
+  render();
+}
+$("visao-lista").addEventListener("click", () => mudarVisao("lista"));
+$("visao-quadro").addEventListener("click", () => mudarVisao("quadro"));
+
+/* ---------- render ---------- */
+
+function render() {
+  const vivas = ideias.todos().filter((d) => d.estagio !== "arquivada").length;
+  $("conta").textContent = vivas + (vivas === 1 ? " ideia" : " ideias");
+  renderLista();
+  renderQuadro();
+  /* se a ideia aberta mudou por fora (outra aba, ou a propria acao que
+     acabou de gravar), atualiza so os pedacos que nao tem foco de digitacao —
+     titulo e corpo ficam como estao para nao atropelar quem esta escrevendo */
+  if (ideiaAbertaId) {
+    const d = ideias.obter(ideiaAbertaId);
+    if (d) renderPedacosDoPainel(d);
+    else fecharPainel({ semHash: true });
+  }
+}
+
+/* a previa e a primeira linha de prosa do corpo; sem corpo, o primeiro
+   passo aberto; sem nada, o silencio — a linha fica so com o estagio */
+function previaDe(d) {
+  const linha = String(d.corpo || "").split(/\r?\n/).map((l) => l.replace(/^[#\-*\d.)\s\[\]x]+/i, "").trim()).find(Boolean);
+  if (linha) return linha;
+  const passo = (d.passos || []).find((p) => !p.feito);
+  return passo ? "→ " + passo.texto : "";
+}
+const ehNova = (d) => d.estagio === "semente" && !d.corpo && !(d.passos || []).length;
+
+function itemHtml(d) {
+  const feitos = (d.passos || []).filter((p) => p.feito).length;
+  const total = (d.passos || []).length;
+  const previa = previaDe(d);
+  return '<div class="ix-item' + (d.id === ideiaAbertaId ? " is-ativa" : "") + '" role="listitem" tabindex="0" data-id="' + d.id + '">' +
+    avatarFrente(d.frente) +
+    '<div class="ix-item__texto">' +
+      '<div class="ix-item__linha1">' +
+        '<span class="ix-item__titulo">' + escapar(d.titulo || "sem título") + "</span>" +
+        '<span class="ix-item__quando">' + quandoCurto(d.atualizada || d.criada) + "</span>" +
+      "</div>" +
+      '<div class="ix-item__previa">' +
+        '<span class="est' + (d.estagio === "executando" ? " is-verde" : "") + '">' + escapar(d.estagio) + "</span>" +
+        (total ? '<span class="est">' + feitos + "/" + total + "</span>" : "") +
+        (previa ? '<span class="frase">' + escapar(previa) + "</span>" : "") +
+      "</div>" +
+    "</div>" +
+    (ehNova(d) ? '<span class="ix-item__nova" title="ainda não mexida"></span>' : "") +
+    '<span class="ix-item__acoes">' +
+      '<button class="acao" type="button" data-acao="puxar" title="puxar para o dia">' + ICONE.relogio + "</button>" +
+      '<button class="acao" type="button" data-acao="arquivar" title="' + (d.estagio === "arquivada" ? "desarquivar" : "arquivar") + '">' + CAIXA + "</button>" +
+      '<button class="acao" type="button" data-acao="apagar" title="apagar">' + ICONE.lixo + "</button>" +
+    "</span>" +
+  "</div>";
+}
+function renderLista() {
+  const itens = itensDaLista();
+  let html = "", grupo = "";
+  itens.forEach((d) => {
+    const dia = diaDoCarimbo(d.atualizada || d.criada);
+    if (dia !== grupo) { grupo = dia; html += '<p class="ix-grupo">' + rotuloGrupo(dia) + "</p>"; }
+    html += itemHtml(d);
+  });
+  $("lista").innerHTML = html;
+  $("vazio").hidden = itens.length > 0;
+}
+
+function cartaoHtml(d) {
+  const feitos = (d.passos || []).filter((p) => p.feito).length;
+  const total = (d.passos || []).length;
+  return '<div class="bloco bloco--raso quadro__card" draggable="true" data-id="' + d.id + '">' +
+    '<div class="quadro__card-topo">' +
+      '<p class="quadro__card-titulo">' + escapar(d.titulo || "sem título") + "</p>" +
+      '<span class="quadro__pega" aria-hidden="true">' + ICONE.pega + "</span>" +
+    "</div>" +
+    '<div class="fileira">' + avatarFrente(d.frente, true) +
+      (total ? '<span class="pequeno fraco">' + feitos + "/" + total + "</span>" : "") +
+      '<span class="pequeno fraco" style="margin-left:auto">' + quandoLongo(d.atualizada || d.criada) + "</span>" +
+    "</div>" +
+  "</div>";
+}
+function renderQuadro() {
+  if (visao !== "quadro") return;
+  const itens = itensDoQuadro();
+  $("quadro-vazio").hidden = itens.length > 0;
+  $("quadro").hidden = itens.length === 0;
+  $("quadro").innerHTML = ESTAGIOS.map((es) => {
+    const doEstagio = itens.filter((d) => d.estagio === es.id).sort((a, b) => (b.atualizada || 0) - (a.atualizada || 0));
+    return '<div class="quadro__col">' +
+      '<p class="quadro__titulo"><span class="t-mono">' + es.rotulo + '</span><span class="quadro__conta">' + doEstagio.length + "</span></p>" +
+      '<div class="quadro__soltar" data-estagio="' + es.id + '">' +
+        (doEstagio.length ? doEstagio.map(cartaoHtml).join("") : '<p class="quadro__vazio">nada aqui</p>') +
+      "</div>" +
+    "</div>";
+  }).join("");
+}
+
+/* ---------- criar ideia (botao + caixa) ----------
+   o titulo aceita "@frente" e "@cliente" como o resto do sistema; os
+   campos ao lado ganham quando preenchidos. a ideia nasce semente e ja
+   abre no painel, para ganhar corpo se for o caso. */
+function formIdeia() {
+  abrirFormulario({
+    titulo: "nova ideia",
+    campos:
+      campoForm("título", '<input class="campo" name="titulo" maxlength="300" required placeholder="o que ainda não é tarefa · @frente">', true) +
+      campoForm("frente", '<select class="campo-sel" name="frente">' + opcoesFrente("", "sem frente") + "</select>") +
+      campoForm("cliente", '<select class="campo-sel" name="cliente">' + opcoesCliente("", "sem cliente") + "</select>"),
+    enviar: "guardar",
+    aoAbrir: (form) => {
+      form.elements.frente.addEventListener("change", (e) => { form.elements.cliente.innerHTML = opcoesCliente("", "sem cliente", e.target.value || undefined); });
+    },
+    aoEnviar: (v) => {
+      const lido = lerArrobas(v.titulo);   // @frente / @cliente no texto viram os campos, e somem do titulo
+      const titulo = lido.titulo.slice(0, 300);
+      if (!titulo) { mostrarAviso("a ideia precisa de um título"); return false; }
+      const agora = Date.now();
+      const doc = {
+        id: novoId(), titulo, corpo: "", estagio: "semente",
+        frente: v.frente || lido.frente || "", cliente: v.cliente || lido.cliente || "", passos: [], saidas: [], historico: [],
+        criada: agora, atualizada: agora
+      };
+      ideias.gravar(doc);
+      if (visao !== "lista") mudarVisao("lista");
+      abrirPainel(doc.id);
+    }
+  });
+}
+$("btn-nova").innerHTML = ICONE.mais + "ideia";
+$("btn-nova").addEventListener("click", formIdeia);
+
+/* ---------- gravar ---------- */
+
+function salvarIdeia(doc) {
+  ideias.gravar({ ...doc, atualizada: Date.now() });
+}
+function registrarSaida(doc, tipo, idRef) {
+  const saidas = (doc.saidas || []).concat([{ tipo, id: idRef || "", quando: Date.now() }]);
+  salvarIdeia({ ...doc, saidas });
+}
+/* mudar de estagio deixa rastro: e a unica mudanca de campo que conta como
+   acontecimento — frente e cliente sao classificacao, estagio e caminho */
+function mudarEstagio(doc, novo) {
+  if (!doc || doc.estagio === novo) return;
+  const historico = (doc.historico || []).concat([{ tipo: "estagio", de: doc.estagio, para: novo, quando: Date.now() }]);
+  salvarIdeia({ ...doc, estagio: novo, historico });
+}
+function puxarParaODia(doc) {
+  mandarParaODia({
+    titulo: doc.titulo || "ideia sem título",
+    frente: doc.frente || "",
+    cliente: doc.cliente || "",
+    origem: { tipo: "ideia", id: doc.id }
+  });
+  registrarSaida(doc, "dia", "");
+}
+function apagarIdeia(id) {
+  const anterior = ideias.apagar(id);
+  if (ideiaAbertaId === id) fecharPainel();
+  if (anterior) mostrarAviso("ideia apagada", () => ideias.gravar(anterior));
+}
+function arquivarOuVoltar(doc) {
+  if (doc.estagio === "arquivada") {
+    /* volta para onde estava antes de arquivar, se der para saber */
+    const ultimo = (doc.historico || []).slice().reverse().find((h) => h.tipo === "estagio" && h.para === "arquivada");
+    mudarEstagio(doc, ultimo && ESTAGIOS_VALIDOS.includes(ultimo.de) && ultimo.de !== "arquivada" ? ultimo.de : "semente");
+  } else {
+    mudarEstagio(doc, "arquivada");
+    mostrarAviso("ideia arquivada", () => { const agora = ideias.obter(doc.id); if (agora) mudarEstagio(agora, doc.estagio); });
+  }
+}
+
+/* ---------- a lista: clique e teclado ---------- */
+
+$("lista").addEventListener("click", (e) => {
+  const item = e.target.closest(".ix-item");
+  if (!item) return;
+  const d = ideias.obter(item.dataset.id);
+  if (!d) return;
+  const btn = e.target.closest("[data-acao]");
+  const acao = btn ? btn.dataset.acao : "abrir";   // clicar fora dos icones abre
+  if (acao === "abrir") abrirPainel(d.id);
+  else if (acao === "puxar") puxarParaODia(d);
+  else if (acao === "arquivar") arquivarOuVoltar(d);
+  else if (acao === "apagar") apagarIdeia(d.id);
+});
+$("lista").addEventListener("keydown", (e) => {
+  const item = e.target.closest(".ix-item");
+  if (!item || e.target !== item) return;
+  if (e.key === "Enter" || e.key === " ") { e.preventDefault(); abrirPainel(item.dataset.id); }
+});
+
+/* setas percorrem a lista como numa caixa de entrada: a ideia abre ao lado
+   sem tirar o foco da lista, entao da para ler varias so com o teclado */
+function irPara(delta) {
+  const itens = itensDaLista();
+  if (!itens.length) return;
+  const i = itens.findIndex((d) => d.id === ideiaAbertaId);
+  const alvo = itens[i < 0 ? (delta > 0 ? 0 : itens.length - 1) : Math.max(0, Math.min(itens.length - 1, i + delta))];
+  abrirPainel(alvo.id, { semFoco: true });
+  const el = $("lista").querySelector('[data-id="' + alvo.id + '"]');
+  if (el) { el.focus({ preventScroll: true }); el.scrollIntoView({ block: "nearest" }); }
+}
+
+/* ---------- quadro: arrastar entre colunas ---------- */
+
+const elQuadro = $("quadro");
+elQuadro.addEventListener("dragstart", (e) => {
+  const card = e.target.closest(".quadro__card");
+  if (!card) return;
+  e.dataTransfer.setData("text/plain", card.dataset.id);
+  e.dataTransfer.effectAllowed = "move";
+  card.classList.add("arrastando");
+});
+elQuadro.addEventListener("dragend", (e) => {
+  const card = e.target.closest(".quadro__card");
+  if (card) card.classList.remove("arrastando");
+});
+elQuadro.addEventListener("dragover", (e) => {
+  const zona = e.target.closest(".quadro__soltar");
+  if (!zona) return;
+  e.preventDefault();
+  e.dataTransfer.dropEffect = "move";
+  zona.dataset.sobre = "sim";
+});
+elQuadro.addEventListener("dragleave", (e) => {
+  const zona = e.target.closest(".quadro__soltar");
+  if (zona && !zona.contains(e.relatedTarget)) delete zona.dataset.sobre;
+});
+elQuadro.addEventListener("drop", (e) => {
+  const zona = e.target.closest(".quadro__soltar");
+  if (!zona) return;
+  e.preventDefault();
+  delete zona.dataset.sobre;
+  mudarEstagio(ideias.obter(e.dataTransfer.getData("text/plain")), zona.dataset.estagio);
+});
+elQuadro.addEventListener("click", (e) => {
+  const card = e.target.closest(".quadro__card");
+  if (!card) return;
+  mudarVisao("lista");
+  abrirPainel(card.dataset.id);
+});
+
+/* ---------- o painel ---------- */
+
+function mostrarSalvo() {
+  const el = $("p-salvo");
+  el.textContent = "salvo";
+  el.classList.add("is-visivel");
+  clearTimeout(mostrarSalvo._t);
+  mostrarSalvo._t = setTimeout(() => el.classList.remove("is-visivel"), 1400);
+}
+function idDoHash() {
+  const h = decodeURIComponent(location.hash.replace(/^#/, ""));
+  return h && ideias.existe(h) ? h : "";
+}
+
+function abrirPainel(id, opcoes = {}) {
+  const d = ideias.obter(id);
+  if (!d) return;
+  const trocou = ideiaAbertaId !== id;
+  ideiaAbertaId = id;
+  if (trocou) modoVerCorpo = !!d.corpo;   // ideia com corpo abre lendo; vazia abre escrevendo
+  preencherPainel(d);
+  $("painel-vazio").hidden = true;
+  $("painel").hidden = false;
+  elTela.dataset.vista = "painel";
+  if (!opcoes.semHash) location.hash = id;
+  /* marca a linha ativa sem redesenhar a lista inteira */
+  $("lista").querySelectorAll(".ix-item").forEach((el) => el.classList.toggle("is-ativa", el.dataset.id === id));
+  if (trocou) $("rolo-painel").scrollTop = 0;
+  if (!opcoes.semFoco && trocou && !d.titulo) $("p-titulo").focus();
+}
+function fecharPainel(opcoes = {}) {
+  ideiaAbertaId = null;
+  $("painel").hidden = true;
+  $("painel-vazio").hidden = false;
+  elTela.dataset.vista = "lista";
+  $("lista").querySelectorAll(".ix-item.is-ativa").forEach((el) => el.classList.remove("is-ativa"));
+  if (!opcoes.semHash && idDoHash()) history.replaceState(null, "", location.pathname + location.search);
+}
+
+function ajustarAltura(ta) { ta.style.height = "auto"; ta.style.height = ta.scrollHeight + "px"; }
+
+function preencherPainel(d) {
+  $("p-titulo").value = d.titulo || "";
+  $("p-corpo").value = d.corpo || "";
+  aplicarModoCorpo();
+  $("p-salvo").textContent = "";
+  $("p-salvo").classList.remove("is-visivel");
+  renderPedacosDoPainel(d);
+}
+/* tudo que nao e campo de digitacao livre: pode ser refeito a qualquer
+   mudanca do documento sem atropelar ninguem */
+function renderPedacosDoPainel(d) {
+  $("p-estagio").value = d.estagio || "semente";
+  $("p-v-estagio").dataset.estagio = d.estagio || "semente";
+  $("p-frente").innerHTML = opcoesFrente(d.frente, "sem frente");
+  $("p-cliente").innerHTML = opcoesCliente(d.cliente, "sem cliente", d.frente);
+  $("p-criada").textContent = quandoLongo(d.criada);
+  $("p-criada").title = new Date(d.criada).toLocaleString("pt-BR");
+  const feitos = (d.passos || []).filter((p) => p.feito).length;
+  const total = (d.passos || []).length;
+  $("p-progresso").textContent = total ? feitos + " de " + total : "nenhum";
+  $("p-arquivar").innerHTML = CAIXA;
+  $("p-arquivar").title = d.estagio === "arquivada" ? "desarquivar" : "arquivar";
+  renderPassos(d);
+  renderAtividade(d);
+}
+function aplicarModoCorpo() {
+  const ta = $("p-corpo");
+  if (modoVerCorpo) $("p-corpo-md").innerHTML = md(ta.value) || '<p class="fraco">sem corpo — clique em editar para escrever.</p>';
+  ta.hidden = modoVerCorpo;
+  $("p-corpo-md").hidden = !modoVerCorpo;
+  $("p-ver").textContent = modoVerCorpo ? "editar" : "ver";
+  if (!modoVerCorpo) ajustarAltura(ta);
+}
+
+function renderPassos(d) {
+  const passos = d.passos || [];
+  const feitos = passos.filter((p) => p.feito).length;
+  $("passos-conta").textContent = passos.length ? feitos + "/" + passos.length : "";
+  $("passos-barra").hidden = !passos.length;
+  $("passos-barra").firstElementChild.style.width = passos.length ? Math.round(100 * feitos / passos.length) + "%" : "0";
+  $("lista-passos").innerHTML = passos.map((p) =>
+    '<div class="passo' + (p.feito ? " is-feito" : "") + '" data-id="' + p.id + '">' +
+      '<button class="passo__check" type="button" data-acao="check" title="marcar feito">' + ICONE.check + "</button>" +
+      '<span class="passo__texto">' + escapar(p.texto) + "</span>" +
+      '<span class="passo__acoes">' +
+        '<button class="acao" type="button" data-acao="puxar" title="puxar para o dia">' + ICONE.relogio + "</button>" +
+        '<button class="acao" type="button" data-acao="apagar" title="apagar">' + ICONE.lixo + "</button>" +
+      "</span>" +
+    "</div>"
+  ).join("");
+}
+
+/* a atividade e a linha do tempo da ideia: quando nasceu, por onde passou,
+   para onde saiu. tudo que ja esta no documento, so contado em ordem. */
+const RÓTULO_SAIDA = { dia: "puxada para o dia", mapa: "virou mapa mental", cliente: "virou projeto de cliente" };
+function renderAtividade(d) {
+  const eventos = [{ quando: d.criada, html: "<b>criada</b>" }]
+    .concat((d.historico || []).filter((h) => h.tipo === "estagio").map((h) => ({
+      quando: h.quando,
+      html: "passou de <span class=\"tt\">" + escapar(h.de) + "</span> para <span class=\"tt\">" + escapar(h.para) + "</span>"
+    })))
+    .concat((d.saidas || []).map((s) => ({ quando: s.quando, html: "<b>" + escapar(RÓTULO_SAIDA[s.tipo] || s.tipo) + "</b>" })))
+    .sort((a, b) => b.quando - a.quando);
+  $("lista-ativ").innerHTML = eventos.map((ev) =>
+    "<li>" + avatarFrente(d.frente, true) + '<span class="txt">' + ev.html + "</span>" +
+    '<span class="quando" title="' + new Date(ev.quando).toLocaleString("pt-BR") + '">' + quandoLongo(ev.quando) + "</span></li>"
+  ).join("");
+}
+
+/* titulo e corpo salvam com debounce (digitar nao pode gravar a cada tecla);
+   estagio/frente/cliente salvam na hora, porque "change" ja e um gesto so */
+const salvarCamposDigitados = debounce(() => {
+  if (!ideiaAbertaId) return;
+  const atual = ideias.obter(ideiaAbertaId);
+  if (!atual) return;
+  salvarIdeia({
+    ...atual,
+    titulo: $("p-titulo").value.trim().slice(0, 300),
+    corpo: $("p-corpo").value
+  });
+  mostrarSalvo();
+}, 500);
+$("p-titulo").addEventListener("input", salvarCamposDigitados);
+$("p-corpo").addEventListener("input", () => { ajustarAltura($("p-corpo")); salvarCamposDigitados(); });
+$("p-titulo").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") { e.preventDefault(); modoVerCorpo = false; aplicarModoCorpo(); $("p-corpo").focus(); }
+});
+
+$("p-ver").addEventListener("click", () => {
+  modoVerCorpo = !modoVerCorpo;
+  aplicarModoCorpo();
+  if (!modoVerCorpo) $("p-corpo").focus();
+});
+/* clicar no texto renderizado tambem entra em edicao — e o gesto natural */
+$("p-corpo-md").addEventListener("click", (e) => {
+  if (e.target.closest("a")) return;
+  modoVerCorpo = false;
+  aplicarModoCorpo();
+  $("p-corpo").focus();
+});
+
+$("p-estagio").addEventListener("change", (e) => {
+  if (!ideiaAbertaId) return;
+  mudarEstagio(ideias.obter(ideiaAbertaId), e.target.value);
+  mostrarSalvo();
+});
+$("p-frente").addEventListener("change", (e) => {
+  if (!ideiaAbertaId) return;
+  const atual = ideias.obter(ideiaAbertaId);
+  if (!atual) return;
+  const novaFrente = e.target.value;
+  /* o cliente pode nao pertencer a nova frente: reconstroi as opcoes e deixa
+     o proprio select decidir — se o id escolhido sumiu da lista, o value
+     volta para "" sozinho, e e exatamente esse valor que gravamos */
+  $("p-cliente").innerHTML = opcoesCliente($("p-cliente").value, "sem cliente", novaFrente);
+  salvarIdeia({ ...atual, frente: novaFrente, cliente: $("p-cliente").value });
+  mostrarSalvo();
+});
+$("p-cliente").addEventListener("change", (e) => {
+  if (!ideiaAbertaId) return;
+  const atual = ideias.obter(ideiaAbertaId);
+  if (!atual) return;
+  salvarIdeia({ ...atual, cliente: e.target.value });
+  mostrarSalvo();
+});
+
+/* secoes que dobram */
+document.querySelectorAll("[data-alterna]").forEach((cab) => cab.addEventListener("click", () => {
+  const sec = $(cab.dataset.alterna);
+  sec.dataset.aberta = sec.dataset.aberta === "nao" ? "sim" : "nao";
+}));
+
+/* ---------- passos ---------- */
+
+$("form-passo").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const campo = $("novo-passo");
+  const texto = campo.value.trim();
+  if (!texto || !ideiaAbertaId) return;
+  const atual = ideias.obter(ideiaAbertaId);
+  if (!atual) return;
+  const passos = (atual.passos || []).concat([{ id: novoId(), texto: texto.slice(0, 200), feito: false }]);
+  salvarIdeia({ ...atual, passos });
+  campo.value = "";
+});
+$("lista-passos").addEventListener("click", (e) => {
+  const btn = e.target.closest("[data-acao]");
+  if (!btn || !ideiaAbertaId) return;
+  const el = e.target.closest(".passo");
+  const passoId = el && el.dataset.id;
+  const atual = ideias.obter(ideiaAbertaId);
+  if (!atual || !passoId) return;
+  const acao = btn.dataset.acao;
+  if (acao === "check") {
+    const passos = (atual.passos || []).map((p) => p.id === passoId ? { ...p, feito: !p.feito } : p);
+    salvarIdeia({ ...atual, passos });
+  } else if (acao === "puxar") {
+    const p = (atual.passos || []).find((p) => p.id === passoId);
+    if (p) mandarParaODia({ titulo: p.texto, frente: atual.frente || "", cliente: atual.cliente || "", origem: { tipo: "ideia", id: atual.id } });
+  } else if (acao === "apagar") {
+    const antes = atual.passos || [];
+    salvarIdeia({ ...atual, passos: antes.filter((p) => p.id !== passoId) });
+    mostrarAviso("passo apagado", () => {
+      const agora = ideias.obter(atual.id);
+      if (agora) salvarIdeia({ ...agora, passos: antes });
+    });
+  }
+});
+
+/* ---------- barra do painel: saidas, arquivar, apagar ---------- */
+
+$("p-puxar").innerHTML = ICONE.relogio + "<span>puxar para o dia</span>";
+$("p-mapa").innerHTML = ICONE.mapa + "<span>mapa</span>";
+$("p-virar-cliente").innerHTML = PESSOA + "<span>cliente</span>";
+$("p-apagar").innerHTML = ICONE.lixo;
+$("btn-voltar").addEventListener("click", () => fecharPainel());
+
+$("p-puxar").addEventListener("click", () => {
+  const d = ideiaAbertaId && ideias.obter(ideiaAbertaId);
+  if (d) puxarParaODia(d);
+});
+$("p-mapa").addEventListener("click", () => {
+  const d = ideiaAbertaId && ideias.obter(ideiaAbertaId);
+  if (!d) return;
+  const mapas = colecao("mapas");
+  const idMapa = novoId();
+  const agora = Date.now();
+  mapas.gravar({
+    id: idMapa,
+    nome: d.titulo || "sem título",
+    ideia: d.id,
+    frente: d.frente || "",
+    cliente: d.cliente || "",
+    raiz: { id: novoId(), titulo: d.titulo || "sem título", nota: "", cor: 0, colapsado: false, filhos: [] },
+    criada: agora,
+    atualizada: agora
+  });
+  registrarSaida(d, "mapa", idMapa);
+  location.href = "mapas.html#" + idMapa;
+});
+$("p-virar-cliente").addEventListener("click", () => {
+  const d = ideiaAbertaId && ideias.obter(ideiaAbertaId);
+  if (!d) return;
+  registrarSaida(d, "cliente", "");
+  location.href = "clientes.html#novo?ideia=" + encodeURIComponent(d.id);
+});
+$("p-arquivar").addEventListener("click", () => {
+  const d = ideiaAbertaId && ideias.obter(ideiaAbertaId);
+  if (d) arquivarOuVoltar(d);
+});
+$("p-apagar").addEventListener("click", () => { if (ideiaAbertaId) apagarIdeia(ideiaAbertaId); });
+
+/* ---------- ramificar: o Merlin le a ideia e sugere perguntas, caminhos e passos ---------- */
+
+const btnRamificar = $("p-ramificar");
+btnRamificar.innerHTML = FAISCA + "<span>ramificar</span>";
+btnRamificar.addEventListener("click", async () => {
+  if (!ideiaAbertaId) return;
+  const idAlvo = ideiaAbertaId;
+  const d = ideias.obter(idAlvo);
+  if (!d) return;
+  const nomeFrente = d.frente && frentes().obter(d.frente);
+  btnRamificar.disabled = true;
+  btnRamificar.innerHTML = FAISCA + "<span>pensando…</span>";
+  try {
+    const r = await api("/merlin", {
+      method: "POST",
+      body: JSON.stringify({
+        tarefa: "ramificar",
+        contexto: {
+          titulo: d.titulo || "",
+          corpo: d.corpo || "",
+          estagio: d.estagio || "",
+          passos: (d.passos || []).map((p) => p.texto),
+          frente: nomeFrente ? nomeFrente.nome : "",
+          cliente: nomeCliente(d.cliente) || ""
+        }
+      })
+    });
+    if (r.ok) {
+      abrirSugestoes(idAlvo, Array.isArray(r.corpo.sugestoes) ? r.corpo.sugestoes.slice(0, 12) : []);
+    } else if (r.status === 401) {
+      mostrarAviso("entre para usar o Merlin");
+    } else {
+      mostrarAviso(r.corpo.erro || "o Merlin não respondeu");
+    }
+  } catch (e) {
+    mostrarAviso("não consegui falar com o Merlin");
+  } finally {
+    btnRamificar.disabled = false;
+    btnRamificar.innerHTML = FAISCA + "<span>ramificar</span>";
+  }
+});
+
+const elDialogoSugestoes = $("dialogo-sugestoes");
+const ROTULO_GRUPO_SUG = { pergunta: "perguntas", caminho: "caminhos", passo: "passos" };
+const ORDEM_GRUPO_SUG = ["pergunta", "caminho", "passo"];
+let sugestoes = [];           // {tipo, titulo, nota, marcada}
+let sugestoesAlvoId = null;   // id da ideia para a qual essas sugestoes valem
+
+function abrirSugestoes(idAlvo, lista) {
+  sugestoesAlvoId = idAlvo;
+  sugestoes = lista
+    .filter((s) => s && s.titulo && ROTULO_GRUPO_SUG[s.tipo])
+    .map((s) => ({ tipo: s.tipo, titulo: String(s.titulo), nota: String(s.nota || ""), marcada: true }));
+  renderSugestoes();
+  elDialogoSugestoes.hidden = false;
+}
+function fecharSugestoes() {
+  elDialogoSugestoes.hidden = true;
+  sugestoes = [];
+  sugestoesAlvoId = null;
+}
+function renderSugestoes() {
+  const grupos = ORDEM_GRUPO_SUG.map((tipo) => {
+    const itens = sugestoes.map((s, i) => ({ ...s, i })).filter((s) => s.tipo === tipo);
+    if (!itens.length) return "";
+    return '<div class="mt">' +
+      '<p class="rotulo"><span class="t-mono">' + ROTULO_GRUPO_SUG[tipo] + "</span></p>" +
+      '<div class="sug-lista">' + itens.map((s) =>
+        '<label class="sug-item">' +
+          '<input type="checkbox" data-i="' + s.i + '"' + (s.marcada ? " checked" : "") + ">" +
+          '<span class="sug-texto"><b>' + escapar(s.titulo) + "</b>" +
+          (s.nota ? '<span class="sug-nota">' + escapar(s.nota) + "</span>" : "") +
+          "</span>" +
+        "</label>"
+      ).join("") + "</div>" +
+    "</div>";
+  }).join("");
+  $("sug-grupos").innerHTML = grupos || '<p class="vazio">o Merlin não achou nada por aqui.</p>';
+  atualizarContadorSugestoes();
+}
+function atualizarContadorSugestoes() {
+  const n = sugestoes.filter((s) => s.marcada).length;
+  $("sug-adicionar").textContent = "adicionar" + (n ? " " + n : "");
+  $("sug-adicionar").disabled = n === 0;
+}
+$("sug-grupos").addEventListener("change", (e) => {
+  const chk = e.target.closest('input[type="checkbox"]');
+  if (!chk) return;
+  const s = sugestoes[+chk.dataset.i];
+  if (s) s.marcada = chk.checked;
+  atualizarContadorSugestoes();
+});
+
+/* pergunta e passo viram passo (pergunta ganha "? " na frente, para nao se
+   confundir com um passo de execucao); caminho vira uma secao de markdown no
+   corpo — e o unico dos tres que e prosa, nao checklist. */
+$("sug-adicionar").addEventListener("click", () => {
+  const d = ideias.obter(sugestoesAlvoId);
+  if (!d) { fecharSugestoes(); return; }
+  const marcadas = sugestoes.filter((s) => s.marcada);
+  const novosPassos = marcadas
+    .filter((s) => s.tipo === "pergunta" || s.tipo === "passo")
+    .map((s) => ({ id: novoId(), texto: (s.tipo === "pergunta" ? "? " : "") + s.titulo, feito: false }));
+  const caminhos = marcadas.filter((s) => s.tipo === "caminho");
+  let corpo = d.corpo || "";
+  if (caminhos.length) {
+    corpo = corpo.replace(/\s+$/, "");
+    corpo += (corpo ? "\n\n" : "") + "## caminhos\n" +
+      caminhos.map((s) => "- **" + s.titulo + "**" + (s.nota ? " — " + s.nota : "")).join("\n");
+  }
+  const idAlvo = sugestoesAlvoId;
+  salvarIdeia({ ...d, passos: (d.passos || []).concat(novosPassos), corpo });
+  fecharSugestoes();
+  /* refresca o painel se ainda for a mesma ideia aberta: isto e uma acao
+     explicita (nao digitacao), entao pode reler o documento inteiro sem
+     medo de atropelar o que o usuario esta escrevendo */
+  if (ideiaAbertaId === idAlvo) { modoVerCorpo = true; preencherPainel(ideias.obter(idAlvo)); }
+});
+$("sug-descartar").addEventListener("click", fecharSugestoes);
+$("sug-fechar").addEventListener("click", fecharSugestoes);
+elDialogoSugestoes.addEventListener("click", (e) => { if (e.target === elDialogoSugestoes) fecharSugestoes(); });
+
+window.addEventListener("hashchange", () => {
+  const id = idDoHash();
+  if (id) { if (visao !== "lista") mudarVisao("lista"); abrirPainel(id, { semHash: true }); }
+  else if (ideiaAbertaId) fecharPainel({ semHash: true });
+});
+
+/* ---------- atalhos ---------- */
+
+const alvoEditavel = (el) => el && (["INPUT", "TEXTAREA", "SELECT"].includes(el.tagName) || el.isContentEditable);
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") {
+    if (!elDialogoSugestoes.hidden) { fecharSugestoes(); return; }
+    if (alvoEditavel(e.target)) { e.target.blur(); return; }   // primeiro Esc sai do campo; o segundo fecha
+    if (ideiaAbertaId) fecharPainel();
+    return;
+  }
+  if (!elDialogoSugestoes.hidden || alvoEditavel(e.target) || formularioAberto()) return;
+  if (e.key === "n" || e.key === "/") { e.preventDefault(); formIdeia(); }
+  else if (visao === "lista" && (e.key === "ArrowDown" || e.key === "j")) { e.preventDefault(); irPara(1); }
+  else if (visao === "lista" && (e.key === "ArrowUp" || e.key === "k")) { e.preventDefault(); irPara(-1); }
+});
+
+/* ---------- inicio ---------- */
+
+ideias.aoMudar(render);
+aplicarVisao();
+render();
+const idInicial = idDoHash();
+if (idInicial) { if (visao !== "lista") mudarVisao("lista"); abrirPainel(idInicial, { semHash: true }); }
+/* a hora relativa ("5 min") envelhece sozinha */
+setInterval(() => { if (visao === "lista") renderLista(); }, 60000);
+</script>
+</body>
+</html>

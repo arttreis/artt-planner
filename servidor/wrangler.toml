@@ -1,3 +1,6 @@
+# o nome do worker e so um rotulo interno na Cloudflare, e os segredos ficam
+# presos a ele: renomear para "merlin-api" criaria um worker novo, sem a chave
+# do Resend e sem o segredo de sessao. por isso o nome antigo fica.
 name = "artt-planner-api"
 main = "worker.js"
 compatibility_date = "2026-09-01"
@@ -10,12 +13,12 @@ compatibility_date = "2026-09-01"
 # uma origem externa. aqui o worker E a origem, e o custom domain cria o
 # registro DNS e o certificado sozinho — nada a configurar no painel.
 [[routes]]
-pattern = "planner.arttreis.com.br"
+pattern = "merlin.arttreis.com.br"
 custom_domain = true
 
 # so o que e publico entra aqui. apontar para a raiz do projeto publicaria
-# o worker.js, o schema e os testes junto — "npm run site" copia o index.html
-# da raiz para ca, e a raiz segue sendo a fonte unica.
+# o worker.js, o schema e os testes junto — "npm run site" copia as paginas
+# e a pasta compartilhado/ da raiz para ca, e a raiz segue sendo a fonte unica.
 [assets]
 directory = "./site"
 # o binding permite ao worker devolver um arquivo estatico quando o caminho
@@ -32,12 +35,18 @@ database_id = "9011ef3f-3d1d-4019-8db9-c5ff07df0446"
 [vars]
 # o remetente precisa estar num dominio verificado no Resend.
 # o onboarding@resend.dev so entrega no e-mail da propria conta.
-EMAIL_REMETENTE = "planner@arttreis.com.br"
+EMAIL_REMETENTE = "merlin@arttreis.com.br"
+
+# quem pode entrar. e um sistema de uma pessoa: qualquer outro e-mail recebe
+# a mesma resposta de sucesso e nenhum codigo. vazio libera todo mundo — so
+# para desenvolvimento local.
+EMAILS_DONO = "midia@guessless.com.br,arthurcastilhos@gmail.com"
 
 # faxina dos codigos expirados, toda madrugada
 [triggers]
 crons = ["17 4 * * *"]
 
-# segredos NAO ficam aqui. sao dois, e vao por linha de comando:
+# segredos NAO ficam aqui. sao tres, e vao por linha de comando:
 #   npx wrangler secret put RESEND_API_KEY
 #   npx wrangler secret put SEGREDO_SESSAO
+#   npx wrangler secret put ANTHROPIC_API_KEY   # o Merlin (sugestoes); sem ela a rota responde 503

@@ -3,18 +3,22 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="color-scheme" content="dark">
+<meta name="color-scheme" content="dark light">
 <meta name="theme-color" content="#0d0d0d">
-<title>artt · planner</title>
+<title>merlin · dia</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 472.5 472.5' fill='%232EE86B'><path d='M236.31,236.23c-3.63,128.42,107.71,238.95,236.22,236.22v-118.11c-64.78,2.88-121-53.42-118.11-118.11h-118.11Z'/><path d='M236.22,0C239.85,128.42,128.52,238.95,0,236.22v-118.11C64.78,120.99,121,64.69,118.11,0h118.11Z'/><path d='M315.07,0h77.61c44.09,0,79.89,35.8,79.89,79.89v77.61h-157.5V0h0Z'/><path d='M79.96,315H.07v78.75h78.75v78.75h78.75v-79.89c0-42.86-34.75-77.61-77.61-77.61Z'/></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="compartilhado/casca.css">
+<script>/* o tema antes da primeira pintura, para nao piscar escuro no claro */
+try{var t=localStorage.getItem("merlin:tema");if(t?t==="claro":matchMedia("(prefers-color-scheme: light)").matches)document.documentElement.classList.add("light")}catch(e){}</script>
 <style>
 /* ---------------------------------------------------------------
-   design system arttreis.com.br — lado escuro dos tokens.
-   copiado do :root do site; a unica adicao e --br3 (12px), um passo
-   intermediario entre --br2 e --br para os ladrilhos de 44px.
+   design system arttreis.com.br — lado escuro dos tokens, repetido aqui
+   para a pagina continuar inteira sozinha. o lado claro (html.light) e a
+   barra vem de compartilhado/casca.css. a unica adicao e --br3 (12px),
+   um passo intermediario entre --br2 e --br para os ladrilhos de 44px.
    --------------------------------------------------------------- */
 :root{
   --pd:16px; --pd2:8px; --pd3:4px;
@@ -56,7 +60,8 @@ body{
   -webkit-font-smoothing:antialiased;
   min-height:100dvh;
   display:grid;place-items:center;
-  padding:clamp(24px,7vh,88px) clamp(12px,3vw,40px);
+  /* a barra do merlin flutua no topo: o corpo reserva a altura dela */
+  padding:calc(var(--nav-h) + clamp(16px,4vh,48px)) clamp(12px,3vw,40px) clamp(24px,7vh,88px);
 }
 
 button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
@@ -77,7 +82,7 @@ input{font:inherit;color:inherit}
 body::before{
   content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
   background:radial-gradient(104% 78% at 22% 6%,var(--green-glow),transparent 64%);
-  opacity:.28;
+  opacity:var(--glow-op);
 }
 /* a grade de 28px do sistema, mascarada onde a luz bate: da textura ao fundo
    e some sozinha no escuro. e a mesma de .work__media no site. */
@@ -96,15 +101,13 @@ body::after{
 .fone{
   position:relative;z-index:1;
   width:100%;max-width:496px;
-  height:min(880px,calc(100dvh - clamp(48px,14vh,176px)));
+  height:min(880px,calc(100dvh - var(--nav-h) - clamp(40px,11vh,136px)));
   display:flex;flex-direction:column;
   background:var(--surface);
   border:1px solid var(--line);
   border-radius:calc(var(--br) * 1.75);
   overflow:hidden;
-  box-shadow:
-    inset 0 1px 0 rgba(242,242,242,.05),
-    0 40px 110px -44px rgba(0,0,0,.95);
+  box-shadow:var(--sombra);
 }
 /* a mesma luz atravessa o aparelho — e por isso que ele parece aceso, e nao
    recortado. fica atras do conteudo, que sobe pro z-index 1. */
@@ -137,12 +140,28 @@ body::after{
 .rolagem::-webkit-scrollbar{width:6px}
 .rolagem::-webkit-scrollbar-thumb{background:var(--line);border-radius:3px}
 
-.selo{
+.logo-selo{
   width:52px;height:52px;border-radius:var(--br3);
   background:var(--fill);border:1px solid var(--line);
   display:grid;place-items:center;margin-bottom:calc(var(--pd) * 1.5);
 }
-.selo svg{width:23px;height:23px;color:var(--green)}
+.logo-selo svg{width:23px;height:23px;color:var(--green)}
+/* frente e cliente na linha da tarefa: o selo vem da casca, aqui so encolhe.
+   ficam na mesma linha da duracao, e nao numa terceira — o projeto e parte
+   da leitura rapida da tarefa, nao um rodape. */
+.rodape{display:flex;align-items:center;gap:var(--pd2);flex-wrap:wrap;min-width:0}
+.t-selos{display:flex;gap:4px;flex-wrap:wrap;min-width:0}
+.t-selos .selo{height:18px;font-size:9.5px;padding:0 7px}
+.t-selos .selo--cliente{color:var(--ink-70)}
+.tarefa.feita .t-selos{display:none}
+/* o friso: a cor da frente na borda da tarefa, para o projeto ser visto
+   antes mesmo de ler o selo. curto e dentro do cartao, como uma aba. */
+.tarefa{position:relative}
+.tarefa[data-cor]::before{
+  content:"";position:absolute;left:0;top:14px;bottom:14px;width:3px;
+  border-radius:0 3px 3px 0;background:var(--cor);
+}
+.tarefa.feita[data-cor]::before{opacity:.35}
 
 /* ---------- chamada ---------- */
 .chamada{
@@ -490,7 +509,7 @@ a.acao{color:var(--ink-30);text-decoration:none}
   padding:11px 14px;border-radius:var(--br);
   background:var(--surface-2);border:1px solid var(--line);
   font-size:13px;color:var(--ink);
-  box-shadow:0 10px 30px rgba(0,0,0,.55);
+  box-shadow:var(--sombra-2);
 }
 .aviso span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .aviso button{
@@ -513,7 +532,7 @@ a.acao{color:var(--ink-30);text-decoration:none}
   position:relative;
   background:var(--surface);border:1px solid var(--line);
   border-radius:var(--br);padding:calc(var(--pd) * 1.25);
-  box-shadow:inset 0 1px 0 rgba(242,242,242,.05),0 40px 110px -44px rgba(0,0,0,.95);
+  box-shadow:var(--sombra);
 }
 
 /* ---------- caixa de ideias ----------
@@ -616,8 +635,8 @@ a.acao{color:var(--ink-30);text-decoration:none}
 }
 
 @media (max-width:480px){
-  body{padding:0}
-  .fone{max-width:none;height:100dvh;border-radius:0;border:0;box-shadow:none}
+  body{padding:var(--nav-h) 0 0}
+  .fone{max-width:none;height:calc(100dvh - var(--nav-h));border-radius:0;border:0;box-shadow:none}
   .topo{padding-top:max(18px,env(safe-area-inset-top))}
   .pilula-area{padding-bottom:max(var(--pd),env(safe-area-inset-bottom))}
   .chamada{font-size:27px}
@@ -646,7 +665,7 @@ a.acao{color:var(--ink-30);text-decoration:none}
 
   <div class="rolagem">
 
-    <div class="selo" aria-hidden="true">
+    <div class="logo-selo" aria-hidden="true">
       <svg viewBox="0 0 472.5 472.5" fill="currentColor">
         <path d="M236.31,236.23c-3.63,128.42,107.71,238.95,236.22,236.22v-118.11c-64.78,2.88-121-53.42-118.11-118.11h-118.11Z"/>
         <path d="M236.22,0C239.85,128.42,128.52,238.95,0,236.22v-118.11C64.78,120.99,121,64.69,118.11,0h118.11Z"/>
@@ -708,16 +727,6 @@ a.acao{color:var(--ink-30);text-decoration:none}
       <p class="vazio-rodape" id="vazio-rodape">Escreve assim, com a duração no fim: ela sai do título e entra na barra do dia.</p>
     </div>
 
-    <section class="arquivo" id="nuvem-secao">
-      <p class="arq-linha">
-        <span class="t-mono" id="nuvem-estado"></span>
-        <span class="arq-acoes">
-          <button class="arq-link" type="button" id="nuvem-acao" hidden></button>
-          <button class="arq-link" type="button" id="nuvem-sair" hidden>sair</button>
-        </span>
-      </p>
-    </section>
-
     <section class="feitas" id="feitas" data-aberto="nao" hidden>
       <p class="rotulo">
         <button class="pill" id="alternar-feitas" aria-expanded="false">
@@ -757,32 +766,6 @@ a.acao{color:var(--ink-30);text-decoration:none}
     <button type="button" id="aviso-desfazer">desfazer</button>
   </div>
 
-  <div class="entrada" id="entrada" hidden role="dialog" aria-modal="true" aria-label="Entrar">
-    <div class="ent-caixa">
-      <button class="ent-fechar" type="button" id="entrada-fechar" aria-label="Fechar">✕</button>
-      <p class="ent-titulo">Levar seu dia para outros aparelhos</p>
-
-      <form id="form-email" class="ent-form" autocomplete="on">
-        <div id="entrada-email">
-          <p class="ent-sub">Sem senha: mando um código de 6 dígitos.</p>
-          <input class="ent-campo" id="campo-email" type="email" inputmode="email"
-                 autocomplete="email" placeholder="seu@email.com" aria-label="Seu e-mail">
-          <button class="ent-botao" type="submit">mandar código</button>
-        </div>
-      </form>
-
-      <form id="form-codigo" class="ent-form" autocomplete="off">
-        <div id="entrada-codigo" hidden>
-          <input class="ent-campo ent-codigo" id="campo-codigo" inputmode="numeric"
-                 autocomplete="one-time-code" maxlength="6" placeholder="000000" aria-label="Código de 6 dígitos">
-          <button class="ent-botao" type="submit">entrar</button>
-        </div>
-      </form>
-
-      <p class="ent-recado" id="entrada-recado" role="status" aria-live="polite"></p>
-    </div>
-  </div>
-
 </main>
 
 <!-- os trilhos do bento. ficam depois do aparelho no DOM de proposito: no
@@ -790,7 +773,7 @@ a.acao{color:var(--ink-30);text-decoration:none}
      na frente dele. no desktop a grade joga o primeiro para a esquerda. -->
 <div class="lado" id="lado-esq">
   <section class="bloco" id="ideias">
-    <p class="rotulo"><span class="t-mono" id="ideias-rotulo"></span></p>
+    <p class="rotulo"><span class="t-mono" id="ideias-rotulo"></span><a class="arq-link" href="ideias.html">todas</a></p>
     <p class="ideias-nota">não custam minuto nenhum até virarem tarefa</p>
     <p class="ideias-vazio" id="ideias-vazio" hidden>Nada aqui. Escreve embaixo o que ainda não é tarefa.</p>
     <ul class="lista-ideias" id="lista-ideias"></ul>
@@ -832,12 +815,16 @@ a.acao{color:var(--ink-30);text-decoration:none}
   </section>
 </div>
 
-<script>
+<script type="module">
+import { colecao, nuvem, api, iniciarPagina, lerEntrada, gravarEntrada,
+         listarFrentes, seloFrente, corFrente, nomeCliente, lerArrobas, segundaDe }
+  from "./compartilhado/nucleo.js";
 (() => {
   "use strict";
 
-  const CHAVE = "artt-planner:v2";
-  const CHAVE_ANTIGA = "artt-planner:v1";
+  const CHAVE = "merlin:dia";
+  /* o nome anterior do produto: quem abrir o mesmo navegador nao perde o dia */
+  const CHAVE_ANTIGA = "artt-planner:v2";
   const DIA = 1440;
 
   /* a data como o estado a guarda: YYYY-MM-DD no fuso local, nunca ISO/UTC —
@@ -872,7 +859,14 @@ a.acao{color:var(--ink-30);text-decoration:none}
          nao existe caminho para um "javascript:" entrar na tela por um titulo.
          o formato e conferido aqui porque documento vindo do disco ou da nuvem
          nao e confiavel so por ter chegado. */
-      clickup: CLICKUP_ID.test(String((t && t.clickup) || "")) ? String(t.clickup) : ""
+      clickup: CLICKUP_ID.test(String((t && t.clickup) || "")) ? String(t.clickup) : "",
+      /* de qual frente (empresa) e de qual cliente e o trabalho. so ids: o
+         nome vem do cadastro na hora de desenhar, e some se o cadastro sumir. */
+      frente: String((t && t.frente) || "").slice(0, 64),
+      cliente: String((t && t.cliente) || "").slice(0, 64),
+      /* o cartao da semana de onde ela veio, para o cartao ser marcado feito
+         quando a tarefa for concluida aqui */
+      semana: String((t && t.semana) || "").slice(0, 64)
     };
   }
 
@@ -883,18 +877,8 @@ a.acao{color:var(--ink-30);text-decoration:none}
     let bruto = null;
     try {
       bruto = JSON.parse(localStorage.getItem(CHAVE));
-      if (!bruto) {
-        /* migra do formato antigo, que guardava capacidade em vez de janela */
-        const velho = JSON.parse(localStorage.getItem(CHAVE_ANTIGA));
-        if (velho && Array.isArray(velho.tarefas)) {
-          bruto = {
-            tarefas: velho.tarefas,
-            inicio: 540,
-            fim: 540 + minutoValido(velho.capacidade, 600),
-            feitasAbertas: !!velho.feitasAbertas
-          };
-        }
-      }
+      /* migra do nome antigo: mesmo formato, chave nova */
+      if (!bruto) bruto = JSON.parse(localStorage.getItem(CHAVE_ANTIGA));
     } catch (e) { /* storage bloqueado ou corrompido: comeca limpo */ }
 
     return carregarDe(bruto);
@@ -1016,12 +1000,14 @@ a.acao{color:var(--ink-30);text-decoration:none}
      entender exatamente a mesma coisa: se so o submit tirasse a URL, a previa
      mostraria o link cru como titulo e ainda acusaria "nao entendi o tempo"
      por causa dos digitos do id. */
+  /* @frente e @cliente vem do nucleo: e a mesma leitura em todo modulo */
   function lerLinha(texto) {
     const l = lerClickup(texto);
-    const d = lerDuracao(l.titulo);
+    const ar = lerArrobas(l.titulo);
+    const d = lerDuracao(ar.titulo);
     /* semLink e o texto sem a URL: e sobre ele que a suspeita de tempo mal
        escrito tem que ser avaliada. */
-    return { min: d.min, titulo: d.titulo, clickup: l.clickup, semLink: l.titulo };
+    return { min: d.min, titulo: d.titulo, clickup: l.clickup, semLink: ar.titulo, frente: ar.frente, cliente: ar.cliente };
   }
 
   /* o texto tem numero mas nada casou: provavelmente e tempo mal escrito.
@@ -1419,7 +1405,19 @@ a.acao{color:var(--ink-30);text-decoration:none}
 
       const miolo = document.createElement("div");
       miolo.className = "miolo";
-      miolo.append(nome, sub);
+      const rodape = document.createElement("div");
+      rodape.className = "rodape";
+      rodape.append(sub);
+      if (t.frente || t.cliente) {
+        const selos = document.createElement("div");
+        selos.className = "t-selos";
+        selos.innerHTML = seloFrente(t.frente) +
+          (t.cliente && nomeCliente(t.cliente) ? '<span class="selo selo--cliente">' + escapar(nomeCliente(t.cliente)) + "</span>" : "");
+        if (selos.innerHTML) rodape.append(selos);
+        const cor = corFrente(t.frente);
+        if (cor) li.dataset.cor = cor;
+      }
+      miolo.append(nome, rodape);
 
       const lixo = document.createElement("button");
       lixo.className = "acao";
@@ -1545,11 +1543,9 @@ a.acao{color:var(--ink-30);text-decoration:none}
     estado.dia = passo.dia;
     estado.inicio = passo.inicio;
     estado.fim = passo.fim;
-    ideias = passo.ideias;
     salvar();
-    salvarIdeias();
     render();
-    renderIdeias();
+    restaurarIdeias(passo.ideias);
     /* ainda ha passos atras: o aviso continua, apontando para o proximo */
     if (paraDesfazer.length) mostrarAviso(paraDesfazer[paraDesfazer.length - 1].texto);
     else fecharAviso();
@@ -1562,9 +1558,12 @@ a.acao{color:var(--ink-30);text-decoration:none}
 
   /* titulo e duracao chegam ja resolvidos: quem decide o tempo e o composer,
      que nao deixa nascer tarefa sem ele */
-  function criar(titulo, min, reserva, clickup) {
+  function criar(titulo, min, reserva, clickup, frente, cliente, extra) {
     const limpo = String(titulo).replace(/\s+/g, " ").trim();
-    if (!limpo || !min) return false;
+    /* toda tarefa tem duracao — menos a que chega da semana sem uma: ela entra
+       "contando o palpite" e pede o numero na propria linha, em vez de ficar
+       de fora do dia por um detalhe */
+    if (!limpo || (!min && !(extra && extra.semMin))) return false;
     /* escrever numa fila de ontem ja e a decisao de comecar hoje: carimba o dia
        e leva junto o que estava aberto, em vez de misturar em silencio */
     if (atrasada()) {
@@ -1573,11 +1572,14 @@ a.acao{color:var(--ink-30);text-decoration:none}
     }
     estado.tarefas.unshift({
       id: proximoId(), titulo: limpo.slice(0, 300), min, feito: false, reserva: !!reserva,
-      clickup: CLICKUP_ID.test(String(clickup || "")) ? String(clickup) : ""
+      clickup: CLICKUP_ID.test(String(clickup || "")) ? String(clickup) : "",
+      frente: String(frente || "").slice(0, 64),
+      cliente: String(cliente || "").slice(0, 64),
+      semana: String((extra && extra.semana) || "").slice(0, 64)
     });
     salvar();
     render();
-    return true;
+    return estado.tarefas[0].id;
   }
 
   function concluir(id) {
@@ -1588,6 +1590,10 @@ a.acao{color:var(--ink-30);text-decoration:none}
       const j = acharIndice(id);
       if (j < 0) return;
       estado.tarefas[j].feito = true;
+      /* veio da semana: o cartao fecha junto. desfazer a conclusao aqui nao
+         reabre o cartao — e um registro, nao um espelho, e reabrir na semana
+         e um clique. */
+      if (estado.tarefas[j].semana) marcarNaSemana(estado.tarefas[j].semana);
       const [x] = estado.tarefas.splice(j, 1);
       estado.tarefas.push(x);
       salvar();
@@ -1745,6 +1751,8 @@ a.acao{color:var(--ink-30);text-decoration:none}
   /* o vinculo colado junto do titulo tem que sobreviver ao pedagio de duracao:
      a tarefa so nasce depois dos chips, e a URL ja saiu do campo. */
   let pendenteDoClickup = "";
+  /* idem para a frente e o cliente lidos do @ */
+  let pendenteDaFrente = "", pendenteDoCliente = "";
 
   /* o que ocupa o dia sem ser trabalho seu. escrever "almoco 1h" nao deveria
      virar uma tarefa que voce conclui para ganhar tempo de volta que nunca
@@ -1760,14 +1768,17 @@ a.acao{color:var(--ink-30);text-decoration:none}
     pendenteDaIdeia = null;
     const bruto = elCampo.value.replace(/\s+/g, " ").trim();
     if (!bruto) return;
-    const { min, titulo, clickup } = lerLinha(elCampo.value);
+    const { min, titulo, clickup, frente, cliente } = lerLinha(elCampo.value);
     const nome = titulo || bruto;
     const reserva = ehReserva(nome);
-    if (min) { pendenteDoClickup = clickup; criarEfechar(semPrefixo(nome), min, reserva); return; }
+    if (min) {
+      pendenteDoClickup = clickup; pendenteDaFrente = frente; pendenteDoCliente = cliente;
+      criarEfechar(semPrefixo(nome), min, reserva); return;
+    }
     abrirChips(semPrefixo(nome), reserva);
     /* depois de abrirChips, que zera o pendente para quem abre o pedagio por
        outro caminho nao herdar link nenhum */
-    pendenteDoClickup = clickup;
+    pendenteDoClickup = clickup; pendenteDaFrente = frente; pendenteDoCliente = cliente;
   });
 
   function criarEfechar(titulo, min, reserva) {
@@ -1775,14 +1786,17 @@ a.acao{color:var(--ink-30);text-decoration:none}
        entao um desfazer so devolve os dois. criar tarefa do zero continua sem
        desfazer — o que ganha desfazer aqui e a ideia ter sumido. */
     const daIdeia = pendenteDaIdeia, link = pendenteDoClickup;
-    if (daIdeia && ideias.some((i) => i.id === daIdeia)) {
+    const ideia = daIdeia && ideias.find((i) => i.id === daIdeia);
+    /* a ideia traz a frente e o cliente dela, se o @ nao disse outra coisa */
+    const frente = pendenteDaFrente || (ideia && ideia.frente) || "";
+    const cliente = pendenteDoCliente || (ideia && ideia.cliente) || "";
+    if (ideia) {
       comDesfazer("puxei “" + curto(titulo) + "” pro dia", () => {
-        criar(titulo, min, reserva, link);
-        ideias = ideias.filter((i) => i.id !== daIdeia);
-        salvarIdeias();
-        renderIdeias();
+        criar(titulo, min, reserva, link, frente, cliente);
+        colIdeias.apagar(daIdeia);
+        refrescarIdeias();
       });
-    } else criar(titulo, min, reserva, link);
+    } else criar(titulo, min, reserva, link, frente, cliente);
     elCampo.value = "";
     elFantasma.hidden = true;
     fecharChips();
@@ -1793,7 +1807,7 @@ a.acao{color:var(--ink-30);text-decoration:none}
     /* zerado aqui para que so quem abre o pedagio POR uma ideia carregue esse
        estado — puxarIdeia grava logo depois desta chamada. */
     pendenteDaIdeia = null;
-    pendenteDoClickup = "";
+    pendenteDoClickup = ""; pendenteDaFrente = ""; pendenteDoCliente = "";
     pendenteDeTempo = titulo;
     pendenteEhReserva = !!reserva;
     elFantasma.hidden = true;
@@ -1830,7 +1844,7 @@ a.acao{color:var(--ink-30);text-decoration:none}
     pendenteDeTempo = null;
     pendenteEhReserva = false;
     pendenteDaIdeia = null;
-    pendenteDoClickup = "";
+    pendenteDoClickup = ""; pendenteDaFrente = ""; pendenteDoCliente = "";
   }
 
   $("chips-fila").addEventListener("click", (e) => {
@@ -1867,32 +1881,33 @@ a.acao{color:var(--ink-30);text-decoration:none}
      ela custa espaco como qualquer outra. e assim que a caixa convive com
      "toda tarefa tem duracao" em vez de furar a regra.
 
-     mora em chave propria do localStorage, fora do documento do dia. dentro
-     dele a caixa seria sincronizada por (pessoa, dia) e o aparelho que
-     abrisse com o dia velho sobrescreveria a caixa atual — perda silenciosa
-     de um dado cuja razao de existir e durar. por ora ela e deste navegador. */
-  const CHAVE_IDEIAS = "artt-planner:ideias";
-  const MAX_IDEIAS = 200;
-
-  const normalizarIdeia = (i) => ({
-    id: i && i.id ? String(i.id) : proximoId(),
-    titulo: String((i && i.titulo) || "").slice(0, 300)
+     a caixa e a colecao "ideias" do merlin, a mesma de ideias.html: la a
+     ideia ganha corpo, estagio e passos; aqui so aparece a ponta — as nao
+     arquivadas, as mais recentes primeiro. por ser colecao por entidade, ela
+     sincroniza sem o risco que tinha dentro do documento do dia (um aparelho
+     com o dia velho sobrescrevendo a caixa). */
+  const MAX_IDEIAS = 30;
+  const colIdeias = colecao("ideias", {
+    normalizar: (i) => ({ ...i, titulo: String(i.titulo || "").slice(0, 300), estagio: i.estagio || "semente" })
   });
 
-  function carregarIdeias() {
-    try {
-      const bruto = JSON.parse(localStorage.getItem(CHAVE_IDEIAS));
-      if (!Array.isArray(bruto)) return [];
-      return bruto.map(normalizarIdeia).filter((i) => i.titulo).slice(0, MAX_IDEIAS);
-    } catch (e) { return []; }
+  let ideias = [];
+  function refrescarIdeias() {
+    ideias = colIdeias.todos()
+      .filter((i) => i.titulo && i.estagio !== "arquivada")
+      .sort((a, b) => (b.atualizada || b.criada || 0) - (a.atualizada || a.criada || 0))
+      .slice(0, MAX_IDEIAS);
+    renderIdeias();
   }
 
-  let ideias = carregarIdeias();
-
-  /* nao passa por salvar(): a caixa nao entra no documento do dia, entao nao
-     carimba v nem agenda gravacao na nuvem. */
-  function salvarIdeias() {
-    try { localStorage.setItem(CHAVE_IDEIAS, JSON.stringify(ideias)); } catch (e) {}
+  /* o desfazer guarda um retrato da caixa; voltar e gravar de novo o que
+     sumiu e apagar o que nasceu depois — a colecao carimba tudo como novo. */
+  function restaurarIdeias(retrato) {
+    const agora = new Set(colIdeias.todos().map((i) => i.id));
+    const antes = new Set(retrato.map((i) => i.id));
+    retrato.forEach((i) => { if (!agora.has(i.id)) colIdeias.gravar(i); });
+    colIdeias.todos().forEach((i) => { if (!antes.has(i.id)) colIdeias.apagar(i.id); });
+    refrescarIdeias();
   }
 
   const SETA = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h13M12 5l7 7-7 7"/></svg>';
@@ -1914,18 +1929,23 @@ a.acao{color:var(--ink-30);text-decoration:none}
         '<span class="i-nome">' + nome + '</span>' +
         '<span class="i-acoes">' +
           '<button class="i-acao" type="button" data-acao="puxar" aria-label="Puxar &quot;' + nome + '&quot; pro dia">' + SETA + '</button>' +
+          '<a class="i-acao" href="ideias.html#' + encodeURIComponent(i.id) + '" aria-label="Abrir &quot;' + nome + '&quot;">' + LINK + '</a>' +
           '<button class="i-acao" type="button" data-acao="apagar" aria-label="Apagar &quot;' + nome + '&quot;">' + LIXO + '</button>' +
         '</span>';
       ul.appendChild(li);
     });
   }
 
-  function criarIdeia(titulo) {
+  function criarIdeia(titulo, extra) {
     const limpo = String(titulo).replace(/\s+/g, " ").trim();
-    if (!limpo || ideias.length >= MAX_IDEIAS) return false;
-    ideias.unshift({ id: proximoId(), titulo: limpo.slice(0, 300) });
-    salvarIdeias();
-    renderIdeias();
+    if (!limpo) return false;
+    const agora = Date.now();
+    colIdeias.gravar({
+      id: proximoId(), titulo: limpo.slice(0, 300), corpo: "", estagio: "semente",
+      frente: (extra && extra.frente) || "", cliente: (extra && extra.cliente) || "",
+      passos: [], saidas: [], criada: agora, atualizada: agora
+    });
+    refrescarIdeias();
     return true;
   }
 
@@ -1933,9 +1953,8 @@ a.acao{color:var(--ink-30);text-decoration:none}
     const i = ideias.find((x) => x.id === id);
     if (!i) return;
     comDesfazer("apaguei “" + curto(i.titulo) + "”", () => {
-      ideias = ideias.filter((x) => x.id !== id);
-      salvarIdeias();
-      renderIdeias();
+      colIdeias.apagar(id);
+      refrescarIdeias();
     });
   }
 
@@ -1950,7 +1969,7 @@ a.acao{color:var(--ink-30);text-decoration:none}
   }
 
   $("lista-ideias").addEventListener("click", (e) => {
-    const b = e.target.closest(".i-acao");
+    const b = e.target.closest("button.i-acao");
     if (!b) return;
     const li = b.closest(".ideia");
     if (!li) return;
@@ -1961,19 +1980,73 @@ a.acao{color:var(--ink-30);text-decoration:none}
   $("form-ideia").addEventListener("submit", (e) => {
     e.preventDefault();
     const campo = $("campo-ideia");
-    /* campo cheio que nao virou ideia e a caixa no teto: o texto fica ali em
-       vez de sumir sem explicacao. */
-    if (criarIdeia(campo.value)) campo.value = "";
+    const ar = lerArrobas(campo.value);
+    if (criarIdeia(ar.titulo, ar)) campo.value = "";
   });
 
-  /* outra aba deste navegador mexeu na caixa: recarrega em vez de sobrescrever */
-  window.addEventListener("storage", (e) => {
-    if (e.key !== CHAVE_IDEIAS) return;
-    ideias = carregarIdeias();
-    renderIdeias();
-  });
+  /* outra aba, ou a nuvem, mexeu na colecao: a lista e sempre um reflexo */
+  colIdeias.aoMudar(refrescarIdeias);
+  refrescarIdeias();
 
-  renderIdeias();
+  /* ---------- caixa de entrada ----------
+     os outros modulos nao tocam no documento do dia: eles deixam um bilhete
+     em merlin:entrada e o dia recolhe. com duracao vira tarefa na hora; sem
+     duracao cai na caixa de ideias, onde paga o pedagio como qualquer outra. */
+  function esvaziarEntrada() {
+    const fila = lerEntrada();
+    if (!fila.length) return;
+    gravarEntrada([]);
+    let tarefas = 0, novasIdeias = 0;
+    fila.forEach((it) => {
+      if (!it || !it.titulo) return;
+      if (it.min) { if (criar(it.titulo, it.min, ehReserva(it.titulo), "", it.frente, it.cliente)) tarefas++; }
+      else if (criarIdeia(it.titulo, it)) novasIdeias++;
+    });
+    const partes = [];
+    if (tarefas) partes.push(tarefas + (tarefas === 1 ? " tarefa" : " tarefas") + " na fila");
+    if (novasIdeias) partes.push(novasIdeias + (novasIdeias === 1 ? " ideia" : " ideias") + " na caixa");
+    if (partes.length) mostrarAviso("chegou de outro módulo: " + partes.join(" e "));
+  }
+  window.addEventListener("storage", (e) => { if (e.key === "merlin:entrada") esvaziarEntrada(); });
+  esvaziarEntrada();
+
+  /* ---------- os cartoes de hoje, da semana ----------
+     decisao do arthur: o que esta na coluna de hoje na semana entra na fila
+     sozinho ao abrir o dia. e a unica excecao ao "nada entra sozinho", e ela
+     vale porque o cartao ja foi uma decisao dele — colocar algo em "seg 7" e
+     dizer que aquilo e de segunda. o cartao ganha noDia com o id da tarefa,
+     entao nao entra duas vezes; concluir aqui fecha o cartao la. */
+  const colSemana = colecao("semana");
+
+  function chaveDeHoje() {
+    const h = hoje();
+    const dow = new Date().getDay();
+    return (dow === 0 || dow === 6) ? "fds:" + segundaDe(h) : h;
+  }
+
+  function puxarDaSemana() {
+    const chave = chaveDeHoje();
+    const cartoes = colSemana.todos()
+      .filter((c) => c.dia === chave && !c.feito && !c.noDia && c.titulo)
+      .sort((a, b) => (a.ordem || 0) - (b.ordem || 0));
+    if (!cartoes.length) return;
+    let n = 0;
+    /* na ordem inversa porque criar() poe no topo: o primeiro cartao da
+       coluna termina no topo da fila */
+    cartoes.slice().reverse().forEach((c) => {
+      const id = criar(c.titulo, +c.min || 0, ehReserva(c.titulo), "", c.frente, c.cliente, { semMin: true, semana: c.id });
+      if (id) { colSemana.gravar({ ...c, noDia: id }); n++; }
+    });
+    if (n) mostrarAviso(n === 1 ? "1 cartão de hoje entrou na fila" : n + " cartões de hoje entraram na fila");
+  }
+
+  function marcarNaSemana(idCartao) {
+    const c = colSemana.obter(idCartao);
+    if (c && !c.feito) colSemana.gravar({ ...c, feito: true, atualizada: Date.now() });
+  }
+
+  colSemana.aoMudar((origem) => { if (origem !== "local") puxarDaSemana(); });
+  puxarDaSemana();
 
   /* ---------- matriz de eisenhower ----------
      um instrumento de ordenacao, e so isso: o quadrante NAO e gravado. ele
@@ -2161,7 +2234,7 @@ a.acao{color:var(--ink-30);text-decoration:none}
     if (!elChips.hidden) return;
     const bruto = elCampo.value.replace(/\s+/g, " ").trim();
     if (!bruto) { elFantasma.hidden = true; return; }
-    const { min, titulo, clickup, semLink } = lerLinha(elCampo.value);
+    const { min, titulo, clickup, semLink, frente, cliente } = lerLinha(elCampo.value);
     const c = contas();
     const cabe = !min || min <= c.sobra;
     elFantasma.hidden = false;
@@ -2171,7 +2244,8 @@ a.acao{color:var(--ink-30);text-decoration:none}
        dizer isso agora evita a tarefa muda que some da conta depois */
     /* o link reconhecido e dito na previa: senao a URL some do campo e voce
        nao sabe se ela virou vinculo ou se foi engolida. */
-    const marca = clickup ? " · clickup" : "";
+    const nomeFrente = frente ? (listarFrentes().find((f) => f.id === frente) || {}).nome : "";
+    const marca = (clickup ? " · clickup" : "") + (nomeFrente ? " · " + nomeFrente : "") + (cliente ? " · " + nomeCliente(cliente) : "");
     elFantasma.querySelector(".g-tempo").textContent = (min
       ? formatar(min) + (cabe ? "" : " · não cabe hoje")
       : (pareceTempoQuebrado(semLink, min) ? "não entendi o tempo · 45m, 1h30" : "o tempo vem a seguir")) + marca;
@@ -2398,37 +2472,25 @@ a.acao{color:var(--ink-30);text-decoration:none}
      o navegador continua sendo a fonte de verdade da sessao. a nuvem e
      camada de sincronia: se ela cair, o dia nao vai junto. */
 
-  const API = "/api";
-  let entrou = false;
   let timerSubir = null;
   let vDoServidor = 0;   /* maior carimbo que ja vi vindo de la */
-
-  async function api(rota, opcoes) {
-    const r = await fetch(API + rota, {
-      credentials: "same-origin",
-      headers: { "content-type": "application/json" },
-      ...opcoes
-    });
-    const corpo = await r.json().catch(() => ({}));
-    return { ok: r.ok, status: r.status, corpo };
-  }
 
   /* sobe o dia atual. o servidor recusa se ele estiver na frente — e ai
      quem adota e o cliente, em vez dos dois discordarem em silencio. */
   async function subirDia() {
-    if (!entrou) return;
+    if (!nuvem.entrou) return;
     try {
       const r = await api("/dias", {
         method: "POST",
         body: JSON.stringify({ dia: estado.dia, v: estado.v, doc: estado })
       });
-      if (r.ok) { vDoServidor = Math.max(vDoServidor, estado.v); marcarNuvem("ligada"); return; }
+      if (r.ok) { vDoServidor = Math.max(vDoServidor, estado.v); nuvem.marcar("ligada"); return; }
       if (r.status === 409 && r.corpo.servidor) { adotarDaNuvem(r.corpo.servidor); return; }
-      if (r.status === 401) { entrou = false; marcarNuvem("fora"); return; }
-      marcarNuvem("erro");
+      if (r.status === 401) { nuvem.entrou = false; nuvem.marcar("fora"); return; }
+      nuvem.marcar("erro");
     } catch (e) {
       /* sem rede: o dia esta salvo aqui e sobe na proxima */
-      marcarNuvem("offline");
+      nuvem.marcar("offline");
     }
   }
 
@@ -2436,18 +2498,18 @@ a.acao{color:var(--ink-30);text-decoration:none}
      o mesmo dia daqui e estiver na frente — dia antigo do servidor nao
      sequestra a fila de hoje. */
   async function baixarDias() {
-    if (!entrou) return;
+    if (!nuvem.entrou) return;
     try {
       const r = await api("/dias?desde=" + vDoServidor, { method: "GET" });
-      if (r.status === 401) { entrou = false; marcarNuvem("fora"); return; }
-      if (!r.ok) { marcarNuvem("erro"); return; }
+      if (r.status === 401) { nuvem.entrou = false; nuvem.marcar("fora"); return; }
+      if (!r.ok) { nuvem.marcar("erro"); return; }
 
       const dias = r.corpo.dias || [];
       dias.forEach((d) => { vDoServidor = Math.max(vDoServidor, d.v); });
       const doDia = dias.filter((d) => d.dia === estado.dia).sort((a, b) => b.v - a.v)[0];
       if (doDia && doDia.v > estado.v) adotarDaNuvem(doDia);
-      else marcarNuvem("ligada");
-    } catch (e) { marcarNuvem("offline"); }
+      else nuvem.marcar("ligada");
+    } catch (e) { nuvem.marcar("offline"); }
   }
 
   /* troca o documento inteiro pelo da nuvem, que esta na frente. nao e merge
@@ -2458,120 +2520,31 @@ a.acao{color:var(--ink-30);text-decoration:none}
     vDoServidor = Math.max(vDoServidor, deLa.v);
     try { localStorage.setItem(CHAVE, JSON.stringify(estado)); } catch (e) {}
     render();
-    marcarNuvem("ligada");
+    nuvem.marcar("ligada");
     mostrarAviso("atualizei com o que veio do outro aparelho");
   }
 
   /* debounce: digitar tres tarefas seguidas e uma subida, nao tres */
   function agendarGravacao() {
-    if (!entrou) return;
+    if (!nuvem.entrou) return;
     clearTimeout(timerSubir);
     timerSubir = setTimeout(subirDia, 1500);
   }
 
-  const DIZERES = {
-    ligada:  ["sincronizado", ""],
-    fora:    ["só neste navegador", "entrar"],
-    offline: ["sem conexão — sobe depois", ""],
-    erro:    ["não consegui sincronizar", "tentar de novo"]
-  };
-
-  function marcarNuvem(qual) {
-    const [texto, acao] = DIZERES[qual] || DIZERES.fora;
-    const el = $("nuvem-estado");
-    el.textContent = texto;
-    el.dataset.e = qual;
-    const botao = $("nuvem-acao");
-    botao.hidden = !acao;
-    botao.textContent = acao;
-    botao.dataset.para = qual;
-    $("nuvem-sair").hidden = !entrou;
-  }
-
-  /* ---------- entrar ---------- */
-
-  let emailPedido = "";
-
-  function abrirEntrada() {
-    $("entrada").hidden = false;
-    $("entrada-email").hidden = false;
-    $("entrada-codigo").hidden = true;
-    $("entrada-recado").textContent = "";
-    $("campo-email").value = "";
-    $("campo-email").focus();
-  }
-
-  const fecharEntrada = () => { $("entrada").hidden = true; };
-
-  $("nuvem-acao").addEventListener("click", (e) => {
-    if (e.currentTarget.dataset.para === "erro") { subirDia(); return; }
-    abrirEntrada();
-  });
-  $("entrada-fechar").addEventListener("click", fecharEntrada);
-
-  $("form-email").addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const email = $("campo-email").value.trim().toLowerCase();
-    if (!/^[^@\s]+@[^@\s.]+\.[^@\s]+$/.test(email)) {
-      $("entrada-recado").textContent = "esse e-mail não parece certo";
-      return;
-    }
-    $("entrada-recado").textContent = "mandando…";
-    const r = await api("/codigo", { method: "POST", body: JSON.stringify({ email }) });
-    if (!r.ok) {
-      $("entrada-recado").textContent = r.corpo.erro || "não consegui mandar o código";
-      return;
-    }
-    emailPedido = email;
-    $("entrada-email").hidden = true;
-    $("entrada-codigo").hidden = false;
-    $("entrada-recado").textContent = "mandei um código de 6 dígitos para " + email;
-    $("campo-codigo").value = "";
-    $("campo-codigo").focus();
-  });
-
-  $("form-codigo").addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const codigo = $("campo-codigo").value.replace(/\D/g, "");
-    if (codigo.length !== 6) { $("entrada-recado").textContent = "o código tem 6 dígitos"; return; }
-    $("entrada-recado").textContent = "conferindo…";
-    const r = await api("/entrar", { method: "POST", body: JSON.stringify({ email: emailPedido, codigo }) });
-    if (!r.ok) {
-      $("entrada-recado").textContent = r.corpo.erro || "código inválido";
-      return;
-    }
-    entrou = true;
-    fecharEntrada();
-    marcarNuvem("ligada");
-    /* baixa antes de subir: o outro aparelho pode ter o dia mais novo */
-    await baixarDias();
-    await subirDia();
-  });
-
-  $("nuvem-sair").addEventListener("click", async () => {
-    await api("/sair", { method: "POST" }).catch(() => {});
-    entrou = false;
-    vDoServidor = 0;
-    marcarNuvem("fora");
-    mostrarAviso("saí da conta — o dia continua neste navegador");
+  /* a sessao e do nucleo (barra, dialogo de entrar, sair). o dia so precisa
+     saber quando ela muda: entrou, baixa antes de subir — o outro aparelho
+     pode ter o dia mais novo; saiu, esquece o carimbo do servidor. */
+  nuvem.aoMudar(async () => {
+    if (nuvem.entrou) { await baixarDias(); await subirDia(); }
+    else vDoServidor = 0;
   });
 
   /* voltar pra aba e quando o outro aparelho pode ter gravado */
   document.addEventListener("visibilitychange", () => {
-    if (!entrou) return;
+    if (!nuvem.entrou) return;
     if (document.hidden) { clearTimeout(timerSubir); subirDia(); }
     else baixarDias();
   });
-
-  async function retomarNuvem() {
-    try {
-      const r = await api("/eu", { method: "GET" });
-      entrou = !!(r.ok && r.corpo.entrou);
-    } catch (e) { entrou = false; }
-    if (!entrou) { marcarNuvem("fora"); return; }
-    marcarNuvem("ligada");
-    await baixarDias();
-  }
 
   /* ---------- o dia encolhendo ---------- */
   /* o tick nao tem transicao: tempo passando e um fato seco, nao um efeito.
@@ -2586,8 +2559,8 @@ a.acao{color:var(--ink-30);text-decoration:none}
   document.addEventListener("visibilitychange", () => { if (!document.hidden) tick(); });
 
   render();
-  /* nao bloqueia a primeira pintura: o dia aparece, o arquivo se conecta atras */
-  retomarNuvem();
+  /* nao bloqueia a primeira pintura: o dia aparece, a barra e a sessao vem atras */
+  iniciarPagina("dia");
 })();
 </script>
 </body>

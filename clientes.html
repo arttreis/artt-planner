@@ -1,0 +1,1376 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0d0d0d">
+<title>merlin · clientes</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 472.5 472.5' fill='%232EE86B'><path d='M236.31,236.23c-3.63,128.42,107.71,238.95,236.22,236.22v-118.11c-64.78,2.88-121-53.42-118.11-118.11h-118.11Z'/><path d='M236.22,0C239.85,128.42,128.52,238.95,0,236.22v-118.11C64.78,120.99,121,64.69,118.11,0h118.11Z'/><path d='M315.07,0h77.61c44.09,0,79.89,35.8,79.89,79.89v77.61h-157.5V0h0Z'/><path d='M79.96,315H.07v78.75h78.75v78.75h78.75v-79.89c0-42.86-34.75-77.61-77.61-77.61Z'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="compartilhado/base.css">
+<script>/* anti-flash do tema: antes de qualquer pintura */
+try{var t=localStorage.getItem("merlin:tema");if(t?t==="claro":matchMedia("(prefers-color-scheme: light)").matches)document.documentElement.classList.add("light")}catch(e){}</script>
+<style>
+/* clientes.html — duas colunas (lista + painel) que no celular viram duas
+   telas: cada cliente aqui carrega ficha, canais, objetivos, backlog, diário
+   e ofertas, e isso não cabe lado a lado numa tela estreita. a troca é feita
+   por um atributo no container, não por rota — a pagina inteira e uma so. */
+.tela-clientes{display:flex;gap:var(--pd);align-items:flex-start}
+.coluna-lista{width:300px;flex:0 0 300px;display:flex;flex-direction:column;gap:var(--pd2)}
+.coluna-painel{flex:1 1 auto;min-width:0}
+
+#lista-clientes .linha{cursor:pointer}
+
+.btn-voltar{display:none}
+.cabeca-painel{display:flex;align-items:center;gap:var(--pd2);margin-bottom:var(--pd)}
+.titulo-cliente{flex:1 1 auto;min-width:0}
+.titulo-cliente h2{margin:0 0 4px;font-size:19px;font-weight:600;letter-spacing:-.02em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* cabecalho reaproveitado em canal, objetivo e oferta: rotulo + nome editavel + apagar */
+.cabeca-item{display:flex;align-items:center;gap:var(--pd2);margin-bottom:var(--pd2);flex-wrap:wrap}
+.cabeca-item .campo{flex:1 1 160px;min-width:0}
+.item-texto{flex:1 1 auto;min-width:0}
+
+.linha-editavel{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:6px}
+.linha-editavel .campo{flex:1 1 120px;min-width:0}
+
+.linha-frente{display:flex;gap:var(--pd2);align-items:center;padding:7px 0;border-bottom:1px solid var(--line-soft)}
+.linha-frente:last-child{border-bottom:0}
+.linha-frente .campo{flex:1 1 auto}
+.linha-frente input[type="number"]{width:64px;flex:0 0 auto}
+
+.diario-texto{font-size:13px;color:var(--ink-70)}
+.diario-texto p{margin:0 0 6px}
+.diario-texto :last-child{margin-bottom:0}
+
+/* marca de feito reaproveitada em canal, objetivo, passo e backlog: o mesmo
+   gesto do resto do sistema — apagado quando falta, verde quando feito. */
+.acao[data-feito="false"]{opacity:.3}
+.acao[data-feito="true"]{color:var(--green-ink)}
+
+.esta-feito{opacity:.6}
+.canal-funis{margin-top:var(--pd);padding-top:var(--pd2);border-top:1px solid var(--line-soft)}
+
+/* prazo do backlog: discreto e de largura fixa, para o titulo (que cresce e
+   corta com reticencias) nao perder espaco para uma data */
+.campo-prazo-backlog{
+  width:150px;flex:0 0 auto;
+  font-family:var(--mono);font-size:12px;color:var(--ink-50);
+  padding:6px 8px;
+}
+
+/* cofre de acessos: uma linha rotulo->valor por campo, igual a uma ficha
+   tecnica — e nao um formulario, porque a maior parte do tempo e so leitura */
+.cofre-linha{display:flex;align-items:center;gap:8px;padding:3px 0}
+.cofre-linha .t-mono{flex:0 0 64px}
+.cofre-valor{flex:1 1 auto;min-width:0;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cofre-valor.mono{font-family:var(--mono);letter-spacing:.04em}
+
+@media (max-width:880px){
+  .tela-clientes{display:block}
+  .coluna-lista,.coluna-painel{width:100%}
+  .tela-clientes[data-vista="painel"] .coluna-lista{display:none}
+  .tela-clientes[data-vista="lista"] .coluna-painel{display:none}
+  .btn-voltar{display:inline-flex}
+}
+</style>
+</head>
+<body>
+<main class="pagina">
+
+  <div class="cabeca">
+    <div>
+      <h1>clientes</h1>
+      <p class="sub">ficha, contrato, canais, objetivos, backlog e diário de cada cliente</p>
+    </div>
+    <div class="acoes">
+      <button class="pill" type="button" id="btn-frentes">frentes</button>
+      <button class="pill pill--verde" type="button" id="btn-novo">novo cliente</button>
+    </div>
+  </div>
+
+  <div class="tela-clientes" id="tela" data-vista="lista">
+
+    <section class="coluna-lista">
+      <ul class="lista" id="lista-clientes"></ul>
+      <p class="vazio" id="lista-vazia" hidden>nenhum cliente por aqui ainda — crie o primeiro</p>
+    </section>
+
+    <section class="coluna-painel">
+      <div class="bloco" id="painel-vazio">
+        <p class="vazio">escolha um cliente na lista, ou crie um novo</p>
+      </div>
+      <div id="painel-cliente" hidden>
+        <div class="cabeca-painel">
+          <button class="pill btn-voltar" type="button" id="btn-voltar">‹ clientes</button>
+          <div class="titulo-cliente">
+            <h2 id="painel-nome"></h2>
+            <div class="fileira" id="painel-selos"></div>
+          </div>
+          <button class="pill" type="button" id="btn-merlin-reuniao" title="pedir ao Merlin uma pauta a partir da ficha, canais, objetivos e diário">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2 4 14h6l-1 8 9-12h-6l1-8Z"/></svg>
+            preparar reunião
+          </button>
+          <button class="acao" type="button" id="btn-apagar-cliente" title="apagar cliente" aria-label="Apagar cliente">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9.5 7V5h5v2M6.5 7l1 12.5h9L17.5 7"/></svg>
+          </button>
+        </div>
+        <div class="abas" id="abas" role="tablist"></div>
+        <div id="conteudo-aba" role="tabpanel"></div>
+      </div>
+    </section>
+
+  </div>
+</main>
+
+<!-- diálogo: novo cliente -->
+<div class="dialogo" id="dlg-novo" hidden role="dialog" aria-modal="true" aria-label="Novo cliente">
+  <div class="dialogo__caixa">
+    <button class="dialogo__fechar" type="button" id="fechar-novo" aria-label="Fechar">✕</button>
+    <p class="dialogo__titulo">novo cliente</p>
+    <form id="form-novo">
+      <label class="rotulo-campo">nome</label>
+      <input class="campo mb2" id="novo-nome" required>
+      <label class="rotulo-campo">frente</label>
+      <select class="campo-sel mb2" id="novo-frente"></select>
+      <label class="rotulo-campo">status</label>
+      <select class="campo-sel mb2" id="novo-status"></select>
+      <div class="dialogo__acoes">
+        <button class="pill" type="button" id="cancelar-novo">cancelar</button>
+        <button class="pill pill--verde" type="submit">criar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- diálogo: frentes (o cadastro mora aqui) -->
+<div class="dialogo" id="dlg-frentes" hidden role="dialog" aria-modal="true" aria-label="Frentes">
+  <div class="dialogo__caixa">
+    <button class="dialogo__fechar" type="button" id="fechar-frentes" aria-label="Fechar">✕</button>
+    <p class="dialogo__titulo">frentes</p>
+    <p class="dialogo__sub">o cadastro das empresas — cliente, tarefa, ideia e funil apontam para uma frente</p>
+    <div id="lista-frentes"></div>
+    <button class="pill mt" type="button" id="add-frente">+ nova frente</button>
+  </div>
+</div>
+
+<!-- diálogo: confirmar apagar cliente -->
+<div class="dialogo" id="dlg-confirmar" hidden role="dialog" aria-modal="true" aria-label="Confirmar">
+  <div class="dialogo__caixa">
+    <p class="dialogo__titulo">apagar cliente?</p>
+    <p class="dialogo__sub" id="confirmar-texto"></p>
+    <div class="dialogo__acoes">
+      <button class="pill" type="button" id="confirmar-nao">cancelar</button>
+      <button class="pill pill--verde" type="button" id="confirmar-sim">apagar</button>
+    </div>
+  </div>
+</div>
+
+<!-- diálogo: senha-mestra do cofre -->
+<div class="dialogo" id="dlg-cofre" hidden role="dialog" aria-modal="true" aria-label="Senha-mestra do cofre">
+  <div class="dialogo__caixa">
+    <button class="dialogo__fechar" type="button" id="fechar-cofre-dlg" aria-label="Fechar">✕</button>
+    <p class="dialogo__titulo" id="cofre-dlg-titulo">cofre de acessos</p>
+    <p class="dialogo__sub" id="cofre-dlg-sub"></p>
+    <form id="form-senha-cofre">
+      <label class="rotulo-campo">senha-mestra</label>
+      <input class="campo mb2" id="cofre-senha" type="password" autocomplete="current-password" placeholder="só fica na memória desta aba">
+      <p class="pequeno fraco">sem recuperação: se esquecer a senha-mestra, o cofre é perdido.</p>
+      <p class="pequeno" id="cofre-erro"></p>
+      <div class="dialogo__acoes">
+        <button class="pill" type="button" id="cancelar-cofre-dlg">cancelar</button>
+        <button class="pill pill--verde" type="submit">destrancar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- diálogo: pauta de reunião do Merlin -->
+<div class="dialogo" id="dlg-merlin" hidden role="dialog" aria-modal="true" aria-label="Preparar reunião">
+  <div class="dialogo__caixa dialogo__caixa--larga">
+    <button class="dialogo__fechar" type="button" id="fechar-merlin" aria-label="Fechar">✕</button>
+    <p class="dialogo__titulo">pauta da reunião</p>
+    <div id="merlin-resultado"></div>
+    <div class="dialogo__acoes">
+      <button class="pill" type="button" id="fechar-merlin-2">fechar</button>
+      <button class="pill pill--verde" type="button" id="guardar-merlin-diario">guardar no diário</button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import {
+  iniciarPagina, colecao, $, escapar, novoId, mostrarAviso, mandarParaODia,
+  listarFrentes, seloFrente, opcoesFrente, frentes, rotuloData, diaDe, brl, lerValor,
+  lerDuracao, debounce, md, ICONE, formatarMin, api, abrirFormulario, campoForm
+} from "./compartilhado/nucleo.js";
+
+/* ---------- forma do documento ---------- */
+
+const STATUS = ["prospecto", "proposta", "ativo", "pausado", "encerrado"];
+const RECORRENCIAS = ["mensal", "projeto", "hora", ""];
+const TIPOS_OFERTA = ["produto", "servico", "assinatura", "bump", "upsell"];
+const TIPOS_DIARIO = ["nota", "reuniao", "decisao", "entrega"];
+
+const TIPOS_CANAL = ["mercado-livre", "shopee", "tiktok-shop", "amazon", "site", "instagram", "google", "whatsapp", "email", "outro"];
+const ROTULO_CANAL = {
+  "mercado-livre": "mercado livre", shopee: "shopee", "tiktok-shop": "tiktok shop", amazon: "amazon",
+  site: "site", instagram: "instagram", google: "google", whatsapp: "whatsapp", email: "e-mail", outro: "outro"
+};
+/* o modelo de cada canal: a estrutura do que precisa existir. entra como
+   itens nao feitos ao criar o canal, e dali pra frente e so texto editavel —
+   o modelo nao volta a ser consultado. */
+const MODELOS_CANAL = {
+  "mercado-livre": ["conta e reputação", "catálogo cadastrado", "fotos e fichas técnicas", "frete/Mercado Envios", "Mercado Ads", "promoções/cupons", "atendimento e perguntas", "avaliações", "integração com ERP"],
+  shopee: ["conta e loja", "catálogo", "frete grátis/programa", "Shopee Ads", "cupons e lives", "avaliações", "atendimento"],
+  "tiktok-shop": ["conta seller", "catálogo", "afiliados/creators", "vídeos e lives de produto", "TikTok Ads", "logística"],
+  amazon: ["conta seller", "catálogo/ASINs", "FBA/frete", "Amazon Ads", "avaliações", "brand registry"],
+  site: ["domínio e hospedagem", "loja/CMS", "checkout (Stripe)", "pixel Meta e GA4", "SEO básico", "e-mail transacional", "políticas"],
+  instagram: ["bio e destaques", "linha editorial", "criativos", "Meta Ads", "WhatsApp/DM", "loja no Instagram"],
+  google: ["Google Business", "Google Ads", "GA4", "Search Console"],
+  whatsapp: ["número business", "catálogo", "automação (Manychat/API)", "scripts de atendimento"],
+  email: ["ferramenta", "listas/segmentos", "automações", "templates"],
+  outro: []
+};
+
+const listaOuVazia = (v) => (Array.isArray(v) ? v : []);
+
+function normalizarCliente(d) {
+  const contrato = d.contrato || {};
+  return {
+    id: String(d.id),
+    nome: String(d.nome || "").slice(0, 120),
+    frente: d.frente || "",
+    status: STATUS.includes(d.status) ? d.status : "prospecto",
+    marca: String(d.marca || "").slice(0, 120),
+    resumo: String(d.resumo || ""),
+    contatos: listaOuVazia(d.contatos),
+    links: listaOuVazia(d.links),
+    contrato: {
+      escopo: String(contrato.escopo || ""),
+      valor: Math.round(+contrato.valor) || 0,
+      recorrencia: RECORRENCIAS.includes(contrato.recorrencia) ? contrato.recorrencia : "",
+      inicio: contrato.inicio || "",
+      fim: contrato.fim || "",
+      extras: String(contrato.extras || "")
+    },
+    canais: listaOuVazia(d.canais),
+    objetivos: listaOuVazia(d.objetivos),
+    backlog: listaOuVazia(d.backlog),
+    diario: listaOuVazia(d.diario),
+    ofertas: listaOuVazia(d.ofertas),
+    /* so o rotulo/usuario/url do acesso ficam aqui em claro; segredo e nota
+       vao cifrados (ver "cofre de acessos" mais abaixo). o sal que deriva a
+       chave e unico do sistema, guardado em colecao("cofre").obter("config")
+       — nao por cliente — entao nao repetimos ele aqui. */
+    cofre: { itens: listaOuVazia(d.cofre && d.cofre.itens) },
+    origemIdeia: d.origemIdeia || "",
+    criada: +d.criada || Date.now(),
+    atualizada: +d.atualizada || Date.now()
+  };
+}
+
+/* clientes.html e a dona da colecao "clientes" (LEIA.md). iniciarPagina()
+   tambem toca nela so para ter nome/frente/status disponiveis as outras
+   paginas — e colecao() so aceita opcoes na primeira vez que um tipo e
+   criado nesta aba. por isso o normalizador entra ANTES de iniciarPagina:
+   se a ordem virasse, ele seria ignorado e cada leitura teria que se
+   defender sozinha contra documentos incompletos. */
+const clientes = colecao("clientes", { normalizar: normalizarCliente });
+iniciarPagina("clientes");
+const funis = colecao("funis");
+/* "config" e o unico doc desta colecao: guarda o sal (16 bytes, base64) que
+   deriva a chave-mestra do cofre para o sistema inteiro. nao ha um por
+   cliente porque a senha-mestra tambem e uma so — o Arthur digita ela uma
+   vez por sessao, nao uma por cliente. */
+const cofreColecao = colecao("cofre");
+
+function criarCliente({ nome, frente, status, resumo, origemIdeia }) {
+  const agora = Date.now();
+  const criado = normalizarCliente({
+    id: novoId(), nome, frente, status, resumo: resumo || "", origemIdeia: origemIdeia || "",
+    criada: agora, atualizada: agora
+  });
+  clientes.gravar(criado);
+  return criado;
+}
+
+function salvar(d) { d.atualizada = Date.now(); clientes.gravar(d); }
+const salvarDevagar = debounce(salvar, 500);
+
+/* remove um item de um array que vive dentro do doc aberto, sempre com
+   desfazer — e a mesma casca para contato, link, canal, item de canal,
+   objetivo, passo, item de backlog e oferta. */
+function removerDaLista(arr, id, texto, rerender) {
+  const i = arr.findIndex((x) => x.id === id);
+  if (i < 0) return;
+  const [removido] = arr.splice(i, 1);
+  salvar(doc);
+  rerender();
+  mostrarAviso(texto, () => { arr.splice(i, 0, removido); salvar(doc); rerender(); });
+}
+
+/* ---------- estado da tela ---------- */
+
+let selecionadoId = null;
+let doc = null;              // copia viva do cliente aberto; edita e grava
+let abaAtual = "painel";
+let resumoIdeiaPendente = "";
+let origemIdeiaPendente = "";
+
+/* o cofre inteiro do sistema abre com UMA chave (Web Crypto, nao extraivel):
+   ela mora só nesta variavel, nunca em localStorage/colecao, e some quando a
+   aba fecha, recarrega ou o Arthur clica "trancar". sem isso guardado em
+   lugar nenhum, nao existe "esqueci a senha e recupero depois" — perder a
+   senha-mestra perde o cofre. e escolha: e o preco de nem o servidor, nem
+   este navegador amanha, conseguirem ler os segredos sem ela. */
+let chaveMestra = null;
+let cofreCache = {};       // id do item -> {segredo, nota} ja decifrados, so em memoria
+let editandoCofreId = null;
+let textoMerlinAtual = "";
+
+const telaEstreita = () => matchMedia("(max-width:880px)").matches;
+
+/* ---------- lista ---------- */
+
+function ultimoContato(c) {
+  return c.diario.reduce((m, e) => Math.max(m, +e.quando || 0), c.criada);
+}
+/* "faz tempo": so vale a pena avisar de quem esta ativo — cliente pausado
+   ou encerrado nao precisa de contato, entao nao ganha o traço. */
+function fazTempo(c) {
+  return c.status === "ativo" && (Date.now() - ultimoContato(c)) > 14 * 86400000;
+}
+function compararClientes(a, b) {
+  const pa = a.status === "ativo" ? 0 : 1, pb = b.status === "ativo" ? 0 : 1;
+  return pa - pb || a.nome.localeCompare(b.nome, "pt-BR");
+}
+/* sem filtro: a lista e curta (ativos primeiro, em ordem alfabetica) e a
+   busca global da sidebar acha qualquer cliente pelo nome */
+function renderLista() {
+  const lista = clientes.todos().slice().sort(compararClientes);
+  $("lista-clientes").hidden = lista.length === 0;
+  $("lista-vazia").hidden = lista.length > 0;
+  $("lista-clientes").innerHTML = lista.map((c) =>
+    '<li class="linha' + (c.id === selecionadoId ? " is-ativa" : "") + '" data-id="' + c.id + '" tabindex="0" role="button">' +
+      '<span class="nome">' + escapar(c.nome) + (fazTempo(c) ? ' <span class="fraco" title="mais de 14 dias sem entrada no diário">— faz tempo</span>' : "") + "</span>" +
+      seloFrente(c.frente) +
+      '<span class="selo' + (c.status === "ativo" ? " selo--verde" : "") + '">' + c.status + "</span>" +
+    "</li>"
+  ).join("");
+}
+
+$("lista-clientes").addEventListener("click", (e) => {
+  const li = e.target.closest("[data-id]");
+  if (li) abrirCliente(li.dataset.id);
+});
+$("lista-clientes").addEventListener("keydown", (e) => {
+  if (e.key !== "Enter") return;
+  const li = e.target.closest("[data-id]");
+  if (li) abrirCliente(li.dataset.id);
+});
+
+/* ---------- abrir / fechar o painel ---------- */
+
+const ABAS = [
+  { id: "painel", rotulo: "painel" },
+  { id: "ficha", rotulo: "ficha" },
+  { id: "canais", rotulo: "canais" },
+  { id: "objetivos", rotulo: "objetivos" },
+  { id: "backlog", rotulo: "backlog" },
+  { id: "diario", rotulo: "diário" },
+  { id: "ofertas", rotulo: "ofertas" },
+  { id: "cofre", rotulo: "cofre" }
+];
+const RENDER_ABA = {
+  painel: renderPainelResumo, ficha: renderFicha, canais: renderCanais,
+  objetivos: renderObjetivos, backlog: renderBacklog, diario: renderDiario, ofertas: renderOfertas,
+  cofre: renderCofre
+};
+
+function abrirCliente(id) {
+  if (!clientes.existe(id)) return;
+  selecionadoId = id;
+  doc = clientes.obter(id);
+  abaAtual = "painel";
+  if (location.hash.slice(1) !== id) location.hash = id;
+  $("painel-vazio").hidden = true;
+  $("painel-cliente").hidden = false;
+  $("tela").dataset.vista = "painel";
+  renderLista();
+  renderCabecaPainel();
+  renderAbas();
+  renderConteudoAba();
+}
+
+function fecharPainel() {
+  selecionadoId = null; doc = null;
+  $("painel-cliente").hidden = true;
+  $("painel-vazio").hidden = false;
+  $("tela").dataset.vista = "lista";
+  history.replaceState(null, "", location.pathname + location.search);
+  renderLista();
+}
+
+function trocarAba(id) { abaAtual = id; renderAbas(); renderConteudoAba(); }
+
+function renderCabecaPainel() {
+  $("painel-nome").textContent = doc.nome || "(sem nome)";
+  $("painel-selos").innerHTML = seloFrente(doc.frente) +
+    '<span class="selo' + (doc.status === "ativo" ? " selo--verde" : "") + '">' + doc.status + "</span>";
+}
+function renderAbas() {
+  $("abas").innerHTML = ABAS.map((a) =>
+    '<button class="aba" type="button" role="tab" data-aba="' + a.id + '" aria-selected="' + (a.id === abaAtual) + '">' + a.rotulo + "</button>"
+  ).join("");
+}
+function renderConteudoAba() {
+  if (!doc) return;
+  (RENDER_ABA[abaAtual] || renderPainelResumo)();
+}
+
+$("abas").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-aba]");
+  if (b) trocarAba(b.dataset.aba);
+});
+$("btn-voltar").addEventListener("click", fecharPainel);
+$("btn-apagar-cliente").addEventListener("click", () => {
+  $("confirmar-texto").textContent = 'isso apaga "' + doc.nome + '" e tudo que está nele — dá para desfazer logo em seguida.';
+  $("dlg-confirmar").hidden = false;
+});
+$("confirmar-nao").addEventListener("click", () => { $("dlg-confirmar").hidden = true; });
+$("confirmar-sim").addEventListener("click", () => {
+  const id = doc.id, nome = doc.nome;
+  const antes = clientes.apagar(id);
+  $("dlg-confirmar").hidden = true;
+  fecharPainel();
+  mostrarAviso('cliente "' + nome + '" apagado', () => { clientes.gravar(antes); abrirCliente(id); });
+});
+
+clientes.aoMudar((origem) => {
+  renderLista();
+  if (origem !== "local" && doc) {
+    const atualizado = clientes.obter(doc.id);
+    if (!atualizado) { fecharPainel(); return; }
+    doc = atualizado;
+    renderCabecaPainel();
+    renderConteudoAba();
+  }
+});
+funis.aoMudar(() => { if (doc && abaAtual === "canais") renderListaCanais(); });
+
+/* ---------- aba: painel (resumo) ---------- */
+
+function renderPainelResumo() {
+  const objAbertos = doc.objetivos.filter((o) => !o.feito && o.prazo).sort((a, b) => a.prazo.localeCompare(b.prazo));
+  const backAbertos = doc.backlog.filter((b) => !b.feito && b.prazo).sort((a, b) => a.prazo.localeCompare(b.prazo)).slice(0, 6);
+  const canaisIncompletos = doc.canais.filter((c) => c.itens.some((i) => !i.feito));
+  const ultimo = doc.diario.slice().sort((a, b) => b.quando - a.quando)[0];
+
+  $("conteudo-aba").innerHTML =
+    '<div class="grade">' +
+      '<div class="col-6 bloco">' +
+        '<p class="rotulo"><span class="t-mono">objetivos com prazo</span></p>' +
+        (objAbertos.length
+          ? '<ul class="lista">' + objAbertos.map((o) =>
+              '<li class="linha"><span class="nome">' + escapar(o.titulo) + '</span><span class="medida">' + rotuloData(o.prazo) + "</span></li>"
+            ).join("") + "</ul>"
+          : '<p class="vazio">nenhum objetivo com prazo em aberto</p>') +
+      "</div>" +
+      '<div class="col-6 bloco">' +
+        '<p class="rotulo"><span class="t-mono">próximos prazos do backlog</span></p>' +
+        (backAbertos.length
+          ? '<ul class="lista">' + backAbertos.map((b) =>
+              '<li class="linha"><span class="nome">' + escapar(b.titulo) + '</span><span class="medida">' + rotuloData(b.prazo) + "</span></li>"
+            ).join("") + "</ul>"
+          : '<p class="vazio">nada no backlog com prazo</p>') +
+      "</div>" +
+      '<div class="col-6 bloco">' +
+        '<p class="rotulo"><span class="t-mono">canais incompletos</span></p>' +
+        (canaisIncompletos.length
+          ? '<ul class="lista">' + canaisIncompletos.map((c) => {
+              const feitos = c.itens.filter((i) => i.feito).length;
+              return '<li class="linha"><span class="nome">' + escapar(c.nome) + '</span>' +
+                '<span class="barra" style="width:60px"><i style="width:' + Math.round((feitos / c.itens.length) * 100) + '%"></i></span>' +
+                '<span class="medida">' + feitos + " de " + c.itens.length + "</span></li>";
+            }).join("") + "</ul>"
+          : '<p class="vazio">todos os canais completos, ou nenhum canal ainda</p>') +
+      "</div>" +
+      '<div class="col-6 bloco">' +
+        '<p class="rotulo"><span class="t-mono">contrato</span></p>' +
+        '<div class="medidor"><span class="num">' + brl(doc.contrato.valor) + '</span><span class="leg">' + (doc.contrato.recorrencia || "sem recorrência definida") + "</span></div>" +
+        '<p class="pequeno fraco mt2">último contato: ' + (ultimo ? rotuloData(diaDe(new Date(ultimo.quando)), true) + " · " + escapar(ultimo.tipo) : "nenhum registro no diário") + "</p>" +
+      "</div>" +
+    "</div>" +
+    '<div class="fileira mt">' +
+      '<button class="pill" type="button" data-ir="backlog">+ item no backlog</button>' +
+      '<button class="pill" type="button" data-ir="diario">+ nota no diário</button>' +
+      '<button class="pill" type="button" data-ir="canais">ver canais</button>' +
+    "</div>";
+  $("conteudo-aba").querySelectorAll("[data-ir]").forEach((b) => b.addEventListener("click", () => trocarAba(b.dataset.ir)));
+}
+
+/* ---------- aba: ficha ---------- */
+
+function renderFicha() {
+  const c = doc;
+  $("conteudo-aba").innerHTML =
+    '<div class="grade">' +
+      '<div class="col-6 bloco coluna">' +
+        '<label class="rotulo-campo">nome</label><input class="campo" id="f-nome" value="' + escapar(c.nome) + '">' +
+        '<label class="rotulo-campo">marca</label><input class="campo" id="f-marca" value="' + escapar(c.marca) + '">' +
+        '<label class="rotulo-campo">resumo</label><textarea class="campo-area" id="f-resumo">' + escapar(c.resumo) + "</textarea>" +
+        '<label class="rotulo-campo">frente</label><select class="campo-sel" id="f-frente">' + opcoesFrente(c.frente, "sem frente") + "</select>" +
+        '<label class="rotulo-campo">status</label><select class="campo-sel" id="f-status">' +
+          STATUS.map((s) => '<option value="' + s + '"' + (s === c.status ? " selected" : "") + '>' + s + "</option>").join("") +
+        "</select>" +
+      "</div>" +
+      '<div class="col-6 bloco coluna">' +
+        '<p class="rotulo"><span class="t-mono">contrato</span></p>' +
+        '<label class="rotulo-campo">escopo</label><textarea class="campo-area" id="f-escopo">' + escapar(c.contrato.escopo) + "</textarea>" +
+        '<div class="form-grade">' +
+          '<div><label class="rotulo-campo">valor (r$)</label><input class="campo campo--num" id="f-valor" value="' + brl(c.contrato.valor).replace("R$ ", "") + '"></div>' +
+          '<div><label class="rotulo-campo">recorrência</label><select class="campo-sel" id="f-recorrencia">' +
+            '<option value=""' + (!c.contrato.recorrencia ? " selected" : "") + ">—</option>" +
+            '<option value="mensal"' + (c.contrato.recorrencia === "mensal" ? " selected" : "") + ">mensal</option>" +
+            '<option value="projeto"' + (c.contrato.recorrencia === "projeto" ? " selected" : "") + ">projeto</option>" +
+            '<option value="hora"' + (c.contrato.recorrencia === "hora" ? " selected" : "") + ">hora</option>" +
+          "</select></div>" +
+          '<div><label class="rotulo-campo">início</label><input class="campo" type="date" id="f-inicio" value="' + c.contrato.inicio + '"></div>' +
+          '<div><label class="rotulo-campo">fim</label><input class="campo" type="date" id="f-fim" value="' + c.contrato.fim + '"></div>' +
+        "</div>" +
+        '<label class="rotulo-campo">extras</label><textarea class="campo-area" id="f-extras">' + escapar(c.contrato.extras) + "</textarea>" +
+      "</div>" +
+      '<div class="col-6 bloco">' +
+        '<p class="rotulo"><span class="t-mono">contatos</span><button class="pill pill--mini" type="button" id="add-contato">+ contato</button></p>' +
+        '<div id="lista-contatos" class="coluna"></div>' +
+      "</div>" +
+      '<div class="col-6 bloco">' +
+        '<p class="rotulo"><span class="t-mono">links</span><button class="pill pill--mini" type="button" id="add-link">+ link</button></p>' +
+        '<div id="lista-links" class="coluna"></div>' +
+      "</div>" +
+    "</div>";
+
+  renderContatos();
+  renderLinks();
+  ligarFicha();
+}
+
+function ligarFicha() {
+  $("f-nome").addEventListener("input", (e) => { doc.nome = e.target.value.slice(0, 120); salvarDevagar(doc); $("painel-nome").textContent = doc.nome || "(sem nome)"; });
+  $("f-marca").addEventListener("input", (e) => { doc.marca = e.target.value.slice(0, 120); salvarDevagar(doc); });
+  $("f-resumo").addEventListener("input", (e) => { doc.resumo = e.target.value; salvarDevagar(doc); });
+  $("f-frente").addEventListener("change", (e) => { doc.frente = e.target.value; salvar(doc); renderCabecaPainel(); });
+  $("f-status").addEventListener("change", (e) => { doc.status = e.target.value; salvar(doc); renderCabecaPainel(); });
+  $("f-escopo").addEventListener("input", (e) => { doc.contrato.escopo = e.target.value; salvarDevagar(doc); });
+  $("f-valor").addEventListener("input", (e) => { doc.contrato.valor = lerValor(e.target.value); salvarDevagar(doc); });
+  $("f-recorrencia").addEventListener("change", (e) => { doc.contrato.recorrencia = e.target.value; salvar(doc); });
+  $("f-inicio").addEventListener("change", (e) => { doc.contrato.inicio = e.target.value; salvar(doc); });
+  $("f-fim").addEventListener("change", (e) => { doc.contrato.fim = e.target.value; salvar(doc); });
+  $("f-extras").addEventListener("input", (e) => { doc.contrato.extras = e.target.value; salvarDevagar(doc); });
+  $("add-contato").addEventListener("click", () => {
+    doc.contatos.push({ id: novoId(), nome: "", papel: "", whatsapp: "", email: "" });
+    salvar(doc); renderContatos();
+  });
+  $("add-link").addEventListener("click", () => {
+    doc.links.push({ id: novoId(), rotulo: "", url: "" });
+    salvar(doc); renderLinks();
+  });
+}
+
+function renderContatos() {
+  const el = $("lista-contatos");
+  el.innerHTML = doc.contatos.length ? doc.contatos.map((k) =>
+    '<div class="linha-editavel" data-id="' + k.id + '">' +
+      '<input class="campo pequeno" data-campo="nome" placeholder="nome" value="' + escapar(k.nome) + '">' +
+      '<input class="campo pequeno" data-campo="papel" placeholder="papel" value="' + escapar(k.papel) + '">' +
+      '<input class="campo pequeno" data-campo="whatsapp" placeholder="whatsapp" value="' + escapar(k.whatsapp) + '">' +
+      '<input class="campo pequeno" data-campo="email" placeholder="e-mail" value="' + escapar(k.email) + '">' +
+      '<button class="acao" data-remover="' + k.id + '" aria-label="Remover contato">' + ICONE.lixo + "</button>" +
+    "</div>"
+  ).join("") : '<p class="vazio">nenhum contato ainda</p>';
+
+  el.querySelectorAll("input").forEach((inp) => inp.addEventListener("input", () => {
+    const k = doc.contatos.find((x) => x.id === inp.closest("[data-id]").dataset.id);
+    if (k) { k[inp.dataset.campo] = inp.value; salvarDevagar(doc); }
+  }));
+  el.querySelectorAll("[data-remover]").forEach((b) => b.addEventListener("click", () =>
+    removerDaLista(doc.contatos, b.dataset.remover, "contato removido", renderContatos)
+  ));
+}
+
+function renderLinks() {
+  const el = $("lista-links");
+  el.innerHTML = doc.links.length ? doc.links.map((k) =>
+    '<div class="linha-editavel" data-id="' + k.id + '">' +
+      '<input class="campo pequeno" data-campo="rotulo" placeholder="rótulo" value="' + escapar(k.rotulo) + '">' +
+      '<input class="campo pequeno" data-campo="url" placeholder="https://…" value="' + escapar(k.url) + '">' +
+      '<button class="acao" data-remover="' + k.id + '" aria-label="Remover link">' + ICONE.lixo + "</button>" +
+    "</div>"
+  ).join("") : '<p class="vazio">nenhum link ainda</p>';
+
+  el.querySelectorAll("input").forEach((inp) => inp.addEventListener("input", () => {
+    const k = doc.links.find((x) => x.id === inp.closest("[data-id]").dataset.id);
+    if (k) { k[inp.dataset.campo] = inp.value; salvarDevagar(doc); }
+  }));
+  el.querySelectorAll("[data-remover]").forEach((b) => b.addEventListener("click", () =>
+    removerDaLista(doc.links, b.dataset.remover, "link removido", renderLinks)
+  ));
+}
+
+/* ---------- aba: canais ---------- */
+
+/* a barra de cima de cada aba: o rotulo e o "+" que abre a caixa de criar —
+   nenhum formulario fica aberto no meio da lista */
+function barraAba(rotulo, idBotao, titulo) {
+  return '<p class="rotulo mb2"><span class="t-mono">' + rotulo + '</span><button class="pill pill--mini" type="button" id="' + idBotao + '">' + ICONE.mais + escapar(titulo) + "</button></p>";
+}
+
+function renderCanais() {
+  $("conteudo-aba").innerHTML = barraAba("canais", "add-canal", "canal") + '<div class="coluna" id="lista-canais"></div>';
+  $("add-canal").addEventListener("click", () => abrirFormulario({
+    titulo: "novo canal",
+    sub: "o canal já nasce com o checklist do tipo",
+    campos:
+      campoForm("tipo", '<select class="campo-sel" name="tipo">' + TIPOS_CANAL.map((t) => '<option value="' + t + '">' + ROTULO_CANAL[t] + "</option>").join("") + "</select>") +
+      campoForm("nome (opcional)", '<input class="campo" name="nome" maxlength="80">'),
+    enviar: "adicionar",
+    aoEnviar: (v) => {
+      doc.canais.push({
+        id: novoId(), tipo: v.tipo, nome: v.nome.trim() || ROTULO_CANAL[v.tipo], url: "", nota: "",
+        itens: (MODELOS_CANAL[v.tipo] || []).map((texto) => ({ id: novoId(), texto, feito: false }))
+      });
+      salvar(doc);
+      renderListaCanais();
+    }
+  }));
+  renderListaCanais();
+}
+
+function renderListaCanais() {
+  const el = $("lista-canais");
+  if (!doc.canais.length) { el.innerHTML = '<p class="vazio">nenhum canal cadastrado ainda</p>'; return; }
+  el.innerHTML = doc.canais.map((canal) => canalHTML(canal)).join("");
+  doc.canais.forEach((canal) => ligarCanal(canal));
+}
+
+function canalHTML(canal) {
+  const feitos = canal.itens.filter((i) => i.feito).length;
+  const pct = canal.itens.length ? Math.round((feitos / canal.itens.length) * 100) : 0;
+  const funisDoCanal = funis.todos().filter((f) => f.cliente === doc.id && f.canal === canal.id);
+  return '<div class="canal bloco bloco--raso" data-id="' + canal.id + '">' +
+    '<div class="cabeca-item">' +
+      '<span class="selo">' + ROTULO_CANAL[canal.tipo] + "</span>" +
+      '<input class="campo campo--pilula" data-campo="nome" value="' + escapar(canal.nome) + '">' +
+      '<button class="acao" data-remover-canal aria-label="Remover canal">' + ICONE.lixo + "</button>" +
+    "</div>" +
+    (canal.itens.length
+      ? '<div class="barra"><i style="width:' + pct + '%"></i></div>' +
+        '<p class="pequeno fraco mt2">' + feitos + " de " + canal.itens.length + "</p>" +
+        '<ul class="lista mt2">' + canal.itens.map((i) =>
+          '<li class="linha' + (i.feito ? " is-feita" : "") + '" data-item="' + i.id + '">' +
+            '<button class="acao marca-item" data-feito="' + i.feito + '" aria-label="Marcar feito">' + ICONE.check + "</button>" +
+            '<input class="campo item-texto" data-campo-item="texto" value="' + escapar(i.texto) + '">' +
+            '<button class="acao" data-remover-item aria-label="Remover item">' + ICONE.x + "</button>" +
+          "</li>"
+        ).join("") + "</ul>" +
+        '<div class="form-linha mt2"><input class="campo" placeholder="novo item" data-novo-item><button class="pill pill--mini" data-add-item>+ item</button></div>'
+      : '<p class="vazio">canal sem checklist — use a nota para anotar o que precisar</p>') +
+    '<label class="rotulo-campo mt2">nota</label><textarea class="campo-area" data-campo="nota">' + escapar(canal.nota) + "</textarea>" +
+    '<div class="canal-funis">' +
+      '<p class="rotulo"><span class="t-mono">funis</span><button class="pill pill--mini" data-novo-funil>novo funil</button></p>' +
+      (funisDoCanal.length
+        ? '<ul class="lista">' + funisDoCanal.map((f) =>
+            '<li class="linha"><a class="link nome" href="funis.html#' + f.id + '">' + escapar(f.nome) + "</a></li>"
+          ).join("") + "</ul>"
+        : '<p class="vazio">nenhum funil ligado a este canal</p>') +
+    "</div>" +
+  "</div>";
+}
+
+function ligarCanal(canal) {
+  const el = document.querySelector('#lista-canais .canal[data-id="' + canal.id + '"]');
+  if (!el) return;
+  el.querySelector('[data-campo="nome"]').addEventListener("input", (e) => { canal.nome = e.target.value; salvarDevagar(doc); });
+  el.querySelector('[data-campo="nota"]').addEventListener("input", (e) => { canal.nota = e.target.value; salvarDevagar(doc); });
+  el.querySelector("[data-remover-canal]").addEventListener("click", () =>
+    removerDaLista(doc.canais, canal.id, "canal removido", renderListaCanais)
+  );
+  el.querySelectorAll("[data-item]").forEach((li) => {
+    const item = canal.itens.find((i) => i.id === li.dataset.item);
+    li.querySelector(".marca-item").addEventListener("click", () => { item.feito = !item.feito; salvar(doc); renderListaCanais(); });
+    li.querySelector("[data-campo-item]").addEventListener("input", (e) => { item.texto = e.target.value; salvarDevagar(doc); });
+    li.querySelector("[data-remover-item]").addEventListener("click", () =>
+      removerDaLista(canal.itens, item.id, "item removido", renderListaCanais)
+    );
+  });
+  const campoNovo = el.querySelector("[data-novo-item]");
+  const addItem = () => {
+    const texto = campoNovo.value.trim();
+    if (!texto) return;
+    canal.itens.push({ id: novoId(), texto, feito: false });
+    salvar(doc);
+    renderListaCanais();
+  };
+  el.querySelector("[data-add-item]")?.addEventListener("click", addItem);
+  campoNovo?.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); addItem(); } });
+  el.querySelector("[data-novo-funil]").addEventListener("click", () => {
+    const agora = Date.now();
+    const f = {
+      id: novoId(), nome: doc.nome + " · " + canal.nome, cliente: doc.id, canal: canal.id, frente: doc.frente,
+      nos: [], arestas: [], criativos: [], automacoes: [], ofertas: [], gatilhos: [], retratos: [],
+      criada: agora, atualizada: agora
+    };
+    funis.gravar(f);
+    location.href = "funis.html#" + f.id;
+  });
+}
+
+/* ---------- aba: objetivos ---------- */
+
+function renderObjetivos() {
+  $("conteudo-aba").innerHTML = barraAba("objetivos", "add-objetivo", "objetivo") + '<div class="coluna" id="lista-objetivos"></div>';
+  $("add-objetivo").addEventListener("click", () => abrirFormulario({
+    titulo: "novo objetivo",
+    campos:
+      campoForm("título", '<input class="campo" name="titulo" required maxlength="140">', true) +
+      campoForm("resultado-chave", '<input class="campo" name="resultado" maxlength="140">') +
+      campoForm("prazo", '<input class="campo" name="prazo" type="date">'),
+    enviar: "adicionar",
+    aoEnviar: (v) => {
+      const titulo = v.titulo.trim();
+      if (!titulo) { mostrarAviso("o objetivo precisa de um título"); return false; }
+      doc.objetivos.push({ id: novoId(), titulo, resultado: v.resultado.trim(), prazo: v.prazo || "", feito: false, passos: [] });
+      salvar(doc);
+      renderListaObjetivos();
+    }
+  }));
+  renderListaObjetivos();
+}
+
+function renderListaObjetivos() {
+  const el = $("lista-objetivos");
+  if (!doc.objetivos.length) { el.innerHTML = '<p class="vazio">nenhum objetivo ainda</p>'; return; }
+  const ordenados = doc.objetivos.slice().sort((a, b) => (a.feito - b.feito) || (a.prazo || "9999").localeCompare(b.prazo || "9999"));
+  el.innerHTML = ordenados.map((o) => objetivoHTML(o)).join("");
+  ordenados.forEach((o) => ligarObjetivo(o));
+}
+
+function objetivoHTML(o) {
+  const feitos = o.passos.filter((p) => p.feito).length;
+  return '<div class="bloco bloco--raso' + (o.feito ? " esta-feito" : "") + '" data-id="' + o.id + '">' +
+    '<div class="cabeca-item">' +
+      '<button class="acao marca-objetivo" data-feito="' + o.feito + '" aria-label="Marcar feito">' + ICONE.check + "</button>" +
+      '<input class="campo" data-campo="titulo" value="' + escapar(o.titulo) + '" placeholder="título">' +
+      (o.prazo ? '<span class="selo">' + rotuloData(o.prazo) + "</span>" : "") +
+      '<button class="acao" data-remover-objetivo aria-label="Remover objetivo">' + ICONE.lixo + "</button>" +
+    "</div>" +
+    '<div class="form-linha">' +
+      '<input class="campo" data-campo="resultado" placeholder="resultado-chave" value="' + escapar(o.resultado) + '">' +
+      '<input class="campo" type="date" data-campo="prazo" value="' + o.prazo + '">' +
+    "</div>" +
+    '<p class="rotulo mt2"><span class="t-mono">passos</span><span class="pequeno fraco">' + feitos + " de " + o.passos.length + "</span></p>" +
+    '<ul class="lista">' + o.passos.map((p) =>
+      '<li class="linha' + (p.feito ? " is-feita" : "") + '" data-passo="' + p.id + '">' +
+        '<button class="acao marca-passo" data-feito="' + p.feito + '" aria-label="Marcar feito">' + ICONE.check + "</button>" +
+        '<input class="campo item-texto" data-campo-passo="texto" value="' + escapar(p.texto) + '">' +
+        '<button class="acao" data-remover-passo aria-label="Remover passo">' + ICONE.x + "</button>" +
+      "</li>"
+    ).join("") + "</ul>" +
+    '<div class="form-linha"><input class="campo" placeholder="novo passo" data-novo-passo><button class="pill pill--mini" data-add-passo>+ passo</button></div>' +
+  "</div>";
+}
+
+function ligarObjetivo(o) {
+  const el = document.querySelector('#lista-objetivos [data-id="' + o.id + '"]');
+  if (!el) return;
+  el.querySelector('[data-campo="titulo"]').addEventListener("input", (e) => { o.titulo = e.target.value; salvarDevagar(doc); });
+  el.querySelector('[data-campo="resultado"]').addEventListener("input", (e) => { o.resultado = e.target.value; salvarDevagar(doc); });
+  el.querySelector('[data-campo="prazo"]').addEventListener("change", (e) => { o.prazo = e.target.value; salvar(doc); renderListaObjetivos(); });
+  el.querySelector(".marca-objetivo").addEventListener("click", () => { o.feito = !o.feito; salvar(doc); renderListaObjetivos(); });
+  el.querySelector("[data-remover-objetivo]").addEventListener("click", () =>
+    removerDaLista(doc.objetivos, o.id, "objetivo removido", renderListaObjetivos)
+  );
+  el.querySelectorAll("[data-passo]").forEach((li) => {
+    const p = o.passos.find((x) => x.id === li.dataset.passo);
+    li.querySelector(".marca-passo").addEventListener("click", () => { p.feito = !p.feito; salvar(doc); renderListaObjetivos(); });
+    li.querySelector("[data-campo-passo]").addEventListener("input", (e) => { p.texto = e.target.value; salvarDevagar(doc); });
+    li.querySelector("[data-remover-passo]").addEventListener("click", () =>
+      removerDaLista(o.passos, p.id, "passo removido", renderListaObjetivos)
+    );
+  });
+  const campoNovo = el.querySelector("[data-novo-passo]");
+  const addPasso = () => {
+    const texto = campoNovo.value.trim();
+    if (!texto) return;
+    o.passos.push({ id: novoId(), texto, feito: false });
+    salvar(doc);
+    renderListaObjetivos();
+  };
+  el.querySelector("[data-add-passo]").addEventListener("click", addPasso);
+  campoNovo.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); addPasso(); } });
+}
+
+/* ---------- aba: backlog ---------- */
+
+function renderBacklog() {
+  $("conteudo-aba").innerHTML = barraAba("backlog", "add-backlog", "tarefa") +
+    '<ul class="lista" id="lista-backlog"></ul>' +
+    '<p class="vazio" id="backlog-vazio" hidden>nada no backlog ainda</p>';
+  $("add-backlog").addEventListener("click", () => abrirFormulario({
+    titulo: "nova tarefa do backlog",
+    sub: "sem hora: ela só ganha minutos quando for puxada para o dia",
+    campos:
+      campoForm("tarefa", '<input class="campo" name="titulo" required maxlength="200" placeholder="o que fazer · 45m">', true) +
+      campoForm("duração", '<input class="campo campo--mono" name="duracao" placeholder="45m, 1h30">') +
+      campoForm("prazo", '<input class="campo" name="prazo" type="date">'),
+    enviar: "adicionar",
+    aoEnviar: (v) => {
+      const lido = lerDuracao(v.titulo.trim());
+      const titulo = lido.titulo || v.titulo.trim();
+      if (!titulo) { mostrarAviso("a tarefa precisa de um título"); return false; }
+      const min = lerDuracao(v.duracao).min || lido.min;
+      doc.backlog.push({ id: novoId(), titulo, min, prazo: v.prazo || "", feito: false, criada: Date.now() });
+      salvar(doc);
+      renderListaBacklog();
+    }
+  }));
+  renderListaBacklog();
+}
+
+function ordenarBacklog(a, b) {
+  if (a.feito !== b.feito) return a.feito ? 1 : -1;
+  if (a.prazo && b.prazo) return a.prazo.localeCompare(b.prazo) || a.criada - b.criada;
+  if (a.prazo) return -1;
+  if (b.prazo) return 1;
+  return a.criada - b.criada;
+}
+
+function renderListaBacklog() {
+  const itens = doc.backlog.slice().sort(ordenarBacklog);
+  $("backlog-vazio").hidden = itens.length > 0;
+  $("lista-backlog").innerHTML = itens.map((b) =>
+    '<li class="linha' + (b.feito ? " is-feita" : "") + '" data-id="' + b.id + '">' +
+      '<button class="acao marca-backlog" data-feito="' + b.feito + '" aria-label="Marcar feito">' + ICONE.check + "</button>" +
+      '<span class="nome">' + escapar(b.titulo) + "</span>" +
+      (b.min ? '<span class="medida">' + formatarMin(b.min) + "</span>" : "") +
+      '<input class="campo campo-prazo-backlog" type="date" data-campo="prazo" value="' + b.prazo + '" title="prazo">' +
+      '<div class="acoes-linha">' +
+        '<button class="acao" data-puxar aria-label="Puxar para o dia">' + ICONE.seta + "</button>" +
+        '<button class="acao" data-remover aria-label="Remover">' + ICONE.lixo + "</button>" +
+      "</div>" +
+    "</li>"
+  ).join("");
+
+  $("lista-backlog").querySelectorAll("li").forEach((li) => {
+    const item = doc.backlog.find((b) => b.id === li.dataset.id);
+    li.querySelector(".marca-backlog").addEventListener("click", () => { item.feito = !item.feito; salvar(doc); renderListaBacklog(); });
+    li.querySelector('[data-campo="prazo"]').addEventListener("change", (e) => { item.prazo = e.target.value; salvar(doc); renderListaBacklog(); });
+    li.querySelector("[data-puxar]").addEventListener("click", () =>
+      mandarParaODia({ titulo: item.titulo, min: item.min, frente: doc.frente, cliente: doc.id, origem: { tipo: "cliente", id: doc.id } })
+    );
+    li.querySelector("[data-remover]").addEventListener("click", () =>
+      removerDaLista(doc.backlog, item.id, "item removido do backlog", renderListaBacklog)
+    );
+  });
+}
+
+/* ---------- aba: diário (só acrescenta) ---------- */
+
+function renderDiario() {
+  $("conteudo-aba").innerHTML = barraAba("diário", "add-diario", "registro") +
+    '<ul class="lista" id="lista-diario"></ul>' +
+    '<p class="vazio" id="diario-vazio" hidden>nada registrado ainda</p>';
+  $("add-diario").addEventListener("click", () => abrirFormulario({
+    titulo: "registrar no diário",
+    sub: "só acrescenta: o que aconteceu, com data de hoje",
+    campos:
+      campoForm("tipo", '<select class="campo-sel" name="tipo">' + TIPOS_DIARIO.map((t) => '<option value="' + t + '">' + t + "</option>").join("") + "</select>", true) +
+      campoForm("o que aconteceu", '<textarea class="campo-area" name="texto" required placeholder="markdown simples vale"></textarea>', true),
+    enviar: "registrar",
+    aoEnviar: (v) => {
+      const texto = v.texto.trim();
+      if (!texto) { mostrarAviso("escreve o que aconteceu"); return false; }
+      doc.diario.push({ id: novoId(), quando: Date.now(), tipo: v.tipo, texto });
+      salvar(doc);
+      renderListaDiario();
+    }
+  }));
+  renderListaDiario();
+}
+
+function renderListaDiario() {
+  const itens = doc.diario.slice().sort((a, b) => b.quando - a.quando);
+  $("diario-vazio").hidden = itens.length > 0;
+  $("lista-diario").innerHTML = itens.map((e) =>
+    '<li class="bloco bloco--raso">' +
+      '<p class="rotulo"><span class="selo">' + e.tipo + '</span><span class="t-mono fraco">' + rotuloData(diaDe(new Date(e.quando)), true) + "</span></p>" +
+      '<div class="diario-texto">' + md(e.texto) + "</div>" +
+    "</li>"
+  ).join("");
+}
+
+/* ---------- aba: ofertas ---------- */
+
+function renderOfertas() {
+  $("conteudo-aba").innerHTML = barraAba("ofertas", "add-oferta", "oferta") + '<div class="coluna" id="lista-ofertas"></div>';
+  $("add-oferta").addEventListener("click", () => abrirFormulario({
+    titulo: "nova oferta",
+    campos:
+      campoForm("nome", '<input class="campo" name="nome" required maxlength="120">', true) +
+      campoForm("preço", '<input class="campo campo--num" name="preco" inputmode="decimal" placeholder="0,00">') +
+      campoForm("tipo", '<select class="campo-sel" name="tipo">' + TIPOS_OFERTA.map((t) => '<option value="' + t + '">' + t + "</option>").join("") + "</select>"),
+    enviar: "adicionar",
+    aoEnviar: (v) => {
+      const nome = v.nome.trim();
+      if (!nome) { mostrarAviso("a oferta precisa de um nome"); return false; }
+      doc.ofertas.push({ id: novoId(), nome, preco: lerValor(v.preco), tipo: v.tipo, descricao: "", checkout: "" });
+      salvar(doc);
+      renderListaOfertas();
+    }
+  }));
+  renderListaOfertas();
+}
+
+function renderListaOfertas() {
+  const el = $("lista-ofertas");
+  if (!doc.ofertas.length) { el.innerHTML = '<p class="vazio">nenhuma oferta cadastrada</p>'; return; }
+  el.innerHTML = doc.ofertas.map((o) =>
+    '<div class="bloco bloco--raso" data-id="' + o.id + '">' +
+      '<div class="cabeca-item">' +
+        '<input class="campo" data-campo="nome" value="' + escapar(o.nome) + '">' +
+        '<select class="campo-sel" data-campo="tipo">' + TIPOS_OFERTA.map((t) => '<option value="' + t + '"' + (t === o.tipo ? " selected" : "") + '>' + t + "</option>").join("") + "</select>" +
+        '<input class="campo campo--num" data-campo="preco" value="' + brl(o.preco).replace("R$ ", "") + '">' +
+        '<button class="acao" data-remover-oferta aria-label="Remover oferta">' + ICONE.lixo + "</button>" +
+      "</div>" +
+      '<textarea class="campo-area mt2" data-campo="descricao" placeholder="descrição">' + escapar(o.descricao) + "</textarea>" +
+      '<input class="campo mt2" data-campo="checkout" placeholder="link de checkout (Stripe)" value="' + escapar(o.checkout) + '">' +
+    "</div>"
+  ).join("");
+
+  doc.ofertas.forEach((o) => {
+    const el2 = document.querySelector('#lista-ofertas [data-id="' + o.id + '"]');
+    el2.querySelector('[data-campo="nome"]').addEventListener("input", (e) => { o.nome = e.target.value; salvarDevagar(doc); });
+    el2.querySelector('[data-campo="tipo"]').addEventListener("change", (e) => { o.tipo = e.target.value; salvar(doc); });
+    el2.querySelector('[data-campo="preco"]').addEventListener("input", (e) => { o.preco = lerValor(e.target.value); salvarDevagar(doc); });
+    el2.querySelector('[data-campo="descricao"]').addEventListener("input", (e) => { o.descricao = e.target.value; salvarDevagar(doc); });
+    el2.querySelector('[data-campo="checkout"]').addEventListener("input", (e) => { o.checkout = e.target.value; salvarDevagar(doc); });
+    el2.querySelector("[data-remover-oferta]").addEventListener("click", () =>
+      removerDaLista(doc.ofertas, o.id, "oferta removida", renderListaOfertas)
+    );
+  });
+}
+
+/* ---------- cofre de acessos ----------
+   segredo e nota de cada item viajam cifrados (AES-GCM 256) com uma chave
+   derivada por PBKDF2 da senha-mestra + um sal do sistema. o servidor —
+   e qualquer sincronia — so vai ver o campo "cifrado" em base64: sem a
+   senha-mestra, e so ruido. rotulo/usuario/url ficam em claro no documento
+   porque sao o indice do cofre (para listar sem destrancar nada faria
+   sentido, mas aqui a tela inteira pede a senha antes de mostrar qualquer
+   coisa — mais simples, e o cliente ja tem poucos acessos). */
+
+function bytesParaBase64(bytes) {
+  let bin = "";
+  bytes.forEach((b) => { bin += String.fromCharCode(b); });
+  return btoa(bin);
+}
+function base64ParaBytes(b64) {
+  const bin = atob(b64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return bytes;
+}
+
+/* deriva a chave e devolve so o CryptoKey, nao extraivel: a senha em texto
+   puro nao sobrevive alem desta funcao, e a chave em si nunca vira bytes
+   legiveis por outro codigo desta pagina — so o subtle.encrypt/decrypt a
+   usam. 300 mil iteracoes e o piso atual do OWASP para PBKDF2-SHA256: lento
+   o bastante para encarecer forca bruta, rapido o bastante para nao incomodar
+   quem digita a senha certa uma vez por sessao. */
+async function derivarChave(senha, salBase64) {
+  const material = await crypto.subtle.importKey("raw", new TextEncoder().encode(senha), "PBKDF2", false, ["deriveKey"]);
+  return crypto.subtle.deriveKey(
+    { name: "PBKDF2", salt: base64ParaBytes(salBase64), iterations: 300000, hash: "SHA-256" },
+    material,
+    { name: "AES-GCM", length: 256 },
+    false,
+    ["encrypt", "decrypt"]
+  );
+}
+async function cifrarItem(segredo, nota) {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const dados = new TextEncoder().encode(JSON.stringify({ segredo, nota }));
+  const cifrado = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, chaveMestra, dados);
+  return { cifrado: bytesParaBase64(new Uint8Array(cifrado)), iv: bytesParaBase64(iv) };
+}
+/* AES-GCM autentica o que cifra: com a chave errada isto lanca (nao devolve
+   lixo silencioso) — e exatamente o sinal que usamos para dizer "senha não
+   bate" em vez de mostrar um segredo qualquer decifrado errado. */
+async function decifrarItem(item) {
+  const claro = await crypto.subtle.decrypt(
+    { name: "AES-GCM", iv: base64ParaBytes(item.iv) }, chaveMestra, base64ParaBytes(item.cifrado)
+  );
+  return JSON.parse(new TextDecoder().decode(claro));
+}
+
+function copiarTexto(texto, msg) {
+  if (!texto) return;
+  navigator.clipboard?.writeText(texto).then(() => mostrarAviso(msg)).catch(() => mostrarAviso("não consegui copiar"));
+}
+
+async function renderCofre() {
+  if (!chaveMestra) { renderCofreTrancado(); abrirDialogoCofre(); return; }
+  const clienteAlvo = doc.id; // decifrar e assincrono; o Arthur pode trocar de cliente no meio do caminho
+  const itens = doc.cofre.itens;
+  let decifrados;
+  try {
+    decifrados = await Promise.all(itens.map(async (item) => ({ item, claro: await decifrarItem(item) })));
+  } catch (erro) {
+    /* falhou para um, falha para todos — e a mesma chave em todo item.
+       esquece a chave e devolve pra tela de senha em vez de mostrar
+       qualquer coisa pela metade. */
+    chaveMestra = null;
+    if (doc && doc.id === clienteAlvo) { renderCofreTrancado(); abrirDialogoCofre("senha não bate"); }
+    return;
+  }
+  /* se o cliente aberto mudou enquanto isto decifrava, este resultado e de
+     quem nao esta mais na tela — largar aqui evita pintar o cofre errado
+     por cima do painel de outro cliente. */
+  if (!doc || doc.id !== clienteAlvo || abaAtual !== "cofre") return;
+  cofreCache = {};
+  decifrados.forEach(({ item, claro }) => { cofreCache[item.id] = claro; });
+  const editando = editandoCofreId ? { item: doc.cofre.itens.find((x) => x.id === editandoCofreId), claro: cofreCache[editandoCofreId] } : null;
+
+  $("conteudo-aba").innerHTML =
+    '<div class="bloco mb">' +
+      '<p class="rotulo"><span class="t-mono">cofre de acessos</span><button class="pill pill--mini" type="button" id="trancar-cofre-acao">trancar</button></p>' +
+      '<p class="pequeno fraco">cifrado neste navegador (AES-GCM); a senha-mestra nunca é gravada, e o servidor só guarda o texto cifrado.</p>' +
+    "</div>" +
+    renderFormCofre(editando) +
+    '<div class="coluna" id="lista-cofre"></div>';
+
+  $("trancar-cofre-acao").addEventListener("click", () => { chaveMestra = null; cofreCache = {}; renderCofre(); });
+  ligarFormCofre();
+  renderListaCofreItens(decifrados);
+}
+
+function renderCofreTrancado() {
+  $("conteudo-aba").innerHTML =
+    '<div class="bloco">' +
+      '<p class="vazio">cofre trancado — entre com a senha-mestra para ver os acessos deste cliente.</p>' +
+      '<button class="pill pill--verde" type="button" id="destrancar-cofre">destrancar</button>' +
+    "</div>";
+  $("destrancar-cofre").addEventListener("click", () => abrirDialogoCofre());
+}
+
+function abrirDialogoCofre(erro) {
+  const novo = !cofreColecao.obter("config");
+  $("cofre-dlg-titulo").textContent = novo ? "criar a senha-mestra do cofre" : "destrancar o cofre";
+  $("cofre-dlg-sub").textContent = novo
+    ? "essa senha cifra os acessos guardados aqui, só neste navegador — nem o Merlin, nem o servidor a conhecem."
+    : "a mesma senha de sempre, pedida de novo porque a aba recarregou ou o cofre foi trancado.";
+  $("cofre-erro").textContent = erro || "";
+  $("cofre-senha").value = "";
+  $("dlg-cofre").hidden = false;
+  $("cofre-senha").focus();
+}
+function fecharDialogoCofre() { $("dlg-cofre").hidden = true; $("cofre-senha").value = ""; }
+$("cancelar-cofre-dlg").addEventListener("click", fecharDialogoCofre);
+$("fechar-cofre-dlg").addEventListener("click", fecharDialogoCofre);
+$("form-senha-cofre").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const senha = $("cofre-senha").value;
+  if (!senha) return;
+  let config = cofreColecao.obter("config");
+  if (!config) {
+    config = { id: "config", sal: bytesParaBase64(crypto.getRandomValues(new Uint8Array(16))) };
+    cofreColecao.gravar(config);
+  }
+  chaveMestra = await derivarChave(senha, config.sal);
+  $("cofre-senha").value = "";
+  $("dlg-cofre").hidden = true;
+  if (doc && abaAtual === "cofre") renderCofre();
+});
+
+function renderFormCofre(editando) {
+  const item = editando ? editando.item : null;
+  const claro = editando ? editando.claro : null;
+  return '<div class="bloco mb" id="form-cofre">' +
+    '<p class="rotulo"><span class="t-mono">' + (editando ? "editar acesso" : "novo acesso") + "</span></p>" +
+    '<div class="form-grade">' +
+      '<input class="campo" id="cofre-rotulo" placeholder="rótulo (ex.: painel Shopify)" value="' + (item ? escapar(item.rotulo) : "") + '">' +
+      '<input class="campo" id="cofre-usuario" placeholder="usuário" value="' + (item ? escapar(item.usuario) : "") + '">' +
+      '<input class="campo mono" id="cofre-segredo" placeholder="senha / segredo" value="' + (claro ? escapar(claro.segredo) : "") + '">' +
+      '<input class="campo" id="cofre-url" placeholder="url (opcional)" value="' + (item ? escapar(item.url) : "") + '">' +
+    "</div>" +
+    '<textarea class="campo-area mt2" id="cofre-nota" placeholder="nota (opcional)">' + (claro ? escapar(claro.nota) : "") + "</textarea>" +
+    '<div class="fileira mt2">' +
+      '<button class="pill pill--verde" type="button" id="salvar-cofre">' + (editando ? "salvar" : "adicionar") + "</button>" +
+      (editando ? '<button class="pill" type="button" id="cancelar-cofre-form">cancelar</button>' : "") +
+    "</div>" +
+  "</div>";
+}
+function ligarFormCofre() {
+  $("salvar-cofre").addEventListener("click", async () => {
+    const rotulo = $("cofre-rotulo").value.trim();
+    if (!rotulo) return;
+    const usuario = $("cofre-usuario").value.trim();
+    const url = $("cofre-url").value.trim();
+    const { cifrado, iv } = await cifrarItem($("cofre-segredo").value, $("cofre-nota").value);
+    if (editandoCofreId) {
+      Object.assign(doc.cofre.itens.find((x) => x.id === editandoCofreId), { rotulo, usuario, url, cifrado, iv });
+    } else {
+      doc.cofre.itens.push({ id: novoId(), rotulo, usuario, url, cifrado, iv });
+    }
+    editandoCofreId = null;
+    salvar(doc);
+    renderCofre();
+  });
+  $("cancelar-cofre-form")?.addEventListener("click", () => { editandoCofreId = null; renderCofre(); });
+}
+
+function renderListaCofreItens(decifrados) {
+  const el = $("lista-cofre");
+  if (!decifrados.length) { el.innerHTML = '<p class="vazio">nenhum acesso guardado ainda</p>'; return; }
+  el.innerHTML = decifrados.map(({ item }) =>
+    '<div class="bloco bloco--raso" data-id="' + item.id + '">' +
+      '<div class="cabeca-item">' +
+        '<span class="nome">' + escapar(item.rotulo || "(sem rótulo)") + "</span>" +
+        '<button class="acao" data-editar aria-label="Editar acesso">' + ICONE.lapis + "</button>" +
+        '<button class="acao" data-remover aria-label="Apagar acesso">' + ICONE.lixo + "</button>" +
+      "</div>" +
+      '<div class="cofre-linha"><span class="t-mono fraco">usuário</span><span class="cofre-valor">' + (item.usuario ? escapar(item.usuario) : '<span class="fraco">—</span>') + "</span>" +
+        (item.usuario ? '<button class="acao" data-copiar="usuario" aria-label="Copiar usuário"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 00-2-2H6a2 2 0 00-2 2v8a2 2 0 002 2h2"/></svg></button>' : "") +
+      "</div>" +
+      '<div class="cofre-linha"><span class="t-mono fraco">senha</span><span class="cofre-valor mono" data-segredo="oculto">••••••••</span>' +
+        '<button class="acao" data-mostrar aria-label="Mostrar senha"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg></button>' +
+        '<button class="acao" data-copiar="segredo" aria-label="Copiar senha"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 00-2-2H6a2 2 0 00-2 2v8a2 2 0 002 2h2"/></svg></button>' +
+      "</div>" +
+      (item.url ? '<div class="cofre-linha"><span class="t-mono fraco">link</span><a class="link cofre-valor" href="' + escapar(item.url) + '" target="_blank" rel="noopener">' + escapar(item.url) + "</a></div>" : "") +
+    "</div>"
+  ).join("");
+
+  decifrados.forEach(({ item, claro }) => {
+    const el2 = document.querySelector('#lista-cofre [data-id="' + item.id + '"]');
+    el2.querySelector("[data-editar]").addEventListener("click", () => { editandoCofreId = item.id; renderCofre(); });
+    el2.querySelector("[data-remover]").addEventListener("click", () =>
+      removerDaLista(doc.cofre.itens, item.id, "acesso apagado", () => renderCofre())
+    );
+    el2.querySelector('[data-copiar="usuario"]')?.addEventListener("click", () => copiarTexto(item.usuario, "usuário copiado"));
+    el2.querySelector('[data-copiar="segredo"]').addEventListener("click", () => copiarTexto(claro.segredo, "senha copiada"));
+    el2.querySelector("[data-mostrar]").addEventListener("click", () => {
+      const valor = el2.querySelector("[data-segredo]");
+      const oculto = valor.dataset.segredo === "oculto";
+      valor.textContent = oculto ? (claro.segredo || "(vazio)") : "••••••••";
+      valor.dataset.segredo = oculto ? "visivel" : "oculto";
+    });
+    if (claro.nota) {
+      const p = document.createElement("p");
+      p.className = "pequeno fraco mt2";
+      p.textContent = claro.nota;
+      el2.appendChild(p);
+    }
+  });
+}
+
+/* ---------- Merlin: preparar reunião ---------- */
+
+function textoContrato(c) {
+  const partes = [];
+  if (c.contrato.escopo) partes.push(c.contrato.escopo);
+  partes.push(brl(c.contrato.valor));
+  if (c.contrato.recorrencia) partes.push(c.contrato.recorrencia);
+  return partes.join(" — ");
+}
+function montarContextoReuniao(c) {
+  const f = c.frente && frentes().obter(c.frente);
+  return {
+    nome: c.nome,
+    status: c.status,
+    frente: f ? f.nome : "",
+    resumo: c.resumo,
+    contrato: textoContrato(c),
+    objetivos: c.objetivos.map((o) => o.titulo + " · " + o.resultado + " · " + (o.prazo || "sem prazo") + " · " + (o.feito ? "feito" : "aberto")),
+    backlog: c.backlog.filter((b) => !b.feito).map((b) => b.titulo + " · " + (b.prazo || "sem prazo")),
+    canais: c.canais.map((canal) => {
+      const feitos = canal.itens.filter((i) => i.feito).length;
+      const faltam = canal.itens.filter((i) => !i.feito).map((i) => i.texto);
+      return canal.nome + " · " + feitos + " de " + canal.itens.length + " feitos · faltam: " + (faltam.join(", ") || "nada");
+    }),
+    diario: c.diario.slice().sort((a, b) => b.quando - a.quando).slice(0, 15)
+      .map((e) => rotuloData(diaDe(new Date(e.quando)), true) + " · " + e.tipo + " · " + e.texto),
+    ofertas: c.ofertas.map((o) => o.nome + " · " + brl(o.preco))
+  };
+}
+
+function abrirDialogoMerlin(texto) {
+  textoMerlinAtual = texto;
+  $("merlin-resultado").innerHTML = md(texto);
+  $("dlg-merlin").hidden = false;
+}
+function fecharDialogoMerlin() { $("dlg-merlin").hidden = true; }
+$("fechar-merlin").addEventListener("click", fecharDialogoMerlin);
+$("fechar-merlin-2").addEventListener("click", fecharDialogoMerlin);
+/* nao entra sozinha porque isto e uma sugestao de pauta, nao um fato — o
+   diario e o registro do que realmente aconteceu na reuniao (append only,
+   de proposito). guardar e um gesto do Arthur depois de ler e concordar com
+   o que o Merlin escreveu, nunca automatico. */
+$("guardar-merlin-diario").addEventListener("click", () => {
+  if (!doc) return;
+  doc.diario.push({ id: novoId(), quando: Date.now(), tipo: "reuniao", texto: textoMerlinAtual });
+  salvar(doc);
+  fecharDialogoMerlin();
+  mostrarAviso("pauta guardada no diário");
+  if (abaAtual === "diario") renderListaDiario();
+});
+
+$("btn-merlin-reuniao").addEventListener("click", async () => {
+  if (!doc) return;
+  const btn = $("btn-merlin-reuniao");
+  const original = btn.innerHTML;
+  btn.disabled = true;
+  btn.textContent = "pensando…";
+  try {
+    const r = await api("/merlin", { method: "POST", body: JSON.stringify({ tarefa: "reuniao", contexto: montarContextoReuniao(doc) }) });
+    if (r.ok) abrirDialogoMerlin(r.corpo.texto || "");
+    else if (r.status === 401) mostrarAviso("entre para usar o Merlin");
+    else mostrarAviso(r.corpo.erro || "o Merlin não respondeu — tenta de novo daqui a pouco");
+  } catch (erro) {
+    mostrarAviso("não consegui falar com o Merlin");
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = original;
+  }
+});
+
+/* ---------- diálogo: novo cliente ---------- */
+
+function abrirNovo(prefill) {
+  $("novo-frente").innerHTML = opcoesFrente("", "sem frente");
+  $("novo-status").innerHTML = STATUS.map((s) => '<option value="' + s + '"' + (s === "prospecto" ? " selected" : "") + '>' + s + "</option>").join("");
+  $("novo-nome").value = (prefill && prefill.nome) || "";
+  resumoIdeiaPendente = (prefill && prefill.resumo) || "";
+  origemIdeiaPendente = (prefill && prefill.origemIdeia) || "";
+  $("dlg-novo").hidden = false;
+  $("novo-nome").focus();
+}
+function fecharNovo() {
+  $("dlg-novo").hidden = true;
+  resumoIdeiaPendente = ""; origemIdeiaPendente = "";
+  if (!selecionadoId) history.replaceState(null, "", location.pathname + location.search);
+}
+$("btn-novo").addEventListener("click", () => abrirNovo());
+$("cancelar-novo").addEventListener("click", fecharNovo);
+$("fechar-novo").addEventListener("click", fecharNovo);
+$("form-novo").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const nome = $("novo-nome").value.trim();
+  if (!nome) return;
+  const criado = criarCliente({
+    nome, frente: $("novo-frente").value, status: $("novo-status").value,
+    resumo: resumoIdeiaPendente, origemIdeia: origemIdeiaPendente
+  });
+  fecharNovo();
+  renderLista();
+  abrirCliente(criado.id);
+});
+
+/* ---------- diálogo: frentes ---------- */
+
+function atualizarTudo() {
+  renderLista();
+  if (doc) { renderCabecaPainel(); renderConteudoAba(); }
+}
+
+function renderFrentes() {
+  const lista = listarFrentes();
+  $("lista-frentes").innerHTML = lista.map((f) =>
+    '<div class="linha-frente" data-id="' + f.id + '">' +
+      '<input class="campo" data-campo="nome" value="' + escapar(f.nome) + '">' +
+      '<select class="campo-sel campo--mono" data-campo="cor">' +
+        [1, 2, 3, 4, 5, 6].map((n) => '<option value="' + n + '"' + (n === f.cor ? " selected" : "") + '>' + n + "</option>").join("") +
+      "</select>" +
+      '<span class="selo" data-cor="' + f.cor + '">amostra</span>' +
+      '<input class="campo" type="number" data-campo="ordem" value="' + f.ordem + '">' +
+      '<button class="acao" data-remover-frente="' + f.id + '" aria-label="Apagar frente">' + ICONE.lixo + "</button>" +
+    "</div>"
+  ).join("");
+
+  $("lista-frentes").querySelectorAll("[data-id]").forEach((linha) => {
+    const f = frentes().obter(linha.dataset.id);
+    if (!f) return;
+    linha.querySelector('[data-campo="nome"]').addEventListener("input", (e) => { f.nome = e.target.value; frentes().gravar(f); });
+    linha.querySelector('[data-campo="cor"]').addEventListener("change", (e) => { f.cor = +e.target.value; frentes().gravar(f); renderFrentes(); atualizarTudo(); });
+    linha.querySelector('[data-campo="ordem"]').addEventListener("change", (e) => { f.ordem = +e.target.value; frentes().gravar(f); renderFrentes(); atualizarTudo(); });
+  });
+  $("lista-frentes").querySelectorAll("[data-remover-frente]").forEach((b) => b.addEventListener("click", () => {
+    if (listarFrentes().length <= 1) { mostrarAviso("precisa sobrar ao menos uma frente"); return; }
+    const id = b.dataset.removerFrente;
+    const antes = frentes().apagar(id);
+    renderFrentes();
+    atualizarTudo();
+    mostrarAviso("frente apagada", () => { frentes().gravar(antes); renderFrentes(); atualizarTudo(); });
+  }));
+}
+
+$("btn-frentes").addEventListener("click", () => { renderFrentes(); $("dlg-frentes").hidden = false; });
+$("fechar-frentes").addEventListener("click", () => { $("dlg-frentes").hidden = true; atualizarTudo(); });
+$("add-frente").addEventListener("click", () => {
+  const usadas = listarFrentes().map((f) => f.cor);
+  const corLivre = [1, 2, 3, 4, 5, 6].find((c) => !usadas.includes(c)) || 1;
+  const ordemMax = listarFrentes().reduce((m, f) => Math.max(m, f.ordem), 0);
+  frentes().gravar({ id: novoId(), nome: "nova frente", cor: corLivre, ordem: ordemMax + 1 });
+  renderFrentes();
+});
+
+/* ---------- atalhos de teclado ---------- */
+
+document.addEventListener("keydown", (e) => {
+  const alvo = e.target;
+  const emCampo = alvo && (alvo.tagName === "INPUT" || alvo.tagName === "TEXTAREA" || alvo.tagName === "SELECT" || alvo.isContentEditable);
+  if (e.key === "Escape") {
+    if (!$("dlg-confirmar").hidden) { $("dlg-confirmar").hidden = true; return; }
+    if (!$("dlg-frentes").hidden) { $("dlg-frentes").hidden = true; atualizarTudo(); return; }
+    if (!$("dlg-novo").hidden) { fecharNovo(); return; }
+    if (selecionadoId && telaEstreita()) { fecharPainel(); return; }
+    return;
+  }
+  if (emCampo) return;
+  if (e.key === "/") { e.preventDefault(); $("busca").focus(); return; }
+  if (e.key === "n" || e.key === "N") { e.preventDefault(); abrirNovo(); return; }
+});
+
+/* ---------- rota por hash ---------- */
+
+function tratarHash() {
+  const h = location.hash.slice(1);
+  if (!h) return;
+  if (h.startsWith("novo")) {
+    const q = new URLSearchParams(h.split("?")[1] || "");
+    const idIdeia = q.get("ideia");
+    if (idIdeia) {
+      /* leitura só: quem normaliza e é dona da coleção "ideias" é ideias.html */
+      const ideia = colecao("ideias").obter(idIdeia);
+      abrirNovo(ideia ? { nome: String(ideia.titulo || ""), resumo: String(ideia.corpo || ""), origemIdeia: idIdeia } : null);
+    } else abrirNovo();
+    return;
+  }
+  if (clientes.existe(h)) abrirCliente(h);
+}
+window.addEventListener("hashchange", () => {
+  const h = location.hash.slice(1);
+  if (!h) { if (selecionadoId) fecharPainel(); return; }
+  tratarHash();
+});
+
+/* ---------- início ---------- */
+
+renderLista();
+tratarHash();
+</script>
+</body>
+</html>
+

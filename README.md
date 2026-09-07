@@ -1,13 +1,36 @@
-# artt · planner
+# merlin
 
-Controle de tarefas pessoal, de uso individual. O produto é um arquivo só: `index.html`, com
-HTML, CSS e JS inline — sem build e sem framework. Ele funciona inteiro assim, servido como
-estático em qualquer lugar.
+Sistema pessoal do Arthur, de uma pessoa só. Nasceu como o `artt · planner` — um controle
+de tarefas de um dia — e virou um conjunto de frentes ligadas entre si: o dia, a semana, as
+ideias, os clientes (com frentes e canais), os funis, os mapas mentais e o financeiro. A
+visão completa e as decisões estão em [VISAO.md](VISAO.md).
 
-Em `servidor/` há um Worker opcional (Cloudflare + D1 + Resend) que leva o mesmo dia para
-outros aparelhos. Sem ele o app não perde nada além da sincronização.
+Cada frente é **uma página HTML** na raiz, com CSS e JS inline, sem build e sem framework —
+legível inteira, como o `index.html` sempre foi. O que é comum vive em
+[`compartilhado/`](compartilhado/LEIA.md): tokens dos dois temas (escuro e claro), a barra de
+navegação, a sessão e as coleções que sincronizam por documento.
 
-## A ideia
+| página | o que é |
+| --- | --- |
+| `index.html` | o dia: a fila de hoje, a barra que se gasta, a sobra. O único lugar com minutos. |
+| `semana.html` | a semana em colunas (seg a sex e fim de semana), agrupada por frente. |
+| `ideias.html` | o que ainda não é tarefa, numa caixa de entrada: lista por dia à esquerda, a ideia aberta à direita com corpo, estágio, passos e atividade. |
+| `clientes.html` | clientes por frente, com canais (Mercado Livre, Shopee, TikTok Shop…), objetivos, backlog, diário e ofertas. Também o cadastro de frentes. |
+| `funis.html` | funil como grafo com tipos de nó, vazão por etapa, criativos, automações, ofertas e gatilhos. |
+| `mapas.html` | mapa mental com teclado e layout automático. |
+| `financeiro.html` | do jeito da planilha: o mês dia a dia com saldo previsto, o ano em doze colunas, e o painel com saídas fixas, entradas fixas, compras no cartão e dívidas, mais a divisão 50/30/20. |
+
+Em toda tela, criar é o mesmo gesto: um botão "+" abre uma caixa (pop-up) com os campos. Nenhuma
+lista tem formulário aberto no meio, e nenhuma tela tem filtro — a busca da sidebar acha qualquer
+coisa pelo nome.
+
+O princípio que amarra tudo: **só o dia tem minutos**. Todo o resto é reservatório sem hora,
+e entra no dia pelo gesto de puxar, pagando o pedágio da duração.
+
+Em `servidor/` há o Worker (Cloudflare + D1 + Resend) que leva tudo para outros aparelhos e
+só aceita os e-mails do dono. Sem ele nada se perde além da sincronização.
+
+## O dia
 
 A tela não lista o que existe, ela mostra **quanto ainda cabe**.
 
@@ -92,7 +115,7 @@ desfazer — e ele empilha: desfazer duas vezes volta duas ações, na ordem inv
 
 ## Onde ficam os dados
 
-Em `localStorage`, na chave `artt-planner:v2`, no seu próprio navegador. Duas abas abertas se
+Em `localStorage`, na chave `merlin:dia` (os outros módulos usam `merlin:<tipo>`), no seu próprio navegador. Duas abas abertas se
 conversam pelo evento `storage` em vez de uma sobrescrever a outra.
 
 ### Levar o mesmo dia para outros aparelhos
@@ -122,8 +145,9 @@ O código de acesso nunca é guardado: o banco tem só o hash dele. Como subir o
 
 ## Fora de escopo, por decisão
 
-Recorrência, tags, múltiplos dias, colaboração. Todos criariam um segundo eixo de ordenação
-numa fila cuja única ordem é a prioridade.
+No dia: recorrência, tags, múltiplos dias, colaboração. Todos criariam um segundo eixo de
+ordenação numa fila cuja única ordem é a prioridade. A semana e o backlog dos clientes existem
+justamente para que isso não precise entrar aqui: lá as coisas têm data; aqui têm minutos.
 
 Colaboração continua fora: a fila é de uma pessoa só, e é isso que faz o número grande ser
 confiável — ninguém pode te mandar tarefa.

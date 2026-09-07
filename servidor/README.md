@@ -3,11 +3,16 @@
 Um Worker, um banco D1 e o Resend. Sem framework e sem dependência — a mesma
 disciplina do `index.html`, pelo mesmo motivo: dá pra ler inteiro.
 
-O que ele faz: serve o site, diz quem é você (código de 6 dígitos por e-mail) e
-guarda um documento por dia. Ele **não** entende tarefa, não ordena fila, não
-calcula sobra — essa conta continua sendo do cliente.
+O que ele faz: serve o site, diz quem é você (código de 6 dígitos por e-mail),
+guarda um documento por dia (tabela `dias`) e guarda os documentos dos outros
+módulos por tipo e id (tabela `docs`: ideias, clientes, mapas, funis,
+financeiro, semana). Ele **não** entende nada do que há dentro — só devolve e
+diz qual versão é mais nova.
 
-O `index.html` da raiz e a API saem do mesmo Worker, no mesmo domínio. Não é
+É um sistema de uma pessoa: `EMAILS_DONO` no `wrangler.toml` lista quem pode
+entrar. Outro e-mail recebe a mesma resposta de sucesso e nenhum código.
+
+As páginas da raiz, a pasta `compartilhado/` e a API saem do mesmo Worker, no mesmo domínio. Não é
 economia: é o que permite o cookie de sessão ser `SameSite=Lax`. Em domínios
 separados ele seria cookie de terceiro, e Safari e Firefox o bloqueiam — o
 login não gruda.
@@ -20,11 +25,12 @@ Uma vez só, uns 10 minutos.
 
 ```bash
 cd servidor
-npx wrangler d1 create artt-planner
+npx wrangler d1 create artt-planner   # o nome do banco não mudou com o do produto
 ```
 
 Copie o `database_id` que aparece e cole em `wrangler.toml`. Depois crie as
-tabelas, em produção:
+tabelas, em produção (o schema é idempotente: rodar de novo num banco que já
+existe só cria a tabela `docs` que faltava):
 
 ```bash
 npx wrangler d1 execute artt-planner --remote --file schema.sql
@@ -40,12 +46,18 @@ Ajuste `EMAIL_REMETENTE` no `wrangler.toml` para um endereço desse domínio.
 
 ### 3. Os segredos
 
-Dois, e nenhum deles fica em arquivo:
+Três, e nenhum deles fica em arquivo:
 
 ```bash
 npx wrangler secret put RESEND_API_KEY
 npx wrangler secret put SEGREDO_SESSAO
+npx wrangler secret put ANTHROPIC_API_KEY
 ```
+
+O `ANTHROPIC_API_KEY` é do Merlin conselheiro (a rota `/api/merlin`, que sugere
+ramos no mapa mental e o que falta num funil). É opcional: sem ele a rota
+responde 503 e as telas dizem que falta a chave. A chave sai de
+console.anthropic.com; o modelo é o `claude-opus-5` e cada pedido custa centavos.
 
 O `SEGREDO_SESSAO` assina os cookies de sessão. Gere um forte e guarde:
 

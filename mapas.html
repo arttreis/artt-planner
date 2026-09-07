@@ -1,0 +1,1637 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0d0d0d">
+<title>merlin · mapas</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 472.5 472.5' fill='%232EE86B'><path d='M236.31,236.23c-3.63,128.42,107.71,238.95,236.22,236.22v-118.11c-64.78,2.88-121-53.42-118.11-118.11h-118.11Z'/><path d='M236.22,0C239.85,128.42,128.52,238.95,0,236.22v-118.11C64.78,120.99,121,64.69,118.11,0h118.11Z'/><path d='M315.07,0h77.61c44.09,0,79.89,35.8,79.89,79.89v77.61h-157.5V0h0Z'/><path d='M79.96,315H.07v78.75h78.75v78.75h78.75v-79.89c0-42.86-34.75-77.61-77.61-77.61Z'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="compartilhado/base.css">
+<script>/* anti-flash do tema: antes de qualquer pintura */
+try{var t=localStorage.getItem("merlin:tema");if(t?t==="claro":matchMedia("(prefers-color-scheme: light)").matches)document.documentElement.classList.add("light")}catch(e){}</script>
+<style>
+/* tintas dos ramos: as mesmas do .selo (base.css), replicadas em variavel
+   porque dentro do svg inline so custom property resolve nos dois temas —
+   a cor 5 nao tem entrada aqui porque usa --green-ink direto (ja e tema-aware). */
+:root{
+  --mc1:#6bb8ff; --mc2:#ffb35c; --mc3:#ff7a9a; --mc4:#c58bff; --mc6:#5ce0d8;
+  /* a tela do mapa: fundo um tom abaixo da superficie, pilulas cheias por
+     cima (sem borda — a forma e o contraste ja separam do fundo) */
+  --mp-canvas:#111111; --mp-pill:#292929; --mp-pill-hover:#343434; --mp-pill-ink:#f2f2f2;
+  --mp-pill-borda:rgba(255,255,255,.05);
+  --mp-dot:rgba(242,242,242,.075); --mp-aresta:rgba(242,242,242,.3);
+}
+html.light{
+  --mc1:#1c6fc4; --mc2:#b8600a; --mc3:#c4234f; --mc4:#7a3bd8; --mc6:#127f79;
+  --mp-canvas:#ececea; --mp-pill:#ffffff; --mp-pill-hover:#f7f7f5; --mp-pill-ink:#0d0d0d;
+  --mp-pill-borda:rgba(13,13,13,.09);
+  --mp-dot:rgba(13,13,13,.11); --mp-aresta:rgba(13,13,13,.32);
+}
+
+/* ---------- lista ---------- */
+.mp-linha-nome{
+  background:none;border:0;padding:0;cursor:pointer;text-align:left;
+  flex:1 1 auto;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;
+  font-size:13px;color:var(--ink);
+}
+.mp-linha-nome:hover{text-decoration:underline;text-underline-offset:3px}
+.mp-links{display:flex;gap:10px;flex:0 0 auto}
+
+/* ---------- editor: tela cheia ---------- */
+#tela-editor.pagina--cheia{
+  /* a nav do merlin flutua por cima (fixed, 52px); .pagina normal reserva
+     esse espaco com padding-top, e a --cheia zera o resto. aqui a altura
+     total e 100dvh e o padding-top come do MESMO valor — uma subtracao so,
+     por *{box-sizing:border-box} do base.css — senao sobra uma faixa vazia
+     do tamanho da nav no rodape (subtrairia --nav-h duas vezes). */
+  padding:0;padding-top:var(--nav-h);height:100dvh;
+  display:flex;flex-direction:column;overflow:hidden;
+}
+.mp-barra{
+  flex:0 0 auto;position:relative;z-index:2;
+  display:flex;align-items:center;gap:6px;flex-wrap:wrap;
+  min-height:48px;padding:6px var(--pd2);
+  background:var(--surface);border-bottom:1px solid var(--line-soft);
+}
+.mp-nome{
+  flex:1 1 220px;min-width:100px;max-width:340px;
+  background:none;border:1px solid transparent;border-radius:var(--br2);
+  padding:6px 8px;font-size:14px;font-weight:600;color:var(--ink);
+  transition:background var(--t),border-color var(--t);
+}
+.mp-nome:hover,.mp-nome:focus{background:var(--fill);border-color:var(--line);outline:none}
+.mp-frente{flex:0 0 auto;width:auto;max-width:170px}
+.mp-corpo{position:relative;flex:1 1 auto;min-height:0;background:var(--mp-canvas)}
+.mp-svg{position:absolute;inset:0;width:100%;height:100%;touch-action:none;cursor:default;display:block}
+.mp-svg.arrastando,.mp-svg.arrastando *{cursor:grabbing !important}
+.mp-no{cursor:grab}
+.mp-no .mp-pill{transition:fill 120ms}
+.mp-no:hover .mp-pill[data-estado="normal"]{fill:var(--mp-pill-hover)}
+.mp-no--arrastado{opacity:.25}
+.mp-fantasma{pointer-events:none;filter:drop-shadow(0 10px 22px rgba(0,0,0,.5))}
+.mp-toggle{cursor:pointer}
+.mp-toggle:hover circle,.mp-toggle:hover rect{filter:brightness(1.25)}
+.mp-dica{
+  position:absolute;left:50%;bottom:16px;transform:translateX(-50%);z-index:3;
+  padding:6px 12px;border-radius:var(--br-pill);
+  background:var(--surface);border:1px solid var(--line-soft);box-shadow:var(--sombra-2);
+  font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-50);
+  pointer-events:none;white-space:nowrap;
+}
+.mp-fab{
+  position:absolute;right:18px;bottom:22px;z-index:3;
+  width:48px;height:48px;border-radius:50%;
+  background:var(--green);color:var(--on-green);
+  display:grid;place-items:center;box-shadow:var(--sombra-2);
+}
+.mp-fab svg{width:20px;height:20px}
+@media (hover:hover) and (pointer:fine){.mp-fab{display:none}}
+
+/* nó em edicao: input flutuante sobre o proprio no, no mesmo lugar que o texto ocupava */
+.mp-edit{
+  position:fixed;z-index:5;box-sizing:border-box;
+  background:var(--surface);border:1.5px solid var(--green-ink);border-radius:18px;
+  padding:6px 12px;font-family:var(--sans);color:var(--ink);text-align:center;
+  line-height:1.3;resize:none;overflow:hidden;
+}
+.mp-edit:focus{outline:none}
+
+/* ---------- painel do no ---------- */
+.mp-painel{
+  position:fixed;top:var(--nav-h);right:0;bottom:0;width:min(300px,92vw);z-index:62;
+  background:var(--surface);border-left:1px solid var(--line);
+  padding:calc(var(--pd) * 1.25) var(--pd) var(--pd);overflow-y:auto;
+  display:flex;flex-direction:column;gap:var(--pd);
+  box-shadow:var(--sombra-2);
+}
+.mp-painel__fechar{position:absolute;top:10px;right:10px}
+.mp-painel h2{margin:0 0 2px;font-size:14px;font-weight:600;letter-spacing:-.02em;padding-right:30px}
+.mp-cores{display:flex;gap:7px;flex-wrap:wrap}
+.mp-cor{
+  width:24px;height:24px;border-radius:50%;border:2px solid transparent;
+  background:var(--fill);box-shadow:inset 0 0 0 1px var(--line);
+}
+.mp-cor[data-ativa="sim"]{border-color:var(--ink)}
+.mp-nota-render{
+  min-height:70px;padding:8px 10px;border:1px solid var(--line);border-radius:var(--br2);
+  font-size:12.5px;color:var(--ink-70);cursor:text;
+}
+.mp-nota-render p{margin:0 0 6px}
+.mp-nota-render:empty::before{content:"sem nota — clique para escrever";color:var(--ink-30)}
+
+/* ---------- atalhos ---------- */
+.mp-atalhos td{font-size:12.5px}
+.mp-atalhos td:first-child{white-space:nowrap;font-family:var(--mono)}
+
+/* botao "sugerir" desabilitado enquanto o merlin pensa */
+.pill:disabled{opacity:.5;cursor:default}
+
+/* ---------- sugestoes do merlin ---------- */
+.mp-sug-linha{align-items:flex-start;gap:10px;cursor:pointer;flex:1 1 auto;min-width:0}
+.mp-sug-linha input{margin-top:3px;flex:0 0 auto}
+.mp-sug-nota{color:var(--ink-50);font-size:12px;margin-top:2px}
+
+@media (max-width:640px){
+  .mp-painel{width:100vw}
+  .mp-barra{gap:4px}
+  .mp-nome{max-width:none}
+}
+</style>
+</head>
+<body>
+
+<main class="pagina" id="tela-lista">
+  <div class="cabeca">
+    <div><h1>mapas</h1><p class="sub">mapas mentais com layout automático — teclado para escrever, arrastar para reorganizar</p></div>
+    <div class="acoes"><button class="pill pill--verde" type="button" id="btn-criar" title="novo mapa (n)"></button></div>
+  </div>
+
+  <ul class="lista" id="lista-mapas"></ul>
+  <p class="vazio" id="lista-vazia" hidden>Nenhum mapa ainda. O "+" em cima cria o primeiro e já abre.</p>
+</main>
+
+<main class="pagina pagina--cheia" id="tela-editor" hidden>
+  <div class="mp-barra">
+    <input class="mp-nome" id="mp-nome" maxlength="120" aria-label="Nome do mapa">
+    <select class="campo-sel mp-frente" id="mp-frente" aria-label="Frente do mapa"></select>
+    <span class="espaco"></span>
+    <button class="pill" type="button" id="mp-sugerir" title="Merlin sugere ramos para o nó selecionado (tecla S)">
+      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3z"/><path d="M19 14l.8 2.2L22 17l-2.2.8L19 20l-.8-2.2L16 17l2.2-.8L19 14z"/></svg>
+      <span id="mp-sugerir-texto">sugerir</span>
+    </button>
+    <button class="pill pill--icone" type="button" id="mp-enquadrar" title="Enquadrar (Ctrl+0)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4H5a1 1 0 00-1 1v4M15 4h4a1 1 0 011 1v4M9 20H5a1 1 0 01-1-1v-4M15 20h4a1 1 0 001-1v-4"/></svg>
+    </button>
+    <button class="pill" type="button" id="mp-png">exportar png</button>
+    <button class="pill" type="button" id="mp-outline">exportar outline</button>
+    <button class="pill pill--icone" type="button" id="mp-ajuda" title="Atalhos do teclado">?</button>
+    <a class="pill" href="mapas.html" id="mp-voltar">voltar</a>
+  </div>
+  <div class="mp-corpo">
+    <svg class="mp-svg" id="mp-svg" aria-label="Mapa mental"></svg>
+    <div class="mp-dica" id="mp-dica" hidden>solte em cima de um nó = vira filho · ao lado de um irmão = reordena</div>
+    <button class="mp-fab" type="button" id="mp-fab" title="Novo filho do nó selecionado">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+    </button>
+  </div>
+</main>
+
+<aside class="mp-painel" id="mp-painel" hidden role="dialog" aria-label="Detalhes do nó">
+  <button class="acao mp-painel__fechar" type="button" id="painel-fechar" aria-label="Fechar (Esc)">✕</button>
+  <h2>nó</h2>
+  <div>
+    <label class="rotulo-campo" for="painel-titulo">título</label>
+    <input class="campo" id="painel-titulo" maxlength="300">
+  </div>
+  <div>
+    <label class="rotulo-campo">cor do ramo</label>
+    <div class="mp-cores" id="painel-cores"></div>
+  </div>
+  <div>
+    <label class="rotulo-campo" for="painel-link">link</label>
+    <input class="campo" id="painel-link" type="url" placeholder="https://">
+  </div>
+  <div>
+    <label class="rotulo-campo" for="painel-nota">nota</label>
+    <textarea class="campo-area" id="painel-nota" hidden></textarea>
+    <div class="mp-nota-render" id="painel-nota-render" tabindex="0"></div>
+  </div>
+  <div class="fileira">
+    <button class="pill pill--mini" type="button" id="painel-dia">puxar para o dia</button>
+    <button class="pill pill--mini" type="button" id="painel-ideia">virar ideia</button>
+  </div>
+</aside>
+
+<div class="dialogo" id="dialogo-atalhos" hidden role="dialog" aria-modal="true" aria-label="Atalhos do mapa">
+  <div class="dialogo__caixa">
+    <button class="dialogo__fechar" type="button" id="atalhos-fechar" aria-label="Fechar">✕</button>
+    <p class="dialogo__titulo">atalhos do mapa</p>
+    <p class="dialogo__sub">teclado para escrever rápido, mouse para reorganizar</p>
+    <table class="tabela mp-atalhos">
+      <tbody>
+        <tr><td>arrastar</td><td>solta em cima de um nó = vira filho · ao lado de um irmão = reordena</td></tr>
+        <tr><td>clique no ponto</td><td>colapsa / expande o ramo (o selo +n reabre)</td></tr>
+        <tr><td>duplo clique</td><td>edita o título</td></tr>
+        <tr><td>roda / pinça</td><td>zoom · arrastar o fundo move a tela</td></tr>
+        <tr><td><kbd>Enter</kbd></td><td>cria irmão abaixo e edita</td></tr>
+        <tr><td><kbd>Tab</kbd></td><td>cria filho e edita</td></tr>
+        <tr><td><kbd>Shift</kbd> <kbd>Tab</kbd></td><td>seleciona o pai</td></tr>
+        <tr><td><kbd>Delete</kbd></td><td>apaga o nó e a subárvore (com desfazer)</td></tr>
+        <tr><td>↑ ↓ ← →</td><td>navega entre irmãos, pai e filhos</td></tr>
+        <tr><td><kbd>F2</kbd></td><td>edita o título (ou comece a digitar)</td></tr>
+        <tr><td><kbd>Espaço</kbd></td><td>colapsa / expande</td></tr>
+        <tr><td><kbd>Ctrl</kbd> ↑ ↓</td><td>move o nó entre os irmãos</td></tr>
+        <tr><td><kbd>Ctrl</kbd> <kbd>Z</kbd></td><td>desfazer</td></tr>
+        <tr><td><kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>Z</kbd></td><td>refazer</td></tr>
+        <tr><td><kbd>Ctrl</kbd> <kbd>0</kbd></td><td>enquadra o mapa</td></tr>
+        <tr><td><kbd>Ctrl</kbd> <kbd>+</kbd> / <kbd>−</kbd></td><td>zoom</td></tr>
+        <tr><td><kbd>N</kbd></td><td>abre a nota do nó selecionado</td></tr>
+        <tr><td><kbd>S</kbd></td><td>merlin sugere ramos para o nó selecionado</td></tr>
+        <tr><td><kbd>Esc</kbd></td><td>cancela a edição / fecha o painel</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="dialogo" id="dialogo-sugestoes" hidden role="dialog" aria-modal="true" aria-label="Sugestões do Merlin">
+  <div class="dialogo__caixa dialogo__caixa--larga">
+    <button class="dialogo__fechar" type="button" id="sugestoes-fechar" aria-label="Fechar">✕</button>
+    <p class="dialogo__titulo" id="sugestoes-titulo">sugestões do merlin</p>
+    <p class="dialogo__sub" id="sugestoes-sub"></p>
+    <ul class="lista" id="sugestoes-lista"></ul>
+    <div class="dialogo__acoes">
+      <button class="pill" type="button" id="sugestoes-descartar">descartar</button>
+      <button class="pill pill--verde" type="button" id="sugestoes-adicionar">adicionar</button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import {
+  iniciarPagina, colecao, $, escapar, novoId, mostrarAviso, mandarParaODia,
+  seloFrente, opcoesFrente, nomeCliente, md, ICONE, debounce, api, frentes,
+  abrirFormulario, campoForm, formularioAberto
+} from "./compartilhado/nucleo.js";
+
+iniciarPagina("mapas");
+
+/* ---------- forma do documento ----------
+   raiz e cada filho tem sempre a mesma forma. quem cria um mapa de fora
+   (ideias.html, por exemplo) so precisa acertar {titulo}; o resto nasce
+   aqui — e por isso "abrir por hash" funciona mesmo com um doc incompleto. */
+function normalizarNo(bruto) {
+  const n = bruto && typeof bruto === "object" ? bruto : {};
+  return {
+    id: n.id ? String(n.id) : novoId(),
+    titulo: String(n.titulo || "").slice(0, 300),
+    nota: String(n.nota || ""),
+    cor: Number.isFinite(+n.cor) && +n.cor >= 0 && +n.cor <= 6 ? Math.round(+n.cor) : 0,
+    colapsado: !!n.colapsado,
+    link: String(n.link || "").slice(0, 500),
+    filhos: Array.isArray(n.filhos) ? n.filhos.map(normalizarNo) : []
+  };
+}
+function normalizarMapa(d) {
+  return {
+    id: d.id,
+    nome: String(d.nome || "").slice(0, 120) || "mapa sem nome",
+    raiz: normalizarNo(d.raiz && (d.raiz.titulo || d.raiz.filhos || d.raiz.id) ? d.raiz : { titulo: d.nome || "ideia central" }),
+    frente: d.frente || "",
+    cliente: d.cliente || "",
+    ideia: d.ideia || "",
+    funil: d.funil || "",
+    criada: +d.criada || Date.now(),
+    atualizada: +d.atualizada || Date.now()
+  };
+}
+const mapas = colecao("mapas", { normalizar: normalizarMapa });
+
+/* ---------- utilidades de arvore ---------- */
+function contarNos(no) { return 1 + (no.filhos || []).reduce((s, f) => s + contarNos(f), 0); }
+function encontrarNo(atual, id, pai, indice) {
+  if (atual.id === id) return { no: atual, pai: pai || null, indice: indice == null ? -1 : indice };
+  const filhos = atual.filhos || [];
+  for (let i = 0; i < filhos.length; i++) {
+    const r = encontrarNo(filhos[i], id, atual, i);
+    if (r) return r;
+  }
+  return null;
+}
+function coletarIds(no, alvo) { alvo.add(no.id); (no.filhos || []).forEach((f) => coletarIds(f, alvo)); }
+function criarNo(titulo) { return { id: novoId(), titulo: titulo || "", nota: "", cor: 0, colapsado: false, link: "", filhos: [] }; }
+
+function tempoRelativo(ms) {
+  const min = Math.floor((Date.now() - ms) / 60000);
+  if (min < 1) return "agora";
+  if (min < 60) return min + "min";
+  const h = Math.floor(min / 60);
+  if (h < 24) return h + "h";
+  const d = Math.floor(h / 24);
+  if (d < 30) return d + "d";
+  const m = Math.floor(d / 30);
+  if (m < 12) return m + "m";
+  return Math.floor(m / 12) + "a";
+}
+
+/* ---------- layout automatico em arvore ----------
+   raiz no centro; filhos vao para a direita primeiro. so quando a raiz tem
+   mais de 4 filhos e que o excesso (os ultimos, na ordem) migra para a
+   esquerda — e a migracao escolhe o ponto de corte que mais equilibra a
+   soma de altura dos dois lados. subarvores de um no seguem sempre o lado
+   que o no recebeu da raiz. altura de uma subarvore e a pilha simples dos
+   filhos (soma + espacamento), nunca menos que a altura do proprio no. */
+const LINE_H = 17, NODE_PAD_X = 14, NODE_PAD_Y = 7;
+const RAIZ_PAD_X = 18, RAIZ_PAD_Y = 9;
+const MAX_TEXT_W = 200;
+const GAP_H = 58, SPACING_V = 12;
+const RAIO_CANTO = 10; // canto arredondado onde o ramo sai do tronco
+
+const medirCanvas = document.createElement("canvas");
+const medirCtx = medirCanvas.getContext("2d");
+
+function quebrarTexto(ctx, texto, maxWidth, maxLinhas) {
+  const palavras = texto.split(/\s+/).filter(Boolean);
+  const linhas = [];
+  let atual = "";
+  for (let i = 0; i < palavras.length; i++) {
+    const p = palavras[i];
+    const tentativa = atual ? atual + " " + p : p;
+    if (!atual || ctx.measureText(tentativa).width <= maxWidth) { atual = tentativa; continue; }
+    linhas.push(atual);
+    atual = p;
+    if (linhas.length === maxLinhas - 1) {
+      let resto = [p].concat(palavras.slice(i + 1)).join(" ");
+      if (ctx.measureText(resto).width > maxWidth) {
+        while (resto.length > 1 && ctx.measureText(resto + "…").width > maxWidth) resto = resto.slice(0, -1);
+        resto = resto.replace(/\s+$/, "") + "…";
+      }
+      linhas.push(resto);
+      return linhas;
+    }
+  }
+  if (atual) linhas.push(atual);
+  return linhas;
+}
+
+function medirNo(titulo, ehRaiz) {
+  medirCtx.font = (ehRaiz ? "600 14px" : "500 13px") + " Sora, system-ui, sans-serif";
+  const texto = String(titulo || "").trim() || "(sem título)";
+  const larguraLivre = medirCtx.measureText(texto).width;
+  const linhas = larguraLivre <= MAX_TEXT_W ? [texto] : quebrarTexto(medirCtx, texto, MAX_TEXT_W, 3);
+  const largura = Math.min(MAX_TEXT_W, Math.max.apply(null, linhas.map((l) => medirCtx.measureText(l).width)));
+  const padX = ehRaiz ? RAIZ_PAD_X : NODE_PAD_X, padY = ehRaiz ? RAIZ_PAD_Y : NODE_PAD_Y;
+  return {
+    w: Math.max(44, Math.round(largura) + padX * 2),
+    h: padY * 2 + linhas.length * LINE_H,
+    linhas
+  };
+}
+
+/* devolve um Map id->info com x,y,w,h,linhas,side,paiId,subH — so os nos
+   visiveis entram aqui (filho de no colapsado nunca e medido nem colocado),
+   e a ordem de insercao e a mesma da busca em profundidade, o que basta
+   para desenhar (nos nao se sobrepoem, entao a ordem de pintura nao importa). */
+function calcularLayout(raiz) {
+  const mapa = new Map();
+  function medir(no, ehRaiz) {
+    const { w, h, linhas } = medirNo(no.titulo, ehRaiz);
+    mapa.set(no.id, { no, w, h, linhas, x: 0, y: 0, side: null, subH: 0, paiId: null, corEfetiva: 0 });
+  }
+  function subArvoreAltura(no, ehRaiz) {
+    medir(no, ehRaiz);
+    const info = mapa.get(no.id);
+    const filhos = no.colapsado ? [] : (no.filhos || []);
+    if (!filhos.length) { info.subH = info.h; return info.subH; }
+    let soma = 0;
+    filhos.forEach((f, i) => { soma += subArvoreAltura(f, false); if (i < filhos.length - 1) soma += SPACING_V; });
+    info.subH = Math.max(soma, info.h);
+    return info.subH;
+  }
+  subArvoreAltura(raiz, true);
+  const infoRaiz = mapa.get(raiz.id);
+  infoRaiz.x = 0; infoRaiz.y = 0; infoRaiz.side = "raiz";
+
+  function dividirFilhosRaiz() {
+    const filhos = raiz.colapsado ? [] : (raiz.filhos || []);
+    if (filhos.length <= 4) return { direita: filhos.slice(), esquerda: [] };
+    const alturas = filhos.map((f) => mapa.get(f.id).subH);
+    const total = alturas.reduce((a, b) => a + b, 0);
+    let melhorK = 1, melhorDiff = Infinity;
+    for (let k = 1; k < filhos.length; k++) {
+      const alturaEsq = alturas.slice(filhos.length - k).reduce((a, b) => a + b, 0);
+      const diff = Math.abs((total - alturaEsq) - alturaEsq);
+      if (diff < melhorDiff) { melhorDiff = diff; melhorK = k; }
+    }
+    return { esquerda: filhos.slice(filhos.length - melhorK), direita: filhos.slice(0, filhos.length - melhorK) };
+  }
+
+  function posicionar(lista, pai, lado) {
+    if (!lista.length) return;
+    const infoPai = mapa.get(pai.id);
+    const totalH = lista.reduce((s, f) => s + mapa.get(f.id).subH, 0) + SPACING_V * (lista.length - 1);
+    let cursor = infoPai.y - totalH / 2;
+    lista.forEach((f) => {
+      const infoF = mapa.get(f.id);
+      infoF.y = cursor + infoF.subH / 2;
+      infoF.x = lado === "direita" ? infoPai.x + infoPai.w / 2 + GAP_H + infoF.w / 2 : infoPai.x - infoPai.w / 2 - GAP_H - infoF.w / 2;
+      infoF.side = lado;
+      infoF.paiId = pai.id;
+      cursor += infoF.subH + SPACING_V;
+      posicionar(f.colapsado ? [] : (f.filhos || []), f, lado);
+    });
+  }
+
+  const { esquerda, direita } = dividirFilhosRaiz();
+  posicionar(direita, raiz, "direita");
+  posicionar(esquerda, raiz, "esquerda");
+  return mapa;
+}
+
+function propagarCores(no, corHerdada, mapa) {
+  const info = mapa.get(no.id);
+  if (!info) return;
+  info.corEfetiva = no.cor > 0 ? no.cor : corHerdada;
+  (no.filhos || []).forEach((f) => propagarCores(f, info.corEfetiva, mapa));
+}
+
+function corVar(cor) {
+  if (!cor) return "var(--ink-30)";
+  if (cor === 5) return "var(--green-ink)";
+  return "var(--mc" + cor + ")";
+}
+
+/* ---------- estado do editor ---------- */
+const telaLista = $("tela-lista"), telaEditor = $("tela-editor");
+const svgEl = $("mp-svg"), elPainel = $("mp-painel");
+let telaAtual = "lista";
+let mapaAtual = null;
+let layoutAtual = null;      // ultimo Map calculado por calcularLayout, para hit-test
+let selecionadoId = null;
+let editandoId = null, elEdicao = null;
+let painelAberto = false;
+/* arrastar: o no que esta sendo arrastado, onde o fantasma esta, e o alvo
+   calculado a cada movimento — {tipo:"filho", id} solta em cima de um no,
+   {tipo:"irmao", id, antes} solta na fenda ao lado de um irmao. */
+let arraste = null; // { id, pos:{x,y}, offset:{x,y}, alvo, descendentes:Set }
+let historico = [], futuro = [];
+let capturadoParaCampo = false;
+let vista = { x: -420, y: -300, w: 840, h: 600 };
+let sugestoesAtuais = [], sugestoesAlvoId = null;
+
+const salvarDebounced = debounce(() => {
+  if (!mapaAtual) return;
+  mapaAtual.atualizada = Date.now();
+  mapas.gravar(mapaAtual);
+}, 400);
+function salvarComDebounce() { salvarDebounced(); }
+
+function antesDeAlterar() {
+  if (!mapaAtual) return;
+  historico.push(JSON.stringify(mapaAtual));
+  if (historico.length > 50) historico.shift();
+  futuro = [];
+}
+function ajustarSelecaoPos(idAntigo) {
+  selecionadoId = idAntigo && encontrarNo(mapaAtual.raiz, idAntigo) ? idAntigo : mapaAtual.raiz.id;
+}
+function desfazer() {
+  if (!historico.length || !mapaAtual) return;
+  futuro.push(JSON.stringify(mapaAtual));
+  if (futuro.length > 50) futuro.shift();
+  const antigo = selecionadoId;
+  mapaAtual = JSON.parse(historico.pop());
+  ajustarSelecaoPos(antigo);
+  salvarComDebounce();
+  renderAgora();
+}
+function refazer() {
+  if (!futuro.length || !mapaAtual) return;
+  historico.push(JSON.stringify(mapaAtual));
+  if (historico.length > 50) historico.shift();
+  const antigo = selecionadoId;
+  mapaAtual = JSON.parse(futuro.pop());
+  ajustarSelecaoPos(antigo);
+  salvarComDebounce();
+  renderAgora();
+}
+
+/* ---------- viewBox (pan/zoom), guardado por mapa ---------- */
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+function aplicarVista() { svgEl.setAttribute("viewBox", vista.x + " " + vista.y + " " + vista.w + " " + vista.h); aplicarGrade(); salvarVista(); }
+function salvarVista() {
+  if (!mapaAtual) return;
+  try { localStorage.setItem("merlin:mapas:vista:" + mapaAtual.id, JSON.stringify(vista)); } catch (e) {}
+}
+function carregarVista(id) {
+  try {
+    const v = JSON.parse(localStorage.getItem("merlin:mapas:vista:" + id));
+    if (v && Number.isFinite(v.w) && Number.isFinite(v.h)) return v;
+  } catch (e) {}
+  return null;
+}
+/* usada tanto pelo Ctrl+0 (enquadra tudo) quanto por enquadrarNo (enquadra
+   so um ramo, depois que o merlin acrescenta sugestoes nele). */
+function aplicarEnquadramento(minX, minY, maxX, maxY) {
+  const margem = 40;
+  const bboxW = Math.max(1, maxX - minX), bboxH = Math.max(1, maxY - minY);
+  const rect = svgEl.getBoundingClientRect();
+  const larguraDisp = rect.width || 1000, alturaDisp = rect.height || 700;
+  /* a viewBox tem sempre a mesma proporcao do container (nunca a bounding
+     box esticada, senao o texto sai de escala em um eixo) e a escala nunca
+     passa de 1: um mapa pequeno fica do tamanho natural (13px de verdade),
+     nao esticado para preencher a tela — so encolhe quando nao cabe. */
+  const escala = Math.min(1, (larguraDisp - margem * 2) / bboxW, (alturaDisp - margem * 2) / bboxH);
+  const cx = (minX + maxX) / 2, cy = (minY + maxY) / 2;
+  const w = larguraDisp / escala, h = alturaDisp / escala;
+  vista = { x: cx - w / 2, y: cy - h / 2, w, h };
+  aplicarVista();
+}
+function enquadrar() {
+  if (!layoutAtual || !layoutAtual.size) return;
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  layoutAtual.forEach((info) => {
+    minX = Math.min(minX, info.x - info.w / 2); maxX = Math.max(maxX, info.x + info.w / 2);
+    minY = Math.min(minY, info.y - info.h / 2); maxY = Math.max(maxY, info.y + info.h / 2);
+  });
+  aplicarEnquadramento(minX, minY, maxX, maxY);
+}
+/* enquadra so um no e a subarvore dele — usado depois de adicionar ramos
+   sugeridos, para nao perder o zoom no meio de um mapa grande so porque o
+   Ctrl+0 enquadraria tudo de novo. */
+function enquadrarNo(id) {
+  if (!layoutAtual) return;
+  const achado = encontrarNo(mapaAtual.raiz, id);
+  if (!achado) { enquadrar(); return; }
+  const ids = new Set(); coletarIds(achado.no, ids);
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity, achou = false;
+  layoutAtual.forEach((info, nid) => {
+    if (!ids.has(nid)) return;
+    achou = true;
+    minX = Math.min(minX, info.x - info.w / 2); maxX = Math.max(maxX, info.x + info.w / 2);
+    minY = Math.min(minY, info.y - info.h / 2); maxY = Math.max(maxY, info.y + info.h / 2);
+  });
+  if (!achou) { enquadrar(); return; }
+  aplicarEnquadramento(minX, minY, maxX, maxY);
+}
+function zoomEm(fator, clientX, clientY) {
+  const rect = svgEl.getBoundingClientRect();
+  const relX = (clientX - rect.left) / rect.width, relY = (clientY - rect.top) / rect.height;
+  const px = vista.x + relX * vista.w, py = vista.y + relY * vista.h;
+  const novaW = clamp(vista.w * fator, 120, 12000);
+  const escalaReal = novaW / vista.w;
+  vista.w = novaW; vista.h = vista.h * escalaReal;
+  vista.x = px - relX * vista.w; vista.y = py - relY * vista.h;
+  aplicarVista();
+}
+function zoomCentro(fator) {
+  const rect = svgEl.getBoundingClientRect();
+  zoomEm(fator, rect.left + rect.width / 2, rect.top + rect.height / 2);
+}
+function garantirVisivel(id) {
+  if (!layoutAtual) return;
+  const info = layoutAtual.get(id);
+  if (!info) return;
+  const margem = Math.min(info.w, info.h) + 40;
+  let dx = 0, dy = 0;
+  if (info.x - info.w / 2 < vista.x + margem) dx = (info.x - info.w / 2) - (vista.x + margem);
+  if (info.x + info.w / 2 > vista.x + vista.w - margem) dx = (info.x + info.w / 2) - (vista.x + vista.w - margem);
+  if (info.y - info.h / 2 < vista.y + margem) dy = (info.y - info.h / 2) - (vista.y + margem);
+  if (info.y + info.h / 2 > vista.y + vista.h - margem) dy = (info.y + info.h / 2) - (vista.y + vista.h - margem);
+  if (dx || dy) { vista.x += dx; vista.y += dy; aplicarVista(); }
+}
+
+/* ---------- desenho ----------
+   pilulas cheias, sem borda: a raiz em tinta, os ramos na cor da pilula e o
+   selecionado em verde. o ponto no lado de saida de um no que tem filhos e
+   o botao de colapsar — fechado, vira um selo "+n". as arestas sao um
+   barramento por pai: um tronco vertical na cor do pai, e cada filho sai
+   dele com um canto arredondado na propria cor. */
+function corAresta(cor) { return cor ? corVar(cor) : "var(--mp-aresta)"; }
+
+function svgPilula(info, no, ehRaiz, estado) {
+  const w = info.w, h = info.h, linhas = info.linhas, rx = h / 2;
+  const selecionado = estado === "selecionado";
+  const fill = selecionado ? "var(--green)" : ehRaiz ? "var(--ink)" : "var(--mp-pill)";
+  const corTexto = selecionado ? "var(--on-green)" : ehRaiz ? "var(--bg)" : "var(--mp-pill-ink)";
+  const stroke = selecionado || ehRaiz ? "none" : "var(--mp-pill-borda)";
+  const primeiraY = -(linhas.length * LINE_H) / 2 + LINE_H * 0.72;
+  const texto = linhas.map((l, i) =>
+    '<text x="0" y="' + (primeiraY + i * LINE_H).toFixed(1) + '" text-anchor="middle" font-family="Sora, system-ui, sans-serif" font-size="' + (ehRaiz ? 14 : 13) + '" font-weight="' + (ehRaiz ? 600 : 500) + '" fill="' + corTexto + '"' + (no.link ? ' text-decoration="underline"' : "") + ' pointer-events="none">' + escapar(l) + "</text>"
+  ).join("");
+  return '<rect class="mp-pill" data-estado="' + (selecionado ? "selecionado" : "normal") + '" x="' + (-w / 2) + '" y="' + (-h / 2) + '" width="' + w + '" height="' + h + '" rx="' + rx + '" fill="' + fill + '" stroke="' + stroke + '" stroke-width="1"></rect>' + texto;
+}
+
+function svgNode(info, no, ehRaiz, pos) {
+  const w = info.w, h = info.h, rx = h / 2;
+  const estado = no.id === selecionadoId ? "selecionado" : "normal";
+  const arrastado = arraste && arraste.descendentes.has(no.id);
+  const alvoFilho = arraste && arraste.alvo && arraste.alvo.tipo === "filho" && arraste.alvo.id === no.id;
+  let extras = "";
+  if (alvoFilho) {
+    extras += '<rect x="' + (-w / 2 - 5) + '" y="' + (-h / 2 - 5) + '" width="' + (w + 10) + '" height="' + (h + 10) + '" rx="' + (rx + 5) + '" fill="none" stroke="var(--green-ink)" stroke-width="2" stroke-dasharray="4 4" pointer-events="none"></rect>';
+  } else if (estado === "selecionado" && ehRaiz) {
+    extras += '<rect x="' + (-w / 2 - 4) + '" y="' + (-h / 2 - 4) + '" width="' + (w + 8) + '" height="' + (h + 8) + '" rx="' + (rx + 4) + '" fill="none" stroke="var(--green-ink)" stroke-width="1.5" pointer-events="none"></rect>';
+  }
+  let decoracoes = "";
+  if (no.nota) decoracoes += '<circle data-nota="1" cx="' + (w / 2 - 4) + '" cy="' + (-h / 2 + 4) + '" r="3.5" fill="var(--green-ink)" stroke="var(--mp-canvas)" stroke-width="1.5"><title>abrir a nota</title></circle>';
+  const filhos = no.filhos || [];
+  if (filhos.length && !ehRaiz) {
+    /* o ponto de saida: onde o tronco dos filhos nasce. clique = colapsar */
+    const sx = info.side === "esquerda" ? -1 : 1;
+    const cor = corAresta(info.corEfetiva);
+    if (no.colapsado) {
+      const n = contarNos(no) - 1, rot = "+" + n, lw = 14 + rot.length * 6.5;
+      decoracoes += '<g class="mp-toggle" data-alternar="1" transform="translate(' + (sx * (w / 2 + 2 + lw / 2)) + ',0)"><title>expandir</title>' +
+        '<rect x="' + (-lw / 2) + '" y="-9" width="' + lw + '" height="18" rx="9" fill="' + cor + '"></rect>' +
+        '<text text-anchor="middle" y="3.5" font-family="JetBrains Mono, monospace" font-size="10" font-weight="500" fill="var(--bg)" pointer-events="none">' + rot + "</text></g>";
+    } else {
+      decoracoes += '<g class="mp-toggle" data-alternar="1" transform="translate(' + (sx * w / 2) + ',0)"><title>colapsar</title>' +
+        '<circle r="9" fill="transparent"></circle><circle r="3.6" fill="' + cor + '" stroke="var(--mp-canvas)" stroke-width="1.5"></circle></g>';
+    }
+  } else if (ehRaiz && filhos.length && no.colapsado) {
+    const n = contarNos(no) - 1, rot = "+" + n, lw = 14 + rot.length * 6.5;
+    decoracoes += '<g class="mp-toggle" data-alternar="1" transform="translate(' + (w / 2 + 2 + lw / 2) + ',0)"><title>expandir</title>' +
+      '<rect x="' + (-lw / 2) + '" y="-9" width="' + lw + '" height="18" rx="9" fill="var(--ink)"></rect>' +
+      '<text text-anchor="middle" y="3.5" font-family="JetBrains Mono, monospace" font-size="10" font-weight="500" fill="var(--bg)" pointer-events="none">' + rot + "</text></g>";
+  }
+  return '<g class="mp-no' + (arrastado ? " mp-no--arrastado" : "") + '" data-id="' + no.id + '" transform="translate(' + pos.x.toFixed(1) + "," + pos.y.toFixed(1) + ')">' +
+    extras + svgPilula(info, no, ehRaiz, estado) + decoracoes + "</g>";
+}
+
+/* barramento de um pai: tronco + um ramo por filho. `posDe` resolve a
+   posicao desenhada (pode ser a interpolada, no meio de uma animacao). */
+function svgArestasDe(paiInfo, filhosInfo, posDe) {
+  if (!filhosInfo.length) return "";
+  const lado = filhosInfo[0].side, sx = lado === "direita" ? 1 : -1;
+  const pp = posDe(paiInfo);
+  const x1 = pp.x + sx * paiInfo.w / 2, y1 = pp.y;
+  const bordaFilho = (f) => posDe(f).x - sx * f.w / 2;
+  /* o tronco fica no meio do vao entre o pai e o filho mais proximo */
+  let xMaisPerto = bordaFilho(filhosInfo[0]);
+  filhosInfo.forEach((f) => { const b = bordaFilho(f); if (sx * (b - x1) < sx * (xMaisPerto - x1)) xMaisPerto = b; });
+  const xT = (x1 + xMaisPerto) / 2;
+  const corPai = corAresta(paiInfo.corEfetiva);
+  let out = "";
+  const ys = filhosInfo.map((f) => { const y = posDe(f).y; return Math.abs(y - y1) < 1 ? y1 : y; });
+  const yMin = Math.min.apply(null, ys.concat([y1])), yMax = Math.max.apply(null, ys.concat([y1]));
+  const r = Math.max(0, Math.min(RAIO_CANTO, Math.abs(xT - x1) - 1, Math.abs(xMaisPerto - xT) - 1));
+  /* tronco: se o pai esta numa das pontas, a stub entra nele com canto; se
+     esta no meio, e um T e o tronco passa reto por y1 */
+  const noMeio = yMin < y1 - 0.5 && yMax > y1 + 0.5;
+  const topo = yMin === y1 ? y1 : yMin + r, base = yMax === y1 ? y1 : yMax - r;
+  if (noMeio) {
+    out += seg(x1, y1, xT, y1, corPai) + seg(xT, topo, xT, base, corPai);
+  } else if (yMax - yMin < 1) {
+    out += seg(x1, y1, xT, y1, corPai);
+  } else if (yMin === y1) {
+    out += '<path d="M' + x1 + " " + y1 + " H" + (xT - sx * r) + " Q" + xT + " " + y1 + " " + xT + " " + (y1 + r) + " V" + base + '" fill="none" stroke="' + corPai + '" stroke-width="1.5" pointer-events="none"></path>';
+  } else {
+    out += '<path d="M' + x1 + " " + y1 + " H" + (xT - sx * r) + " Q" + xT + " " + y1 + " " + xT + " " + (y1 - r) + " V" + topo + '" fill="none" stroke="' + corPai + '" stroke-width="1.5" pointer-events="none"></path>';
+  }
+  filhosInfo.forEach((f) => {
+    const y2 = posDe(f).y, x2 = bordaFilho(f), cor = corAresta(f.corEfetiva);
+    if (Math.abs(y2 - y1) < 1) { out += seg(xT, y2, x2, y2, cor); return; }
+    const sy = y2 > y1 ? 1 : -1;
+    out += '<path d="M' + xT + " " + (y2 - sy * r) + " Q" + xT + " " + y2 + " " + (xT + sx * r) + " " + y2 + " H" + x2 + '" fill="none" stroke="' + cor + '" stroke-width="1.5" pointer-events="none"></path>';
+  });
+  return out;
+  function seg(ax, ay, bx, by, cor) { return '<line x1="' + ax + '" y1="' + ay + '" x2="' + bx + '" y2="' + by + '" stroke="' + cor + '" stroke-width="1.5" pointer-events="none"></line>'; }
+}
+
+/* indicador de onde o no arrastado vai cair entre irmaos: uma barra verde
+   na fenda, do tamanho da pilula vizinha */
+function svgIndicadorIrmao(mapa, posDe) {
+  const alvo = arraste && arraste.alvo;
+  if (!alvo || alvo.tipo !== "irmao") return "";
+  const info = mapa.get(alvo.id);
+  if (!info) return "";
+  const p = posDe(info);
+  const y = alvo.antes ? p.y - info.h / 2 - SPACING_V / 2 : p.y + info.h / 2 + SPACING_V / 2;
+  const sx = info.side === "esquerda" ? -1 : 1;
+  return '<g pointer-events="none"><rect x="' + (p.x - info.w / 2) + '" y="' + (y - 1.5) + '" width="' + info.w + '" height="3" rx="1.5" fill="var(--green)"></rect>' +
+    '<circle cx="' + (p.x - sx * info.w / 2) + '" cy="' + y + '" r="4" fill="var(--green)"></circle></g>';
+}
+
+function svgFantasma(mapa) {
+  if (!arraste || !arraste.pos) return "";
+  const info = mapa.get(arraste.id);
+  if (!info) return "";
+  return '<g class="mp-fantasma" transform="translate(' + arraste.pos.x.toFixed(1) + "," + arraste.pos.y.toFixed(1) + ')" opacity=".92">' +
+    svgPilula(info, info.no, false, "selecionado") + "</g>";
+}
+
+const GRADE_SVG = '<defs><pattern id="mp-grade" patternUnits="userSpaceOnUse" width="24" height="24"><circle cx="1" cy="1" r="1" fill="var(--mp-dot)"></circle></pattern></defs>' +
+  '<rect id="mp-grade-fundo" x="-100000" y="-100000" width="200000" height="200000" fill="url(#mp-grade)" pointer-events="none"></rect>';
+
+let rafPendente = false;
+function agendarRender() {
+  if (rafPendente) return;
+  rafPendente = true;
+  requestAnimationFrame(() => { rafPendente = false; renderMapa(); });
+}
+function renderAgora() { renderMapa(); }
+
+/* quem muda de lugar desliza ate a posicao nova (220ms) em vez de saltar:
+   layoutDesenhado guarda onde cada no foi pintado por ultimo, e o tween
+   interpola so os que se moveram. durante o arraste nao anima — o mapa
+   tem que responder na hora. */
+let layoutDesenhado = null, tweenRaf = 0;
+function renderMapa(animar) {
+  if (!mapaAtual) return;
+  const mapa = calcularLayout(mapaAtual.raiz);
+  propagarCores(mapaAtual.raiz, mapaAtual.raiz.cor > 0 ? mapaAtual.raiz.cor : 0, mapa);
+  layoutAtual = mapa;
+  if (tweenRaf) { cancelAnimationFrame(tweenRaf); tweenRaf = 0; }
+  const de = new Map();
+  if (animar !== false && layoutDesenhado && !arraste) {
+    mapa.forEach((info, id) => {
+      const p = layoutDesenhado.get(id);
+      if (p && (Math.abs(p.x - info.x) > .5 || Math.abs(p.y - info.y) > .5)) de.set(id, p);
+    });
+  }
+  if (!de.size) { desenhar(mapa, null); return; }
+  const t0 = performance.now(), dur = 220;
+  const passo = (agora) => {
+    const k = Math.min(1, (agora - t0) / dur), e = 1 - Math.pow(1 - k, 3);
+    const pos = new Map();
+    de.forEach((p, id) => { const a = mapa.get(id); pos.set(id, { x: p.x + (a.x - p.x) * e, y: p.y + (a.y - p.y) * e }); });
+    desenhar(mapa, k < 1 ? pos : null);
+    tweenRaf = k < 1 ? requestAnimationFrame(passo) : 0;
+  };
+  tweenRaf = requestAnimationFrame(passo);
+}
+function desenhar(mapa, pos) {
+  const posDe = (info) => (pos && pos.get(info.no.id)) || info;
+  let arestas = "", nos = "";
+  mapa.forEach((info) => {
+    const no = info.no;
+    if (!no.colapsado && (no.filhos || []).length) {
+      const dir = [], esq = [];
+      no.filhos.forEach((f) => { const fi = mapa.get(f.id); if (fi) (fi.side === "esquerda" ? esq : dir).push(fi); });
+      arestas += svgArestasDe(info, dir, posDe) + svgArestasDe(info, esq, posDe);
+    }
+    nos += svgNode(info, no, no === mapaAtual.raiz, posDe(info));
+  });
+  svgEl.innerHTML = GRADE_SVG + "<g>" + arestas + "</g><g>" + nos + "</g>" + svgIndicadorIrmao(mapa, posDe) + svgFantasma(mapa);
+  aplicarGrade();
+  layoutDesenhado = new Map();
+  mapa.forEach((info, id) => { const p = posDe(info); layoutDesenhado.set(id, { x: p.x, y: p.y }); });
+}
+/* a grade some quando o zoom esta longe demais — viraria um cinza chapado */
+function aplicarGrade() {
+  const g = $("mp-grade-fundo");
+  if (g) g.style.opacity = vista.w > 2400 ? "0" : "1";
+}
+
+/* ---------- selecao e navegacao ---------- */
+function selecionar(id) {
+  selecionadoId = id;
+  if (painelAberto) renderPainel();
+  renderAgora();
+  if (id) garantirVisivel(id);
+}
+function navegar(dir) {
+  if (!mapaAtual) return;
+  if (!selecionadoId) { selecionar(mapaAtual.raiz.id); return; }
+  const achado = encontrarNo(mapaAtual.raiz, selecionadoId);
+  if (!achado) return;
+  const info = layoutAtual && layoutAtual.get(selecionadoId);
+  if (dir === "cima" || dir === "baixo") {
+    if (!achado.pai) return;
+    const alvoIdx = achado.indice + (dir === "cima" ? -1 : 1);
+    const irmaos = achado.pai.filhos;
+    if (alvoIdx >= 0 && alvoIdx < irmaos.length) selecionar(irmaos[alvoIdx].id);
+    return;
+  }
+  const lado = info && info.side;
+  if (dir === "direita") {
+    if (!lado || lado === "raiz") {
+      const alvo = (achado.no.filhos || []).find((f) => layoutAtual.get(f.id) && layoutAtual.get(f.id).side === "direita");
+      if (alvo) selecionar(alvo.id);
+    } else if (lado === "direita") {
+      const filhos = achado.no.filhos || [];
+      if (!achado.no.colapsado && filhos.length) selecionar(filhos[0].id);
+    } else if (achado.pai) selecionar(achado.pai.id);
+  } else if (dir === "esquerda") {
+    if (!lado || lado === "raiz") {
+      const alvo = (achado.no.filhos || []).find((f) => layoutAtual.get(f.id) && layoutAtual.get(f.id).side === "esquerda");
+      if (alvo) selecionar(alvo.id);
+    } else if (lado === "esquerda") {
+      const filhos = achado.no.filhos || [];
+      if (!achado.no.colapsado && filhos.length) selecionar(filhos[0].id);
+    } else if (achado.pai) selecionar(achado.pai.id);
+  }
+}
+
+/* ---------- mutacoes ---------- */
+function criarIrmao(id) {
+  const achado = encontrarNo(mapaAtual.raiz, id);
+  if (!achado) return;
+  if (!achado.pai) { criarFilho(id); return; } // a raiz nao tem irmao: cai para filho
+  antesDeAlterar();
+  const novo = criarNo("");
+  achado.pai.filhos.splice(achado.indice + 1, 0, novo);
+  salvarComDebounce();
+  selecionadoId = novo.id;
+  renderAgora();
+  editar(novo.id);
+}
+function criarFilho(id) {
+  const achado = encontrarNo(mapaAtual.raiz, id);
+  if (!achado) return;
+  antesDeAlterar();
+  const novo = criarNo("");
+  achado.no.filhos = achado.no.filhos || [];
+  achado.no.filhos.push(novo);
+  achado.no.colapsado = false;
+  salvarComDebounce();
+  selecionadoId = novo.id;
+  renderAgora();
+  editar(novo.id);
+}
+function apagarSelecionado() {
+  if (!selecionadoId) return;
+  const achado = encontrarNo(mapaAtual.raiz, selecionadoId);
+  if (!achado || !achado.pai) return; // nunca apaga a raiz
+  antesDeAlterar();
+  const removido = achado.pai.filhos.splice(achado.indice, 1)[0];
+  const paiId = achado.pai.id, indiceOriginal = achado.indice;
+  salvarComDebounce();
+  selecionadoId = paiId;
+  renderAgora();
+  mostrarAviso("nó apagado", () => {
+    antesDeAlterar();
+    const paiAtual = encontrarNo(mapaAtual.raiz, paiId);
+    if (paiAtual) {
+      paiAtual.no.filhos.splice(Math.min(indiceOriginal, paiAtual.no.filhos.length), 0, removido);
+      salvarComDebounce();
+    }
+    selecionadoId = removido.id;
+    renderAgora();
+  });
+}
+function alternarColapso(id) {
+  const achado = encontrarNo(mapaAtual.raiz, id);
+  if (!achado || !(achado.no.filhos || []).length) return;
+  antesDeAlterar();
+  achado.no.colapsado = !achado.no.colapsado;
+  salvarComDebounce();
+  renderAgora();
+}
+function moverEntreIrmaos(id, delta) {
+  const achado = encontrarNo(mapaAtual.raiz, id);
+  if (!achado || !achado.pai) return;
+  const lista = achado.pai.filhos;
+  const novoIndice = achado.indice + delta;
+  if (novoIndice < 0 || novoIndice >= lista.length) return;
+  antesDeAlterar();
+  const item = lista.splice(achado.indice, 1)[0];
+  lista.splice(novoIndice, 0, item);
+  salvarComDebounce();
+  renderAgora();
+}
+/* move um no (com a subarvore) para dentro de outro pai, numa posicao —
+   serve tanto para "virar filho" (indice no fim) quanto para reordenar
+   entre irmaos. um ramo nunca vira filho de si mesmo. */
+function moverPara(idNo, idPai, indice) {
+  if (idNo === idPai) return false;
+  const achadoNo = encontrarNo(mapaAtual.raiz, idNo);
+  const achadoPai = encontrarNo(mapaAtual.raiz, idPai);
+  if (!achadoNo || !achadoPai || !achadoNo.pai) return false;
+  const descendentes = new Set(); coletarIds(achadoNo.no, descendentes);
+  if (descendentes.has(idPai)) return false;
+  const lista = achadoPai.no.filhos || (achadoPai.no.filhos = []);
+  const mesmoPai = achadoNo.pai === achadoPai.no;
+  indice = Math.max(0, Math.min(indice == null ? lista.length : indice, lista.length));
+  if (mesmoPai && (indice === achadoNo.indice || indice === achadoNo.indice + 1)) return false; // ja esta la
+  antesDeAlterar();
+  achadoNo.pai.filhos.splice(achadoNo.indice, 1);
+  if (mesmoPai && achadoNo.indice < indice) indice--;
+  lista.splice(indice, 0, achadoNo.no);
+  achadoPai.no.colapsado = false;
+  salvarComDebounce();
+  selecionadoId = idNo;
+  return true;
+}
+
+/* ---------- edicao inline do titulo ---------- */
+function editar(id, valorInicial) {
+  const achado = encontrarNo(mapaAtual.raiz, id);
+  if (!achado) return;
+  selecionadoId = id;
+  editandoId = id;
+  renderAgora();
+  criarOverlayEdicao(id, valorInicial);
+}
+function criarOverlayEdicao(id, valorInicial) {
+  const info = layoutAtual && layoutAtual.get(id);
+  const achado = encontrarNo(mapaAtual.raiz, id);
+  if (!info || !achado) { editandoId = null; return; }
+  const rect = svgEl.getBoundingClientRect();
+  const escala = rect.width / vista.w;
+  const cx = rect.left + (info.x - vista.x) * escala;
+  const cy = rect.top + (info.y - vista.y) * escala;
+  const larguraPx = info.w * escala, alturaPx = info.h * escala;
+  const el = document.createElement("textarea");
+  el.className = "mp-edit";
+  el.style.left = (cx - larguraPx / 2) + "px";
+  el.style.top = (cy - alturaPx / 2) + "px";
+  el.style.width = larguraPx + "px";
+  el.style.minHeight = alturaPx + "px";
+  el.style.fontSize = Math.max(10, 13 * escala) + "px";
+  document.body.appendChild(el);
+  elEdicao = el;
+  if (valorInicial != null) {
+    el.value = valorInicial; el.focus();
+    el.setSelectionRange(el.value.length, el.value.length); // cursor no fim, nao no começo
+  } else { el.value = achado.no.titulo; el.focus(); el.select(); }
+  el.addEventListener("keydown", (e) => {
+    e.stopPropagation();
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); confirmarEdicao(); }
+    else if (e.key === "Escape") { e.preventDefault(); cancelarEdicao(); }
+  });
+  /* guardado no proprio elemento para poder ser desligado antes do remove():
+     remover um <textarea> focado dispara blur de forma sincrona, e sem
+     desligar este handler primeiro ele chamaria confirmarEdicao() de novo
+     no meio da propria remocao — daí o "no longer a child of this node". */
+  el._aoDesfocar = () => { if (editandoId === id) confirmarEdicao(); };
+  el.addEventListener("blur", el._aoDesfocar);
+}
+function destruirOverlayEdicao() {
+  const el = elEdicao;
+  if (!el) { editandoId = null; return; }
+  elEdicao = null;   // zera antes do remove(): qualquer reentrada cai no guard do topo
+  editandoId = null;
+  el.removeEventListener("blur", el._aoDesfocar);
+  if (el.isConnected) el.remove();
+}
+function confirmarEdicao() {
+  if (!editandoId || !elEdicao) return;
+  const achado = encontrarNo(mapaAtual.raiz, editandoId);
+  const valor = elEdicao.value.trim();
+  destruirOverlayEdicao();
+  if (achado) { antesDeAlterar(); achado.no.titulo = valor; salvarComDebounce(); }
+  renderAgora();
+}
+function cancelarEdicao() { destruirOverlayEdicao(); renderAgora(); }
+
+/* ---------- painel do no ---------- */
+function abrirPainelNota(id) {
+  if (!id) return;
+  selecionadoId = id;
+  painelAberto = true;
+  elPainel.hidden = false;
+  renderPainel();
+  renderAgora();
+  requestAnimationFrame(() => { const ta = $("painel-nota"); if (ta) ta.focus(); });
+}
+function fecharPainel() { painelAberto = false; elPainel.hidden = true; }
+function renderPainel() {
+  if (!selecionadoId) { fecharPainel(); return; }
+  const achado = encontrarNo(mapaAtual.raiz, selecionadoId);
+  if (!achado) { fecharPainel(); return; }
+  const no = achado.no;
+  $("painel-titulo").value = no.titulo;
+  $("painel-link").value = no.link;
+  $("painel-nota").value = no.nota;
+  $("painel-nota").hidden = true;
+  $("painel-nota-render").hidden = false;
+  $("painel-nota-render").innerHTML = no.nota ? md(no.nota) : "";
+  document.querySelectorAll(".mp-cor").forEach((b) => { b.dataset.ativa = (+b.dataset.cor === no.cor) ? "sim" : "nao"; });
+}
+
+/* ---------- merlin: sugestao de ramos ----------
+   o merlin so PROPOE — quem decide o que entra no mapa e quem esta na tela.
+   por isso a resposta nunca vira no direto: ela sempre passa pelo dialogo
+   de sugestoes, com tudo marcado por padrao mas cada item desmarcavel, e so
+   os marcados viram filhos quando a pessoa aperta "adicionar". sem esse
+   passo, um lote ruim (ou um webhook de outra pessoa mexendo na mesma
+   sessao) poderia empurrar ramos indesejados direto na arvore. */
+function caminhoAteRaiz(id) {
+  const caminho = [];
+  let atualId = id;
+  for (;;) {
+    const achado = encontrarNo(mapaAtual.raiz, atualId);
+    if (!achado || !achado.pai) break;
+    caminho.unshift(achado.pai.titulo);
+    atualId = achado.pai.id;
+  }
+  return caminho;
+}
+function contextoSugestao(id) {
+  const achado = encontrarNo(mapaAtual.raiz, id);
+  if (!achado) return null;
+  const no = achado.no;
+  const frenteDoc = mapaAtual.frente ? frentes().obter(mapaAtual.frente) : null;
+  return {
+    mapa: mapaAtual.nome,
+    caminho: caminhoAteRaiz(id),
+    no: no.titulo,
+    nota: no.nota || "",
+    filhos: (no.filhos || []).map((f) => f.titulo),
+    irmaos: achado.pai ? achado.pai.filhos.filter((f) => f.id !== id).map((f) => f.titulo) : [],
+    frente: frenteDoc ? frenteDoc.nome : "",
+    cliente: mapaAtual.cliente ? (nomeCliente(mapaAtual.cliente) || "") : ""
+  };
+}
+async function pedirSugestoes(id) {
+  if (!mapaAtual) return;
+  const achado = encontrarNo(mapaAtual.raiz, id);
+  if (!achado) return;
+  const botao = $("mp-sugerir"), textoBotao = $("mp-sugerir-texto");
+  const rotuloOriginal = textoBotao.textContent;
+  botao.disabled = true;
+  textoBotao.textContent = "pensando…";
+  let r;
+  try {
+    r = await api("/merlin", { method: "POST", body: JSON.stringify({ tarefa: "ramos", contexto: contextoSugestao(id) }) });
+  } catch (e) {
+    r = null;
+  }
+  botao.disabled = false;
+  textoBotao.textContent = rotuloOriginal;
+  if (!r) { mostrarAviso("não consegui falar com o merlin agora"); return; }
+  if (r.status === 401) { mostrarAviso("entre para usar o Merlin"); return; }
+  if (r.status === 503) { mostrarAviso((r.corpo && r.corpo.erro) || "faltou configurar a chave do Merlin"); return; }
+  if (!r.ok) { mostrarAviso((r.corpo && r.corpo.erro) || "o Merlin não respondeu"); return; }
+  const sugestoes = Array.isArray(r.corpo.sugestoes) ? r.corpo.sugestoes.slice(0, 12) : [];
+  if (!sugestoes.length) { mostrarAviso("o Merlin não teve sugestões para esse nó"); return; }
+  abrirDialogoSugestoes(id, sugestoes);
+}
+function abrirDialogoSugestoes(idAlvo, sugestoes) {
+  sugestoesAtuais = sugestoes;
+  sugestoesAlvoId = idAlvo;
+  const achado = encontrarNo(mapaAtual.raiz, idAlvo);
+  const tituloAlvo = achado ? (achado.no.titulo || "(sem título)") : "";
+  $("sugestoes-sub").textContent = 'para "' + tituloAlvo + '" — desmarque o que não interessa';
+  $("sugestoes-lista").innerHTML = sugestoes.map((s, i) =>
+    '<li class="linha"><label class="fileira mp-sug-linha">' +
+      '<input type="checkbox" checked data-idx="' + i + '">' +
+      '<span><strong>' + escapar(s.titulo || "(sem título)") + "</strong>" +
+      (s.nota ? '<div class="mp-sug-nota">' + escapar(s.nota) + "</div>" : "") +
+      "</span></label></li>"
+  ).join("");
+  atualizarContadorSugestoes();
+  $("dialogo-sugestoes").hidden = false;
+}
+function fecharDialogoSugestoes() {
+  $("dialogo-sugestoes").hidden = true;
+  sugestoesAtuais = []; sugestoesAlvoId = null;
+}
+function atualizarContadorSugestoes() {
+  const n = $("sugestoes-lista").querySelectorAll("input[type=checkbox]:checked").length;
+  $("sugestoes-adicionar").textContent = "adicionar " + n + (n === 1 ? " ramo" : " ramos");
+  $("sugestoes-adicionar").disabled = !n;
+}
+
+/* ---------- exportacao ---------- */
+function resolverVarsSvg(svg) {
+  const estilo = getComputedStyle(document.documentElement);
+  const resolve = (v) => {
+    const m = v && v.match(/^var\((--[a-z0-9-]+)\)$/i);
+    return m ? (estilo.getPropertyValue(m[1]).trim() || v) : v;
+  };
+  svg.querySelectorAll("*").forEach((el) => {
+    ["fill", "stroke"].forEach((attr) => {
+      const v = el.getAttribute(attr);
+      if (v && v.indexOf("var(") === 0) el.setAttribute(attr, resolve(v));
+    });
+  });
+}
+function exportarPNG() {
+  if (!mapaAtual) return;
+  const vb = svgEl.viewBox.baseVal;
+  const escala = 2;
+  const clone = svgEl.cloneNode(true);
+  clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+  clone.setAttribute("width", vb.width);
+  clone.setAttribute("height", vb.height);
+  const corFundo = getComputedStyle(document.documentElement).getPropertyValue("--mp-canvas").trim() || "#111111";
+  const fundo = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+  fundo.setAttribute("x", vb.x); fundo.setAttribute("y", vb.y);
+  fundo.setAttribute("width", vb.width); fundo.setAttribute("height", vb.height);
+  fundo.setAttribute("fill", corFundo);
+  clone.insertBefore(fundo, clone.firstChild);
+  resolverVarsSvg(clone);
+  const svgTexto = new XMLSerializer().serializeToString(clone);
+  const url = URL.createObjectURL(new Blob([svgTexto], { type: "image/svg+xml;charset=utf-8" }));
+  const img = new Image();
+  img.onload = () => {
+    const canvas = document.createElement("canvas");
+    canvas.width = vb.width * escala; canvas.height = vb.height * escala;
+    const ctx = canvas.getContext("2d");
+    ctx.fillStyle = corFundo; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    URL.revokeObjectURL(url);
+    canvas.toBlob((blob) => {
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = (mapaAtual.nome || "mapa") + ".png";
+      a.click();
+    });
+  };
+  img.src = url;
+}
+function exportarOutline() {
+  if (!mapaAtual) return;
+  const linhas = [];
+  (function andar(no, prof) {
+    linhas.push("  ".repeat(prof) + "- " + (no.titulo || "(sem título)"));
+    (no.filhos || []).forEach((f) => andar(f, prof + 1));
+  })(mapaAtual.raiz, 0);
+  const blob = new Blob([linhas.join("\n") + "\n"], { type: "text/markdown;charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = (mapaAtual.nome || "mapa") + ".md";
+  a.click();
+}
+
+/* ---------- mouse e toque: pan, zoom, clique, arrastar ----------
+   apertar num no e mover = arrastar (um fantasma da pilula segue o cursor;
+   o ramo original fica apagado no lugar). soltar em cima de outro no faz
+   virar filho dele; soltar na fenda ao lado de um irmao reordena; soltar no
+   vazio cancela e tudo volta ao lugar. apertar no vazio e mover = pan. */
+let modoPonteiro = null, noPendenteId = null, origemPonteiro = null, panOrigemVista = null, moveuBastante = false;
+let alvoInicial = null, ultimoPonteiro = null, autoPanRaf = 0;
+
+function pontoSvg(clientX, clientY) {
+  const rect = svgEl.getBoundingClientRect();
+  return { x: vista.x + (clientX - rect.left) / rect.width * vista.w, y: vista.y + (clientY - rect.top) / rect.height * vista.h };
+}
+function noEmPonto(px, py, excluirIds) {
+  let achadoId = null;
+  layoutAtual.forEach((info, id) => {
+    if (excluirIds && excluirIds.has(id)) return;
+    if (px >= info.x - info.w / 2 && px <= info.x + info.w / 2 && py >= info.y - info.h / 2 && py <= info.y + info.h / 2) achadoId = id;
+  });
+  return achadoId;
+}
+/* onde o no arrastado cairia se soltasse agora: dentro de um no = filho;
+   perto de um no (ate 64 unidades da pilula) = irmao, antes ou depois
+   conforme o cursor esta acima ou abaixo do centro; longe de tudo = nada */
+function calcularAlvo(px, py) {
+  const excl = arraste.descendentes;
+  const dentro = noEmPonto(px, py, excl);
+  if (dentro) return { tipo: "filho", id: dentro };
+  let melhor = null, melhorD = Infinity;
+  layoutAtual.forEach((info, id) => {
+    if (excl.has(id) || info.side === "raiz") return;
+    const dx = Math.max(info.x - info.w / 2 - px, 0, px - (info.x + info.w / 2));
+    const dy = Math.max(info.y - info.h / 2 - py, 0, py - (info.y + info.h / 2));
+    const d = Math.hypot(dx, dy);
+    if (d < melhorD) { melhorD = d; melhor = info; }
+  });
+  if (melhor && melhorD <= 64) return { tipo: "irmao", id: melhor.no.id, antes: py < melhor.y };
+  return null;
+}
+function atualizarArraste(clientX, clientY) {
+  if (!arraste) return;
+  const p = pontoSvg(clientX, clientY);
+  arraste.pos = { x: p.x - arraste.offset.x, y: p.y - arraste.offset.y };
+  arraste.alvo = calcularAlvo(p.x, p.y);
+  agendarRender();
+}
+/* arrastando perto da borda, a tela rola sozinha na direcao do cursor */
+function autoPan() {
+  autoPanRaf = 0;
+  if (!arraste || !ultimoPonteiro) return;
+  const rect = svgEl.getBoundingClientRect(), m = 40;
+  const cx = ultimoPonteiro.x, cy = ultimoPonteiro.y;
+  let vx = 0, vy = 0;
+  if (cx < rect.left + m) vx = cx - (rect.left + m); else if (cx > rect.right - m) vx = cx - (rect.right - m);
+  if (cy < rect.top + m) vy = cy - (rect.top + m); else if (cy > rect.bottom - m) vy = cy - (rect.bottom - m);
+  if (vx || vy) {
+    const escala = vista.w / rect.width;
+    vista.x += vx * 0.3 * escala; vista.y += vy * 0.3 * escala;
+    aplicarVista();
+    atualizarArraste(cx, cy);
+  }
+  autoPanRaf = requestAnimationFrame(autoPan);
+}
+function encerrarArraste() {
+  arraste = null; ultimoPonteiro = null;
+  if (autoPanRaf) { cancelAnimationFrame(autoPanRaf); autoPanRaf = 0; }
+  svgEl.classList.remove("arrastando");
+  $("mp-dica").hidden = true;
+}
+
+function aoPressionar(e) {
+  if (editandoId || e.button != null && e.button !== 0) return;
+  if (modoPonteiro) return; // segundo dedo: o pinch cuida
+  const alvo = e.target.closest("[data-id]");
+  alvoInicial = e.target;
+  origemPonteiro = { x: e.clientX, y: e.clientY };
+  moveuBastante = false;
+  if (alvo) { modoPonteiro = "no-pendente"; noPendenteId = alvo.dataset.id; }
+  else { modoPonteiro = "pan-pendente"; panOrigemVista = { x: vista.x, y: vista.y }; }
+  try { svgEl.setPointerCapture(e.pointerId); } catch (err) {}
+  svgEl.addEventListener("pointermove", aoMoverPonteiro);
+  svgEl.addEventListener("pointerup", aoSoltarPonteiro, { once: true });
+  svgEl.addEventListener("pointercancel", aoSoltarPonteiro, { once: true });
+}
+function aoMoverPonteiro(e) {
+  const dx = e.clientX - origemPonteiro.x, dy = e.clientY - origemPonteiro.y;
+  if (!moveuBastante && Math.hypot(dx, dy) > 4) moveuBastante = true;
+  if (!moveuBastante) return;
+  const rect = svgEl.getBoundingClientRect();
+  const escala = vista.w / rect.width;
+  if (modoPonteiro === "pan-pendente" || modoPonteiro === "pan") {
+    modoPonteiro = "pan";
+    svgEl.classList.add("arrastando");
+    vista.x = panOrigemVista.x - dx * escala;
+    vista.y = panOrigemVista.y - dy * escala;
+    aplicarVista();
+  } else if (modoPonteiro === "no-pendente" || modoPonteiro === "no") {
+    if (modoPonteiro === "no-pendente") {
+      const achado = encontrarNo(mapaAtual.raiz, noPendenteId);
+      const info = layoutAtual && layoutAtual.get(noPendenteId);
+      if (!achado || !achado.pai || !info) { modoPonteiro = "raiz-presa"; return; } // a raiz nao sai do centro
+      const p0 = pontoSvg(origemPonteiro.x, origemPonteiro.y);
+      const descendentes = new Set(); coletarIds(achado.no, descendentes);
+      arraste = { id: noPendenteId, pos: { x: info.x, y: info.y }, offset: { x: p0.x - info.x, y: p0.y - info.y }, alvo: null, descendentes };
+      modoPonteiro = "no";
+      svgEl.classList.add("arrastando");
+      $("mp-dica").hidden = false;
+      if (!autoPanRaf) autoPanRaf = requestAnimationFrame(autoPan);
+    }
+    ultimoPonteiro = { x: e.clientX, y: e.clientY };
+    atualizarArraste(e.clientX, e.clientY);
+  }
+}
+function aoSoltarPonteiro(e) {
+  svgEl.removeEventListener("pointermove", aoMoverPonteiro);
+  svgEl.removeEventListener("pointerup", aoSoltarPonteiro);
+  svgEl.removeEventListener("pointercancel", aoSoltarPonteiro);
+  try { svgEl.releasePointerCapture(e.pointerId); } catch (err) {}
+  if (modoPonteiro === "pan") { svgEl.classList.remove("arrastando"); }
+  else if (modoPonteiro === "no") {
+    const alvo = arraste && arraste.alvo, idNo = arraste && arraste.id;
+    encerrarArraste();
+    if (alvo && e.type !== "pointercancel") {
+      if (alvo.tipo === "filho") moverPara(idNo, alvo.id);
+      else {
+        const irmao = encontrarNo(mapaAtual.raiz, alvo.id);
+        if (irmao && irmao.pai) moverPara(idNo, irmao.pai.id, irmao.indice + (alvo.antes ? 0 : 1));
+      }
+    }
+  } else if (!moveuBastante) {
+    if (modoPonteiro === "no-pendente") {
+      const notaAlvo = alvoInicial && alvoInicial.closest("[data-nota]");
+      const toggle = alvoInicial && alvoInicial.closest("[data-alternar]");
+      const achado = encontrarNo(mapaAtual.raiz, noPendenteId);
+      if (toggle) { selecionadoId = noPendenteId; alternarColapso(noPendenteId); }
+      else if (notaAlvo) abrirPainelNota(noPendenteId);
+      else if ((e.ctrlKey || e.metaKey) && achado && achado.no.link) window.open(achado.no.link, "_blank", "noopener");
+      else selecionar(noPendenteId);
+    } else { fecharPainel(); }
+  }
+  modoPonteiro = null; noPendenteId = null; alvoInicial = null;
+  if (arraste) encerrarArraste();
+  renderAgora();
+}
+svgEl.addEventListener("pointerdown", aoPressionar);
+svgEl.addEventListener("dblclick", (e) => {
+  const alvo = e.target.closest("[data-id]");
+  if (alvo) editar(alvo.dataset.id);
+});
+svgEl.addEventListener("wheel", (e) => {
+  e.preventDefault();
+  zoomEm(e.deltaY > 0 ? 1.12 : 1 / 1.12, e.clientX, e.clientY);
+}, { passive: false });
+
+/* pinch no toque: dois dedos, distancia entre eles vira escala */
+let pinchDist = null, pinchVistaInicio = null;
+function distanciaToques(t) { return Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY); }
+function centroToques(t) { return { x: (t[0].clientX + t[1].clientX) / 2, y: (t[0].clientY + t[1].clientY) / 2 }; }
+svgEl.addEventListener("touchstart", (e) => {
+  if (e.touches.length === 2) {
+    /* o segundo dedo cancela o que o primeiro estava fazendo (pan ou arraste) */
+    svgEl.removeEventListener("pointermove", aoMoverPonteiro);
+    modoPonteiro = null; noPendenteId = null;
+    if (arraste) { encerrarArraste(); renderAgora(); }
+    svgEl.classList.remove("arrastando");
+    pinchDist = distanciaToques(e.touches); pinchVistaInicio = { x: vista.x, y: vista.y, w: vista.w, h: vista.h };
+  }
+}, { passive: false });
+svgEl.addEventListener("touchmove", (e) => {
+  if (e.touches.length === 2 && pinchDist) {
+    e.preventDefault();
+    const centro = centroToques(e.touches);
+    const rect = svgEl.getBoundingClientRect();
+    const relX = (centro.x - rect.left) / rect.width, relY = (centro.y - rect.top) / rect.height;
+    const px = pinchVistaInicio.x + relX * pinchVistaInicio.w, py = pinchVistaInicio.y + relY * pinchVistaInicio.h;
+    const fator = clamp(pinchDist / distanciaToques(e.touches), 0.2, 5);
+    const w = clamp(pinchVistaInicio.w * fator, 120, 12000);
+    const h = pinchVistaInicio.h * (w / pinchVistaInicio.w);
+    vista = { x: px - relX * w, y: py - relY * h, w, h };
+    aplicarVista();
+  }
+}, { passive: false });
+svgEl.addEventListener("touchend", (e) => { if (e.touches.length < 2) pinchDist = null; });
+
+$("mp-fab").addEventListener("click", () => criarFilho(selecionadoId || mapaAtual.raiz.id));
+
+/* ---------- teclado ---------- */
+document.addEventListener("keydown", (e) => {
+  const dialogoAtalhos = $("dialogo-atalhos");
+  if (e.key === "Escape" && dialogoAtalhos && !dialogoAtalhos.hidden) { dialogoAtalhos.hidden = true; return; }
+  const dialogoSugestoes = $("dialogo-sugestoes");
+  if (dialogoSugestoes && !dialogoSugestoes.hidden) { if (e.key === "Escape") fecharDialogoSugestoes(); return; }
+  if (telaAtual !== "editor" || !mapaAtual) return;
+
+  const ativo = document.activeElement;
+  const emCampoExterno = ativo && ativo !== elEdicao && (ativo.tagName === "INPUT" || ativo.tagName === "TEXTAREA" || ativo.tagName === "SELECT");
+  if (emCampoExterno) { if (e.key === "Escape") ativo.blur(); return; }
+  if (editandoId) return; // o proprio overlay trata suas teclas
+
+  const mod = e.ctrlKey || e.metaKey;
+  if (mod && e.key === "0") { e.preventDefault(); enquadrar(); return; }
+  if (mod && (e.key === "=" || e.key === "+")) { e.preventDefault(); zoomCentro(0.85); return; }
+  if (mod && e.key === "-") { e.preventDefault(); zoomCentro(1 / 0.85); return; }
+  if (mod && e.shiftKey && (e.key === "z" || e.key === "Z")) { e.preventDefault(); refazer(); return; }
+  if (mod && (e.key === "z" || e.key === "Z")) { e.preventDefault(); desfazer(); return; }
+  if (mod && e.key === "ArrowUp") { e.preventDefault(); if (selecionadoId) moverEntreIrmaos(selecionadoId, -1); return; }
+  if (mod && e.key === "ArrowDown") { e.preventDefault(); if (selecionadoId) moverEntreIrmaos(selecionadoId, 1); return; }
+  if (mod) return; // outros atalhos com modificador nao sao nossos
+
+  /* funciona mesmo sem selecao (usa a raiz) — por isso vem antes do guard abaixo */
+  if (e.key === "s" || e.key === "S") { e.preventDefault(); pedirSugestoes(selecionadoId || mapaAtual.raiz.id); return; }
+
+  if (!selecionadoId) {
+    if (e.key === "Escape") fecharPainel();
+    return;
+  }
+  switch (e.key) {
+    case "Enter": e.preventDefault(); criarIrmao(selecionadoId); break;
+    case "Tab":
+      e.preventDefault();
+      if (e.shiftKey) { const a = encontrarNo(mapaAtual.raiz, selecionadoId); if (a && a.pai) selecionar(a.pai.id); }
+      else criarFilho(selecionadoId);
+      break;
+    case "Delete": case "Backspace": e.preventDefault(); apagarSelecionado(); break;
+    case "ArrowUp": e.preventDefault(); navegar("cima"); break;
+    case "ArrowDown": e.preventDefault(); navegar("baixo"); break;
+    case "ArrowLeft": e.preventDefault(); navegar("esquerda"); break;
+    case "ArrowRight": e.preventDefault(); navegar("direita"); break;
+    case "F2": e.preventDefault(); editar(selecionadoId); break;
+    case " ": e.preventDefault(); alternarColapso(selecionadoId); break;
+    case "n": case "N": e.preventDefault(); abrirPainelNota(selecionadoId); break;
+    case "Escape": fecharPainel(); break;
+    default:
+      if (e.key.length === 1 && !e.altKey) { e.preventDefault(); editar(selecionadoId, e.key); }
+  }
+});
+
+/* ---------- barra do editor ---------- */
+$("mp-nome").addEventListener("input", (e) => { if (mapaAtual) { mapaAtual.nome = e.target.value; salvarComDebounce(); } });
+$("mp-frente").addEventListener("change", (e) => { if (mapaAtual) { mapaAtual.frente = e.target.value; salvarComDebounce(); } });
+$("mp-enquadrar").addEventListener("click", enquadrar);
+$("mp-png").addEventListener("click", exportarPNG);
+$("mp-outline").addEventListener("click", exportarOutline);
+$("mp-ajuda").addEventListener("click", () => { $("dialogo-atalhos").hidden = false; });
+$("atalhos-fechar").addEventListener("click", () => { $("dialogo-atalhos").hidden = true; });
+$("dialogo-atalhos").addEventListener("click", (e) => { if (e.target.id === "dialogo-atalhos") $("dialogo-atalhos").hidden = true; });
+
+$("mp-sugerir").addEventListener("click", () => { if (mapaAtual) pedirSugestoes(selecionadoId || mapaAtual.raiz.id); });
+$("sugestoes-fechar").addEventListener("click", fecharDialogoSugestoes);
+$("sugestoes-descartar").addEventListener("click", fecharDialogoSugestoes);
+$("dialogo-sugestoes").addEventListener("click", (e) => { if (e.target.id === "dialogo-sugestoes") fecharDialogoSugestoes(); });
+$("sugestoes-lista").addEventListener("change", (e) => { if (e.target.matches('input[type="checkbox"]')) atualizarContadorSugestoes(); });
+$("sugestoes-adicionar").addEventListener("click", () => {
+  const marcados = Array.from($("sugestoes-lista").querySelectorAll('input[type="checkbox"]:checked'))
+    .map((c) => sugestoesAtuais[+c.dataset.idx]).filter(Boolean);
+  const alvoId = sugestoesAlvoId;
+  if (!marcados.length || !alvoId) { fecharDialogoSugestoes(); return; }
+  const achado = encontrarNo(mapaAtual.raiz, alvoId);
+  if (!achado) { fecharDialogoSugestoes(); return; }
+  antesDeAlterar(); // o lote inteiro e uma unica entrada no desfazer
+  achado.no.filhos = achado.no.filhos || [];
+  marcados.forEach((s) => {
+    const novo = criarNo(String(s.titulo || "").slice(0, 300));
+    novo.nota = String(s.nota || "").slice(0, 4000);
+    achado.no.filhos.push(novo);
+  });
+  achado.no.colapsado = false;
+  salvarComDebounce();
+  selecionadoId = alvoId;
+  fecharDialogoSugestoes();
+  renderAgora();
+  enquadrarNo(alvoId);
+});
+
+/* ---------- painel: campos ---------- */
+function iniciarEdicaoCampo() { if (!capturadoParaCampo) { antesDeAlterar(); capturadoParaCampo = true; } }
+function encerrarEdicaoCampo() { capturadoParaCampo = false; }
+
+$("painel-fechar").addEventListener("click", fecharPainel);
+$("painel-titulo").addEventListener("focus", iniciarEdicaoCampo);
+$("painel-titulo").addEventListener("blur", encerrarEdicaoCampo);
+$("painel-titulo").addEventListener("input", (e) => {
+  const achado = encontrarNo(mapaAtual.raiz, selecionadoId);
+  if (!achado) return;
+  iniciarEdicaoCampo();
+  achado.no.titulo = e.target.value;
+  salvarComDebounce();
+  agendarRender();
+});
+$("painel-link").addEventListener("change", (e) => {
+  const achado = encontrarNo(mapaAtual.raiz, selecionadoId);
+  if (!achado) return;
+  antesDeAlterar();
+  achado.no.link = e.target.value.trim();
+  salvarComDebounce();
+  renderAgora();
+});
+$("painel-nota").addEventListener("focus", iniciarEdicaoCampo);
+$("painel-nota").addEventListener("blur", () => {
+  encerrarEdicaoCampo();
+  const achado = encontrarNo(mapaAtual.raiz, selecionadoId);
+  $("painel-nota").hidden = true;
+  $("painel-nota-render").hidden = false;
+  $("painel-nota-render").innerHTML = achado && achado.no.nota ? md(achado.no.nota) : "";
+});
+$("painel-nota").addEventListener("input", (e) => {
+  const achado = encontrarNo(mapaAtual.raiz, selecionadoId);
+  if (!achado) return;
+  iniciarEdicaoCampo();
+  achado.no.nota = e.target.value;
+  salvarComDebounce();
+  agendarRender();
+});
+$("painel-nota-render").addEventListener("click", () => {
+  $("painel-nota").hidden = false;
+  $("painel-nota-render").hidden = true;
+  $("painel-nota").focus();
+});
+$("painel-cores").innerHTML = [0, 1, 2, 3, 4, 5, 6].map((c) =>
+  '<button type="button" class="mp-cor" data-cor="' + c + '" style="' + (c ? "background:" + corVar(c) : "") + '" title="cor ' + c + '"></button>'
+).join("");
+$("painel-cores").addEventListener("click", (e) => {
+  const b = e.target.closest(".mp-cor");
+  if (!b) return;
+  const achado = encontrarNo(mapaAtual.raiz, selecionadoId);
+  if (!achado) return;
+  antesDeAlterar();
+  achado.no.cor = +b.dataset.cor;
+  salvarComDebounce();
+  renderAgora();
+  renderPainel();
+});
+$("painel-dia").addEventListener("click", () => {
+  const achado = encontrarNo(mapaAtual.raiz, selecionadoId);
+  if (!achado) return;
+  mandarParaODia({ titulo: achado.no.titulo || mapaAtual.nome, frente: mapaAtual.frente, cliente: mapaAtual.cliente, origem: { tipo: "mapa", id: mapaAtual.id } });
+});
+$("painel-ideia").addEventListener("click", () => {
+  const achado = encontrarNo(mapaAtual.raiz, selecionadoId);
+  if (!achado) return;
+  const agora = Date.now();
+  colecao("ideias").gravar({
+    id: novoId(), titulo: achado.no.titulo || mapaAtual.nome, corpo: achado.no.nota || "",
+    estagio: "semente", frente: mapaAtual.frente, cliente: mapaAtual.cliente,
+    passos: [], saidas: [], criada: agora, atualizada: agora
+  });
+  mostrarAviso("virou ideia");
+});
+
+/* ---------- lista de mapas ---------- */
+const elListaMapas = $("lista-mapas"), elListaVazia = $("lista-vazia");
+function linhaMapa(m) {
+  const n = contarNos(m.raiz);
+  const ideiaDoc = m.ideia && colecao("ideias").obter(m.ideia);
+  const funilDoc = m.funil && colecao("funis").obter(m.funil);
+  return '<li class="linha" data-id="' + m.id + '">' +
+    '<button type="button" class="mp-linha-nome" data-acao="abrir">' + escapar(m.nome) + "</button>" +
+    seloFrente(m.frente) +
+    '<span class="medida t-mono">' + n + (n === 1 ? " nó" : " nós") + "</span>" +
+    '<span class="medida t-mono">editado há ' + escapar(tempoRelativo(m.atualizada)) + "</span>" +
+    '<span class="mp-links">' +
+      (ideiaDoc ? '<a class="link" href="ideias.html#' + m.ideia + '">' + escapar(ideiaDoc.titulo || "ideia") + "</a>" : "") +
+      (m.cliente ? '<a class="link" href="clientes.html#' + m.cliente + '">' + escapar(nomeCliente(m.cliente) || "cliente") + "</a>" : "") +
+      (funilDoc ? '<a class="link" href="funis.html#' + m.funil + '">' + escapar(funilDoc.nome || "funil") + "</a>" : "") +
+    "</span>" +
+    '<span class="acoes-linha">' +
+      '<button class="acao" data-acao="abrir" title="abrir">' + ICONE.seta + "</button>" +
+      '<button class="acao" data-acao="renomear" title="renomear">' + ICONE.lapis + "</button>" +
+      '<button class="acao" data-acao="duplicar" title="duplicar">' + ICONE.mapa + "</button>" +
+      '<button class="acao" data-acao="apagar" title="apagar">' + ICONE.lixo + "</button>" +
+    "</span></li>";
+}
+function renderLista() {
+  const todos = mapas.todos().sort((a, b) => b.atualizada - a.atualizada);
+  elListaMapas.innerHTML = todos.map(linhaMapa).join("");
+  elListaVazia.hidden = !!todos.length;
+}
+function iniciarRenomear(li, id) {
+  const m = mapas.obter(id);
+  if (!m) return;
+  const btn = li.querySelector(".mp-linha-nome");
+  const input = document.createElement("input");
+  input.className = "campo"; input.style.maxWidth = "260px"; input.value = m.nome;
+  btn.replaceWith(input);
+  input.focus(); input.select();
+  const confirmar = () => {
+    const nome = input.value.trim() || m.nome;
+    mapas.gravar(Object.assign({}, m, { nome, atualizada: Date.now() }));
+  };
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { e.preventDefault(); confirmar(); input.blur(); }
+    else if (e.key === "Escape") { e.preventDefault(); renderLista(); }
+  });
+  input.addEventListener("blur", confirmar);
+}
+function duplicarMapa(id) {
+  const m = mapas.obter(id);
+  if (!m) return;
+  const clone = JSON.parse(JSON.stringify(m));
+  (function regenerar(no) { no.id = novoId(); (no.filhos || []).forEach(regenerar); })(clone.raiz);
+  clone.id = novoId();
+  clone.nome = m.nome + " (cópia)";
+  clone.criada = Date.now(); clone.atualizada = Date.now();
+  mapas.gravar(clone);
+  mostrarAviso("mapa duplicado");
+}
+function apagarMapa(id) {
+  const antes = mapas.apagar(id);
+  if (!antes) return;
+  mostrarAviso("mapa apagado", () => mapas.gravar(antes));
+}
+elListaMapas.addEventListener("click", (e) => {
+  const li = e.target.closest("li[data-id]");
+  if (!li) return;
+  const id = li.dataset.id;
+  if (e.target.closest("a")) return; // links de ideia/cliente/funil navegam por conta propria
+  const acaoBtn = e.target.closest("[data-acao]");
+  const acao = acaoBtn && acaoBtn.dataset.acao;
+  if (acao === "renomear") { iniciarRenomear(li, id); return; }
+  if (acao === "duplicar") { duplicarMapa(id); return; }
+  if (acao === "apagar") { apagarMapa(id); return; }
+  location.hash = id; // "abrir" ou clique em qualquer parte neutra da linha
+});
+/* criar e um botao e uma caixa, como em todo o sistema: nome e frente, e o
+   mapa ja abre com o nome como ideia central */
+function formMapa() {
+  abrirFormulario({
+    titulo: "novo mapa",
+    campos:
+      campoForm("nome", '<input class="campo" name="nome" maxlength="120" required placeholder="a ideia central">', true) +
+      campoForm("frente", '<select class="campo-sel" name="frente">' + opcoesFrente("", "sem frente") + "</select>"),
+    enviar: "criar e abrir",
+    aoEnviar: (v) => {
+      const nome = v.nome.trim();
+      if (!nome) { mostrarAviso("o mapa precisa de um nome"); return false; }
+      const agora = Date.now();
+      const doc = {
+        id: novoId(), nome,
+        raiz: { id: novoId(), titulo: nome, nota: "", cor: 0, colapsado: false, link: "", filhos: [] },
+        frente: v.frente || "", cliente: "", ideia: "", funil: "", criada: agora, atualizada: agora
+      };
+      mapas.gravar(doc);
+      location.hash = doc.id;
+    }
+  });
+}
+$("btn-criar").innerHTML = ICONE.mais + "mapa";
+$("btn-criar").addEventListener("click", formMapa);
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "n" || e.ctrlKey || e.metaKey || e.altKey || formularioAberto()) return;
+  if ($("tela-lista").hidden) return;   // no editor, "n" nao e atalho de criar mapa
+  const marca = document.activeElement && document.activeElement.tagName;
+  if (marca === "INPUT" || marca === "TEXTAREA" || marca === "SELECT") return;
+  e.preventDefault(); formMapa();
+});
+
+/* ---------- roteador por hash: quem abre um mapa de outro modulo entra aqui ---------- */
+function abrirEditor(id) {
+  mapaAtual = mapas.obter(id);
+  if (!mapaAtual) { location.hash = ""; return; }
+  selecionadoId = mapaAtual.raiz.id;
+  editandoId = null; painelAberto = false; elPainel.hidden = true;
+  historico = []; futuro = [];
+  layoutDesenhado = null; // mapa novo nao desliza a partir do anterior
+  if (arraste) encerrarArraste();
+  telaLista.hidden = true; telaEditor.hidden = false;
+  telaAtual = "editor";
+  $("mp-nome").value = mapaAtual.nome;
+  $("mp-frente").innerHTML = opcoesFrente(mapaAtual.frente, "sem frente");
+  const salva = carregarVista(id);
+  vista = salva || { x: -420, y: -300, w: 840, h: 600 };
+  renderAgora();
+  if (salva) aplicarVista(); else enquadrar();
+}
+function mostrarLista() {
+  mapaAtual = null; telaAtual = "lista";
+  telaEditor.hidden = true; telaLista.hidden = false;
+  fecharPainel();
+  renderLista();
+}
+function roteador() {
+  const id = decodeURIComponent(location.hash.slice(1));
+  if (id && mapas.existe(id)) abrirEditor(id);
+  else mostrarLista();
+}
+window.addEventListener("hashchange", roteador);
+
+mapas.aoMudar((origem) => {
+  if (telaAtual === "editor" && mapaAtual) {
+    if (!mapas.existe(mapaAtual.id)) { location.hash = ""; return; }
+    if (origem === "local") return; // ja esta refletido em memoria
+    const fresco = mapas.obter(mapaAtual.id);
+    if (JSON.stringify(fresco) === JSON.stringify(mapaAtual)) return;
+    mapaAtual = fresco;
+    if (!encontrarNo(mapaAtual.raiz, selecionadoId)) selecionadoId = mapaAtual.raiz.id;
+    historico = []; futuro = []; // retrato antigo nao serve mais depois de um merge de fora
+    renderAgora();
+    if (painelAberto) renderPainel();
+  } else {
+    renderLista();
+  }
+});
+
+roteador();
+</script>
+</body>
+</html>

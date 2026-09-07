@@ -1,0 +1,673 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0d0d0d">
+<title>merlin · semana</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 472.5 472.5' fill='%232EE86B'><path d='M236.31,236.23c-3.63,128.42,107.71,238.95,236.22,236.22v-118.11c-64.78,2.88-121-53.42-118.11-118.11h-118.11Z'/><path d='M236.22,0C239.85,128.42,128.52,238.95,0,236.22v-118.11C64.78,120.99,121,64.69,118.11,0h118.11Z'/><path d='M315.07,0h77.61c44.09,0,79.89,35.8,79.89,79.89v77.61h-157.5V0h0Z'/><path d='M79.96,315H.07v78.75h78.75v78.75h78.75v-79.89c0-42.86-34.75-77.61-77.61-77.61Z'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="compartilhado/base.css">
+<script>/* anti-flash do tema: antes de qualquer pintura */
+try{var t=localStorage.getItem("merlin:tema");if(t?t==="claro":matchMedia("(prefers-color-scheme: light)").matches)document.documentElement.classList.add("light")}catch(e){}</script>
+<style>
+/* ---------- faixa "ficou de tras" ----------
+   nao e erro nem alarme, e um fato com duas saidas: por isso a mesma tinta
+   neutra que o resto do sistema usa para isso, sem vermelho. */
+.atras{
+  display:flex;align-items:center;justify-content:space-between;gap:var(--pd);flex-wrap:wrap;
+  margin:0 0 var(--pd);padding:12px var(--pd);
+  background:var(--surface);border:1px solid var(--line);border-radius:var(--br3);
+}
+.atras__texto{margin:0;font-size:13px;color:var(--ink-70)}
+.atras__texto b{color:var(--ink);font-weight:600}
+.atras__acoes{display:flex;gap:var(--pd2);flex-wrap:wrap}
+
+/* ---------- o quadro ----------
+   rola por dentro do proprio wrapper: e assim que o body nunca ganha uma
+   barra horizontal, no celular ou com a janela estreita. */
+.quadro-rolagem{overflow-x:auto;overflow-y:hidden;padding-bottom:6px;margin:0 -2px}
+.quadro{display:flex;align-items:flex-start;gap:var(--pd2);padding:0 2px}
+.coluna-sem{
+  flex:0 0 230px;width:230px;
+  display:flex;flex-direction:column;
+  background:var(--surface);border:1px solid var(--line-soft);border-radius:var(--br3);
+  transition:border-color var(--t),background var(--t);
+}
+/* a partir daqui as seis colunas cabem sem cortar: vira grade que preenche a
+   largura inteira, e o rolar horizontal do celular/notebook estreito some. */
+@media (min-width:1100px){
+  .quadro{display:grid;grid-template-columns:repeat(6,minmax(0,1fr))}
+  .coluna-sem{flex:none;width:auto}
+}
+/* hoje se destaca por borda, nao por cor de fundo: o quadro inteiro continua
+   sendo lido de relance, e o dia certo salta so um pouco */
+.coluna-sem.is-hoje{border-color:var(--ink-30)}
+.coluna-sem.is-alvo{border-color:var(--green);background:var(--fill)}
+/* o cabecalho da coluna tem o nome do dia, os minutos abertos e o "+" que
+   abre a caixa de novo cartao ja naquele dia — nenhum campo solto embaixo */
+.coluna-sem__cab{display:flex;align-items:flex-start;justify-content:space-between;gap:6px;padding:10px 8px 8px 12px;border-bottom:1px solid var(--line-soft)}
+.coluna-sem__dia{margin:0;font-size:13px;font-weight:600;letter-spacing:-.01em;color:var(--ink)}
+.coluna-sem.is-hoje .coluna-sem__dia{color:var(--green-ink)}
+.coluna-sem__min{margin:2px 0 0}
+.coluna-sem__mais{width:24px;height:24px;flex:0 0 auto}
+.coluna-sem__mais svg{width:14px;height:14px}
+.coluna-sem__corpo{flex:1 1 auto;min-height:60px;padding:8px;display:flex;flex-direction:column;gap:10px}
+
+.grupo{display:flex;flex-direction:column;gap:4px;min-width:0}
+.grupo__rotulo{margin:0}
+.grupo__lista{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px;min-height:6px}
+
+/* ---------- cartao ---------- */
+.cartao{
+  display:flex;align-items:center;gap:6px;min-width:0;
+  padding:6px 7px;border-radius:var(--br2);
+  background:var(--fill);border:1px solid var(--line-soft);
+  cursor:grab;transition:background var(--t),border-color var(--t),opacity var(--t);
+}
+.cartao:hover,.cartao:focus-within{background:var(--fill-hover)}
+.cartao.arrastando{opacity:.4}
+.cartao.is-feito{cursor:default}
+.cartao__check{flex:0 0 auto;width:14px;height:14px;accent-color:var(--green);cursor:pointer}
+.cartao__titulo{
+  flex:1 1 auto;min-width:0;font-size:12.5px;color:var(--ink);cursor:text;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;white-space:normal;
+}
+.cartao.is-feito .cartao__titulo{color:var(--ink-30);text-decoration:line-through}
+.cartao__titulo-input{
+  flex:1 1 auto;min-width:0;background:var(--fill-hover);
+  border:1px solid var(--green-glow);border-radius:4px;padding:1px 5px;
+  font-size:12.5px;color:var(--ink);
+}
+.cartao .selo{height:17px;padding:0 6px;font-size:9px}
+.cartao__min{flex:0 0 auto;font-size:10.5px;color:var(--ink-30)}
+.cartao__rec{flex:0 0 auto;display:flex;color:var(--ink-30)}
+.cartao__rec svg{width:11px;height:11px}
+/* as acoes so existem no hover: fora dele nao ocupam largura, senao o
+   titulo perde espaco numa coluna que ja e estreita */
+.cartao{position:relative}
+.cartao__acoes{position:absolute;right:4px;top:50%;transform:translateY(-50%);display:flex;align-items:center;gap:0;opacity:0;pointer-events:none;background:var(--surface-2);border-radius:var(--br2);padding:0 2px;transition:opacity var(--t)}
+.cartao:hover .cartao__acoes,.cartao:focus-within .cartao__acoes{opacity:1;pointer-events:auto}
+.cartao__acoes .acao{width:22px;height:22px}
+.cartao__acoes .acao svg{width:12px;height:12px}
+@media (hover:none){.cartao__acoes{opacity:1;pointer-events:auto;position:static;transform:none;background:none}}
+
+/* ---------- dialogo de editar cartao ---------- */
+.linha-check{display:flex;align-items:center;gap:8px;margin-top:var(--pd);font-size:13px;color:var(--ink-70)}
+.linha-check input{width:16px;height:16px;accent-color:var(--green)}
+
+/* ---------- botao e dialogo do merlin ---------- */
+.btn-merlin__icone{display:flex;width:13px;height:13px;color:var(--green-ink)}
+.btn-merlin__icone svg{width:100%;height:100%}
+#btn-merlin:disabled{opacity:.6;cursor:default}
+.merlin-corpo{font-size:13px;line-height:1.55;color:var(--ink-70);max-height:52vh;overflow-y:auto}
+.merlin-corpo p{margin:0 0 10px}
+.merlin-corpo ul,.merlin-corpo ol{margin:0 0 10px;padding-left:20px}
+.merlin-corpo h3,.merlin-corpo h4,.merlin-corpo h5{margin:14px 0 6px;color:var(--ink);font-size:13.5px}
+.merlin-corpo code{font-family:var(--mono);font-size:12px;background:var(--fill);padding:1px 5px;border-radius:4px}
+
+@media (max-width:640px){
+  .coluna-sem{flex-basis:78vw;width:78vw}
+}
+</style>
+</head>
+<body>
+<main class="pagina pagina--larga">
+
+  <div class="cabeca">
+    <div>
+      <h1>semana</h1>
+      <p class="sub" id="intervalo"></p>
+    </div>
+    <div class="acoes">
+      <button class="pill" type="button" id="btn-ant">‹ semana anterior</button>
+      <button class="pill" type="button" id="btn-hoje">hoje</button>
+      <button class="pill" type="button" id="btn-merlin">
+        <span class="btn-merlin__icone" aria-hidden="true"></span>
+        <span id="btn-merlin-txt">resumir com o merlin</span>
+      </button>
+      <button class="pill" type="button" id="btn-prox">próxima ›</button>
+      <button class="pill pill--verde" type="button" id="btn-novo" title="novo cartão (n)"></button>
+    </div>
+  </div>
+
+  <div class="atras" id="atras" hidden>
+    <p class="atras__texto"><b id="atras-n"></b> <span id="atras-plural"></span> ficaram de trás</p>
+    <div class="atras__acoes">
+      <button class="pill" type="button" id="atras-trazer">trazer para esta semana</button>
+      <button class="pill" type="button" id="atras-arquivar">arquivar</button>
+    </div>
+  </div>
+
+  <p class="vazio" id="semana-vazia" hidden>Semana em branco. O "+" de cada dia abre um cartão novo.</p>
+
+  <div class="quadro-rolagem">
+    <div class="quadro" id="quadro"></div>
+  </div>
+
+  <div class="dialogo" id="dialogo-merlin" hidden role="dialog" aria-modal="true" aria-label="Resumo do Merlin">
+    <div class="dialogo__caixa dialogo__caixa--larga">
+      <button class="dialogo__fechar" type="button" id="merlin-fechar" aria-label="Fechar">✕</button>
+      <p class="dialogo__titulo">o merlin resume a semana</p>
+      <div class="merlin-corpo" id="merlin-corpo"></div>
+      <div class="dialogo__acoes">
+        <button class="pill" type="button" id="merlin-copiar">copiar</button>
+        <button class="pill pill--verde" type="button" id="merlin-ok">fechar</button>
+      </div>
+    </div>
+  </div>
+
+</main>
+<script type="module">
+import {
+  iniciarPagina, colecao, $, escapar, novoId, hoje, ehDia, mostrarAviso, mandarParaODia, api, md,
+  listarFrentes, seloFrente, opcoesFrente, nomeCliente, opcoesCliente, lerArrobas,
+  formatarMin, lerDuracao, segundaDe, somarDias, rotuloData, dataDe, ICONE,
+  abrirFormulario, campoForm, formularioAberto
+} from "./compartilhado/nucleo.js";
+
+iniciarPagina("semana");
+
+/* o cartao da semana: dia e 'YYYY-MM-DD' (seg-sex) ou 'fds:YYYY-MM-DD' (a
+   segunda daquela semana), para o fim de semana caber numa coluna so. */
+const diaValido = (v) => ehDia(v) || (typeof v === "string" && v.slice(0, 4) === "fds:" && ehDia(v.slice(4)));
+function normalizar(d) {
+  return {
+    id: d.id,
+    titulo: String(d.titulo || "").slice(0, 200),
+    dia: diaValido(d.dia) ? d.dia : hoje(),
+    frente: d.frente || "",
+    cliente: d.cliente || "",
+    min: Math.max(0, Math.round(+d.min || 0)),
+    feito: !!d.feito,
+    recorrente: !!d.recorrente,
+    ordem: Number.isFinite(+d.ordem) ? +d.ordem : 0,
+    criada: +d.criada || Date.now(),
+    atualizada: +d.atualizada || +d.criada || Date.now(),
+    /* id do cartao original, so nas copias que a recorrencia gera — impede
+       uma copia de virar, ela mesma, uma nova origem que se copia sozinha */
+    origemRecorrente: d.origemRecorrente || "",
+    /* quem escreve isto e o index.html: e o id da tarefa que ele criou a
+       partir deste cartao. aqui so lemos — nunca gravamos este campo. */
+    noDia: d.noDia || ""
+  };
+}
+const semana = colecao("semana", { normalizar });
+
+/* icones que nao moram no nucleo por serem exclusivos deste quadro */
+const ICONE_RECORRENTE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 00-14.9-4M4 13a8 8 0 0014.9 4"/><path d="M4 4v4h4M20 20v-4h-4"/></svg>';
+const ICONE_FAISCA = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2l1.9 6.1L20 10l-6.1 1.9L12 18l-1.9-6.1L4 10l6.1-1.9L12 2z"/></svg>';
+
+const COLUNAS = [
+  { id: "seg", offset: 0, rotulo: "seg" },
+  { id: "ter", offset: 1, rotulo: "ter" },
+  { id: "qua", offset: 2, rotulo: "qua" },
+  { id: "qui", offset: 3, rotulo: "qui" },
+  { id: "sex", offset: 4, rotulo: "sex" },
+  { id: "fds", offset: null, rotulo: "sáb · dom" }
+];
+
+/* ---------- estado da tela (nao e documento; some ao recarregar) ---------- */
+const state = { monday: segundaDe(hoje()) };
+let ultimaSemanaGerada = null;   // evita regerar recorrencia a cada render
+let arrastoId = null;
+
+/* ---------- datas ---------- */
+
+const mondayOfCard = (c) => c.dia.startsWith("fds:") ? c.dia.slice(4) : segundaDe(c.dia);
+const diaDaColuna = (monday, col) => col.offset == null ? "fds:" + monday : somarDias(monday, col.offset);
+const numeroDia = (dia) => dataDe(dia).getDate();
+const diffDias = (monday, dia) => Math.round((dataDe(dia) - dataDe(monday)) / 86400000);
+
+function colunaEhHoje(monday, col) {
+  const h = hoje();
+  if (col.offset != null) return diaDaColuna(monday, col) === h;
+  const sab = somarDias(monday, 5), dom = somarDias(monday, 6);
+  return h === sab || h === dom;
+}
+
+/* "8–14 set" quando cabe no mesmo mes; "29 ago–4 set" quando vira o mes */
+function intervaloSemana(monday) {
+  const fim = somarDias(monday, 6);
+  if (dataDe(monday).getMonth() === dataDe(fim).getMonth()) return numeroDia(monday) + "–" + rotuloData(fim);
+  return rotuloData(monday) + "–" + rotuloData(fim);
+}
+function intervaloFds(monday) {
+  return numeroDia(somarDias(monday, 5)) + "–" + rotuloData(somarDias(monday, 6));
+}
+
+/* coluna de "hoje": o proprio dia se for de semana, o fds da semana atual
+   se hoje cair em sabado ou domingo */
+function colunaDeHoje() {
+  const h = hoje();
+  const dow = dataDe(h).getDay();
+  return (dow === 0 || dow === 6) ? ("fds:" + segundaDe(h)) : h;
+}
+
+/* hoje / atrasado / futuro — e disso que depende se "puxar para o dia" faz
+   sentido e se o cartao entra na faixa de quem ficou de tras */
+function statusCartao(c) {
+  const h = hoje();
+  if (c.dia.startsWith("fds:")) {
+    const monday = c.dia.slice(4), sab = somarDias(monday, 5), dom = somarDias(monday, 6);
+    if (h === sab || h === dom) return "hoje";
+    return h > dom ? "atrasado" : "futuro";
+  }
+  if (c.dia === h) return "hoje";
+  return c.dia < h ? "atrasado" : "futuro";
+}
+
+/* ---------- "@frente"/"@cliente" e duracao no fim do texto ----------
+   lerArrobas e do nucleo: reconhece os dois arrobas de uma vez, comparando
+   sem acento/espaco/caixa com nome e id. so a duracao fica por nossa conta,
+   porque ela precisa rodar DEPOIS de tirar os arrobas do texto. */
+function processarLinha(bruto) {
+  const achado = lerArrobas(bruto);
+  const { min, titulo } = lerDuracao(achado.titulo);
+  return { titulo: titulo.trim(), min, frente: achado.frente || "", cliente: achado.cliente || "" };
+}
+/* o rotulo da coluna: nome do dia e numero ("seg 7"); no fim de semana, os
+   dois nomes e os dois numeros ("sáb · dom 12–13") */
+function rotuloColuna(monday, col) {
+  if (col.id !== "fds") return col.rotulo + " " + numeroDia(diaDaColuna(monday, col));
+  return col.rotulo + " " + numeroDia(somarDias(monday, 5)) + "–" + numeroDia(somarDias(monday, 6));
+}
+
+/* ---------- ordenacao dentro do grupo: aberto por ordem, feito no fim ---------- */
+function ordenarGrupo(lista) {
+  const abertos = lista.filter((c) => !c.feito).sort((a, b) => a.ordem - b.ordem || a.criada - b.criada);
+  const feitos = lista.filter((c) => c.feito).sort((a, b) => a.atualizada - b.atualizada);
+  return abertos.concat(feitos);
+}
+
+/* ---------- recorrencia ----------
+   so a origem (sem origemRecorrente) espalha copia; a copia carrega
+   origemRecorrente e nunca vira uma nova origem. so acontece em semana atual
+   ou futura — reabrir uma semana passada nao inventa tarefa nela. */
+function gerarRecorrentes(monday) {
+  if (monday < segundaDe(hoje())) return;
+  const todos = semana.todos();
+  const doSemana = todos.filter((c) => mondayOfCard(c) === monday);
+  const existe = (titulo, frente) => doSemana.some((c) => c.titulo === titulo && (c.frente || "") === (frente || ""));
+  const novos = [];
+  todos.forEach((t) => {
+    if (!t.recorrente || t.origemRecorrente) return;
+    const mondayOrigem = mondayOfCard(t);
+    if (mondayOrigem === monday) return;
+    if (existe(t.titulo, t.frente)) return;
+    const noFds = t.dia.startsWith("fds:");
+    const dia = noFds ? ("fds:" + monday) : somarDias(monday, diffDias(mondayOrigem, t.dia));
+    const agora = Date.now();
+    const copia = {
+      id: novoId(), titulo: t.titulo, dia, frente: t.frente, cliente: t.cliente,
+      min: t.min, feito: false, recorrente: true, ordem: agora,
+      criada: agora, atualizada: agora, origemRecorrente: t.id
+    };
+    novos.push(copia);
+    doSemana.push(copia); // impede duas origens de gerarem duas copias iguais na mesma passada
+  });
+  if (novos.length) semana.gravarVarios(novos);
+}
+
+/* ---------- ficou de tras ---------- */
+function cartoesAtrasados() {
+  if (state.monday !== segundaDe(hoje())) return [];
+  return semana.todos().filter((c) => !c.feito && mondayOfCard(c) < state.monday);
+}
+function trazerTodosAtrasados() {
+  const lista = cartoesAtrasados();
+  if (!lista.length) return;
+  const antes = lista.map((c) => ({ ...c }));
+  const destino = colunaDeHoje();
+  semana.gravarVarios(lista.map((c) => ({ ...c, dia: destino, atualizada: Date.now() })));
+  mostrarAviso(lista.length + (lista.length === 1 ? " cartão trazido" : " cartões trazidos") + " para esta semana", () => semana.gravarVarios(antes));
+}
+function arquivarTodosAtrasados() {
+  const lista = cartoesAtrasados();
+  if (!lista.length) return;
+  const antes = lista.map((c) => ({ ...c }));
+  semana.gravarVarios(lista.map((c) => ({ ...c, feito: true, atualizada: Date.now() })));
+  mostrarAviso(lista.length + (lista.length === 1 ? " cartão arquivado" : " cartões arquivados"), () => semana.gravarVarios(antes));
+}
+
+/* ---------- acoes de cartao ---------- */
+function toggleFeito(id, valor) {
+  const c = semana.obter(id);
+  if (c) semana.gravar({ ...c, feito: valor, atualizada: Date.now() });
+}
+function apagarCartao(id) {
+  const antes = semana.apagar(id);
+  if (antes) mostrarAviso("cartão apagado", () => semana.gravar(antes));
+}
+function puxar(id) {
+  const c = semana.obter(id);
+  if (!c) return;
+  mandarParaODia({ titulo: c.titulo, min: c.min, frente: c.frente, cliente: c.cliente, origem: { tipo: "semana", id: c.id } });
+}
+/* ---------- render ---------- */
+
+const elQuadro = $("quadro");
+
+function render() {
+  $("intervalo").textContent = intervaloSemana(state.monday);
+
+  if (ultimaSemanaGerada !== state.monday) {
+    ultimaSemanaGerada = state.monday;
+    gerarRecorrentes(state.monday); // dispara um gravarVarios -> um render aninhado, se criar algo
+  }
+
+  const atrasados = cartoesAtrasados();
+  $("atras").hidden = !atrasados.length;
+  if (atrasados.length) {
+    $("atras-n").textContent = atrasados.length;
+    $("atras-plural").textContent = atrasados.length === 1 ? "cartão" : "cartões";
+  }
+
+  const daSemana = semana.todos().filter((c) => mondayOfCard(c) === state.monday);
+  $("semana-vazia").hidden = daSemana.length > 0;
+
+  elQuadro.innerHTML = COLUNAS.map((col) => renderColuna(col, daSemana)).join("");
+}
+
+function renderColuna(col, visiveis) {
+  const dia = diaDaColuna(state.monday, col);
+  const doColuna = visiveis.filter((c) => c.dia === dia);
+  const ehHoje = colunaEhHoje(state.monday, col);
+  const minAbertos = doColuna.filter((c) => !c.feito).reduce((s, c) => s + c.min, 0);
+  const rotuloTop = rotuloColuna(state.monday, col);
+
+  const frentesConhecidas = listarFrentes();
+  const grupos = frentesConhecidas
+    .map((f) => ({ id: f.id, rotulo: seloFrente(f.id), cartoes: doColuna.filter((c) => c.frente === f.id) }))
+    .filter((g) => g.cartoes.length);
+  const semFrente = doColuna.filter((c) => !c.frente || !frentesConhecidas.some((f) => f.id === c.frente));
+  if (semFrente.length) grupos.push({ id: "", rotulo: '<span class="t-mono t-mute">sem frente</span>', cartoes: semFrente });
+
+  return (
+    '<section class="coluna-sem' + (ehHoje ? " is-hoje" : "") + '">' +
+      '<header class="coluna-sem__cab">' +
+        "<div>" +
+          '<p class="coluna-sem__dia">' + escapar(rotuloTop) + "</p>" +
+          '<p class="coluna-sem__min t-mono t-mute">' + (minAbertos ? formatarMin(minAbertos) : "—") + "</p>" +
+        "</div>" +
+        '<button class="acao coluna-sem__mais" type="button" data-novo="' + dia + '" title="novo cartão em ' + escapar(rotuloTop) + '" aria-label="Novo cartão em ' + escapar(rotuloTop) + '">' + ICONE.mais + "</button>" +
+      "</header>" +
+      '<div class="coluna-sem__corpo" data-dia="' + dia + '">' + grupos.map(renderGrupo).join("") + "</div>" +
+    "</section>"
+  );
+}
+
+function renderGrupo(g) {
+  return (
+    '<div class="grupo" data-frente="' + escapar(g.id) + '">' +
+      '<p class="grupo__rotulo">' + g.rotulo + "</p>" +
+      '<ul class="grupo__lista">' + ordenarGrupo(g.cartoes).map(renderCartao).join("") + "</ul>" +
+    "</div>"
+  );
+}
+
+function renderCartao(c) {
+  const status = statusCartao(c);
+  /* com noDia o cartao ja esta na fila de hoje — o dia e quem escreveu isso,
+     entao "puxar" (que manda pra la de novo) deixa de fazer sentido aqui */
+  const podePuxar = !c.feito && !c.noDia && (status === "hoje" || status === "atrasado");
+  return (
+    '<li class="cartao' + (c.feito ? " is-feito" : "") + '" draggable="true" data-id="' + c.id + '">' +
+      '<input type="checkbox" class="cartao__check" data-acao="feito"' + (c.feito ? " checked" : "") + ' aria-label="Concluir ' + escapar(c.titulo) + '">' +
+      '<span class="cartao__titulo" tabindex="0">' + escapar(c.titulo) + "</span>" +
+      (c.noDia ? '<span class="selo selo--verde">no dia</span>' : "") +
+      (c.cliente ? '<span class="selo">' + escapar(nomeCliente(c.cliente)) + "</span>" : "") +
+      (c.min ? '<span class="cartao__min mono">' + formatarMin(c.min) + "</span>" : "") +
+      (c.recorrente ? '<span class="cartao__rec" title="toda semana">' + ICONE_RECORRENTE + "</span>" : "") +
+      '<span class="cartao__acoes">' +
+        (podePuxar ? '<button class="acao" type="button" data-acao="puxar" title="puxar para o dia">' + ICONE.seta + "</button>" : "") +
+        '<button class="acao" type="button" data-acao="editar" title="editar">' + ICONE.lapis + "</button>" +
+        '<button class="acao" type="button" data-acao="apagar" title="apagar">' + ICONE.lixo + "</button>" +
+      "</span>" +
+    "</li>"
+  );
+}
+
+document.querySelector(".btn-merlin__icone").innerHTML = ICONE_FAISCA;
+$("btn-novo").innerHTML = ICONE.mais + "cartão";
+
+semana.aoMudar(render);
+render();
+
+/* ---------- edicao inline do titulo ---------- */
+function iniciarEdicaoTitulo(span) {
+  const li = span.closest(".cartao");
+  const atual = semana.obter(li.dataset.id);
+  if (!atual) return;
+  const input = document.createElement("input");
+  input.className = "campo cartao__titulo-input";
+  input.value = atual.titulo;
+  input.maxLength = 200;
+  span.replaceWith(input);
+  input.focus();
+  input.select();
+  const salvar = () => {
+    if (!input.isConnected) return;
+    const v = input.value.trim();
+    if (v && v !== atual.titulo) semana.gravar({ ...atual, titulo: v.slice(0, 200), atualizada: Date.now() });
+    else render();
+  };
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { e.preventDefault(); input.blur(); }
+    else if (e.key === "Escape") { e.preventDefault(); render(); }
+  });
+  input.addEventListener("blur", salvar, { once: true });
+}
+
+/* ---------- a caixa do cartao: criar e editar sao a mesma ----------
+   e o abrirFormulario do nucleo. no titulo, "@frente" e a duracao no fim
+   continuam valendo — e a mesma gramatica do dia — mas os campos ao lado
+   ganham quando preenchidos. */
+function opcoesDiaSemana(monday, atual) {
+  return COLUNAS.map((col) => {
+    const dia = diaDaColuna(monday, col);
+    return '<option value="' + dia + '"' + (dia === atual ? " selected" : "") + ">" + escapar(rotuloColuna(monday, col)) + "</option>";
+  }).join("");
+}
+function formCartao(id, diaPre) {
+  const c = id ? semana.obter(id) : null;
+  if (id && !c) return;
+  abrirFormulario({
+    titulo: c ? "cartão" : "novo cartão",
+    campos:
+      campoForm("título", '<input class="campo" name="titulo" maxlength="200" required placeholder="o que fazer · @frente · 45m" value="' + escapar(c ? c.titulo : "") + '">', true) +
+      campoForm("dia", '<select class="campo-sel" name="dia">' + opcoesDiaSemana(state.monday, c ? c.dia : (diaPre || colunaDeHoje())) + "</select>") +
+      campoForm("duração", '<input class="campo campo--mono" name="duracao" placeholder="45m, 1h30" value="' + (c && c.min ? formatarMin(c.min) : "") + '">') +
+      campoForm("frente", '<select class="campo-sel" name="frente">' + opcoesFrente(c ? c.frente : "", "sem frente") + "</select>") +
+      campoForm("cliente", '<select class="campo-sel" name="cliente">' + opcoesCliente(c ? c.cliente : "", "sem cliente", c && c.frente ? c.frente : undefined) + "</select>") +
+      '<label class="fileira inteiro"><input type="checkbox" name="recorrente"' + (c && c.recorrente ? " checked" : "") + "> toda semana</label>",
+    enviar: c ? "salvar" : "adicionar",
+    apagar: c ? "apagar" : "",
+    aoApagar: () => apagarCartao(id),
+    aoAbrir: (form) => {
+      /* trocar a frente restringe a lista de clientes a ela */
+      form.elements.frente.addEventListener("change", (e) => { form.elements.cliente.innerHTML = opcoesCliente("", "sem cliente", e.target.value || undefined); });
+    },
+    aoEnviar: (v) => {
+      const lido = processarLinha(v.titulo);
+      const titulo = lido.titulo.slice(0, 200);
+      if (!titulo) { mostrarAviso("o cartão precisa de um título"); return false; }
+      const min = lerDuracao(v.duracao).min || lido.min;
+      const frente = v.frente || lido.frente, cliente = v.cliente || lido.cliente;
+      const agora = Date.now();
+      if (c) semana.gravar({ ...c, titulo, dia: v.dia, frente, cliente, min, recorrente: v.recorrente, atualizada: agora });
+      else semana.gravar({ id: novoId(), titulo, dia: v.dia, frente, cliente, min, feito: false, recorrente: v.recorrente, ordem: agora, criada: agora, atualizada: agora });
+    }
+  });
+}
+
+/* ---------- eventos do quadro (delegados: as colunas se recriam a cada render) ---------- */
+elQuadro.addEventListener("click", (e) => {
+  const novo = e.target.closest("[data-novo]");
+  if (novo) { formCartao("", novo.dataset.novo); return; }
+  const titulo = e.target.closest(".cartao__titulo");
+  if (titulo) { iniciarEdicaoTitulo(titulo); return; }
+  const botao = e.target.closest("[data-acao]");
+  if (!botao) return;
+  const li = botao.closest(".cartao");
+  const id = li && li.dataset.id;
+  if (!id) return;
+  if (botao.dataset.acao === "puxar") puxar(id);
+  else if (botao.dataset.acao === "editar") formCartao(id);
+  else if (botao.dataset.acao === "apagar") apagarCartao(id);
+});
+elQuadro.addEventListener("change", (e) => {
+  if (!e.target.matches('input[data-acao="feito"]')) return;
+  const li = e.target.closest(".cartao");
+  toggleFeito(li.dataset.id, e.target.checked);
+});
+$("btn-novo").addEventListener("click", () => formCartao("", state.monday === segundaDe(hoje()) ? colunaDeHoje() : state.monday));
+
+/* ---------- arrastar e soltar nativo ----------
+   solto na hora exata de largar: muda dia e frente, e se for solto perto de
+   um cartao especifico, entra antes/depois dele (ordem fracionaria, sem
+   precisar reindexar o grupo inteiro). no toque isso nao dispara — e o
+   dialogo de editar, com o seletor de dia, que resolve por la. */
+elQuadro.addEventListener("dragstart", (e) => {
+  if (e.target.tagName === "INPUT") { e.preventDefault(); return; }
+  const li = e.target.closest(".cartao");
+  if (!li) return;
+  arrastoId = li.dataset.id;
+  e.dataTransfer.effectAllowed = "move";
+  e.dataTransfer.setData("text/plain", arrastoId);
+  requestAnimationFrame(() => li.classList.add("arrastando"));
+});
+elQuadro.addEventListener("dragend", (e) => {
+  const li = e.target.closest(".cartao");
+  if (li) li.classList.remove("arrastando");
+  elQuadro.querySelectorAll(".is-alvo").forEach((el) => el.classList.remove("is-alvo"));
+  arrastoId = null;
+});
+elQuadro.addEventListener("dragover", (e) => {
+  if (!arrastoId) return;
+  e.preventDefault();
+  e.dataTransfer.dropEffect = "move";
+});
+elQuadro.addEventListener("dragenter", (e) => {
+  const corpo = e.target.closest(".coluna-sem__corpo");
+  if (corpo) corpo.closest(".coluna-sem").classList.add("is-alvo");
+});
+elQuadro.addEventListener("dragleave", (e) => {
+  const corpo = e.target.closest(".coluna-sem__corpo");
+  if (corpo && !corpo.contains(e.relatedTarget)) corpo.closest(".coluna-sem").classList.remove("is-alvo");
+});
+elQuadro.addEventListener("drop", (e) => {
+  e.preventDefault();
+  elQuadro.querySelectorAll(".is-alvo").forEach((el) => el.classList.remove("is-alvo"));
+  const corpo = e.target.closest(".coluna-sem__corpo");
+  if (!corpo || !arrastoId) return;
+  const original = semana.obter(arrastoId);
+  arrastoId = null;
+  if (!original) return;
+  const dia = corpo.dataset.dia;
+  const grupoEl = e.target.closest(".grupo");
+  const frente = grupoEl ? grupoEl.dataset.frente : (original.frente || "");
+  const cartaoAlvo = e.target.closest(".cartao");
+
+  const irmaos = semana.todos()
+    .filter((c) => c.dia === dia && (c.frente || "") === (frente || "") && c.id !== original.id && !c.feito)
+    .sort((a, b) => a.ordem - b.ordem || a.criada - b.criada);
+
+  let ordem;
+  if (cartaoAlvo && cartaoAlvo.dataset.id !== original.id) {
+    const idx = irmaos.findIndex((c) => c.id === cartaoAlvo.dataset.id);
+    const r = cartaoAlvo.getBoundingClientRect();
+    const antesDoAlvo = e.clientY < r.top + r.height / 2;
+    const pos = idx < 0 ? irmaos.length : (antesDoAlvo ? idx : idx + 1);
+    const anterior = irmaos[pos - 1], seguinte = irmaos[pos];
+    ordem = anterior && seguinte ? (anterior.ordem + seguinte.ordem) / 2
+      : anterior ? anterior.ordem + 1
+      : seguinte ? seguinte.ordem - 1
+      : 0;
+  } else {
+    ordem = irmaos.length ? irmaos[irmaos.length - 1].ordem + 1 : Date.now();
+  }
+  semana.gravar({ ...original, dia, frente, ordem, atualizada: Date.now() });
+});
+
+/* ---------- cabecalho e faixa ---------- */
+function trocarSemana(deltaSemanas) {
+  state.monday = somarDias(state.monday, deltaSemanas * 7);
+  render();
+}
+$("btn-ant").addEventListener("click", () => trocarSemana(-1));
+$("btn-prox").addEventListener("click", () => trocarSemana(1));
+$("btn-hoje").addEventListener("click", () => { state.monday = segundaDe(hoje()); render(); });
+$("atras-trazer").addEventListener("click", trazerTodosAtrasados);
+$("atras-arquivar").addEventListener("click", arquivarTodosAtrasados);
+
+/* ---------- resumir com o merlin ----------
+   o contexto e so texto: uma linha por cartao, na mesma ordem que a leitura
+   humana usaria. quem entende disso e o worker; aqui a unica preocupacao e
+   nao mandar a semana errada quando o usuario trocou de semana no meio. */
+function linhaResumo(c) {
+  const col = COLUNAS.find((col) => diaDaColuna(state.monday, col) === c.dia);
+  const rotuloCol = col ? rotuloColuna(state.monday, col) : c.dia;
+  const frente = c.frente ? listarFrentes().find((f) => f.id === c.frente) : null;
+  const partes = [rotuloCol];
+  if (frente) partes.push(frente.nome);
+  partes.push(c.titulo);
+  if (c.min) partes.push(formatarMin(c.min));
+  if (c.feito) partes.push("feito");
+  return partes.join(" · ");
+}
+
+let textoMerlinCru = "";
+function abrirDialogoMerlin(texto) {
+  textoMerlinCru = texto;
+  $("merlin-corpo").innerHTML = md(texto);
+  $("dialogo-merlin").hidden = false;
+}
+function fecharDialogoMerlin() { $("dialogo-merlin").hidden = true; }
+
+async function pedirResumoMerlin() {
+  const btn = $("btn-merlin");
+  if (btn.disabled) return;
+  const rotuloBtn = $("btn-merlin-txt");
+  const original = rotuloBtn.textContent;
+  btn.disabled = true;
+  rotuloBtn.textContent = "pensando…";
+  try {
+    const intervalo = intervaloSemana(state.monday);
+    const cartoes = semana.todos().filter((c) => mondayOfCard(c) === state.monday).map(linhaResumo);
+    const r = await api("/merlin", { method: "POST", body: JSON.stringify({ tarefa: "semana", contexto: { intervalo, cartoes } }) });
+    if (r.ok) abrirDialogoMerlin(r.corpo.texto || "");
+    else if (r.status === 401) mostrarAviso("entre para usar o Merlin");
+    else mostrarAviso(r.corpo.erro || "não consegui falar com o Merlin");
+  } catch (e) {
+    mostrarAviso("não consegui falar com o Merlin");
+  } finally {
+    btn.disabled = false;
+    rotuloBtn.textContent = original;
+  }
+}
+$("btn-merlin").addEventListener("click", pedirResumoMerlin);
+$("merlin-fechar").addEventListener("click", fecharDialogoMerlin);
+$("merlin-ok").addEventListener("click", fecharDialogoMerlin);
+$("dialogo-merlin").addEventListener("click", (e) => { if (e.target.id === "dialogo-merlin") fecharDialogoMerlin(); });
+$("merlin-copiar").addEventListener("click", async () => {
+  try { await navigator.clipboard.writeText(textoMerlinCru); mostrarAviso("copiado"); }
+  catch (e) { mostrarAviso("não consegui copiar"); }
+});
+
+/* ---------- atalhos: n abre um cartao novo, Alt+seta troca de semana, Esc fecha o dialogo ---------- */
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && !$("dialogo-merlin").hidden) { fecharDialogoMerlin(); return; }
+  const marca = document.activeElement && document.activeElement.tagName;
+  const digitando = marca === "INPUT" || marca === "TEXTAREA" || marca === "SELECT";
+  if (e.key === "n" && !digitando && !formularioAberto() && !e.ctrlKey && !e.metaKey && !e.altKey) { e.preventDefault(); $("btn-novo").click(); return; }
+  if (e.altKey && (e.key === "ArrowLeft" || e.key === "ArrowRight")) {
+    e.preventDefault();
+    trocarSemana(e.key === "ArrowLeft" ? -1 : 1);
+  }
+});
+</script>
+</body>
+</html>

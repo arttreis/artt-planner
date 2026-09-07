@@ -1,6 +1,6 @@
--- artt planner · o banco
+-- merlin · o banco
 --
--- tres tabelas e nenhuma a mais. o produto guarda um documento por dia por
+-- quatro tabelas e nenhuma a mais. o produto guarda um documento por dia por
 -- pessoa; o resto aqui existe so para saber quem e voce sem pedir senha.
 
 -- quem usa. o e-mail e a identidade: nao ha nome, nem perfil, nem foto.
@@ -36,3 +36,17 @@ CREATE TABLE IF NOT EXISTS dias (
 -- "o que mudou desde a ultima vez que sincronizei" e a unica consulta que o
 -- cliente faz alem de ler um dia especifico.
 CREATE INDEX IF NOT EXISTS dias_pessoa_v ON dias(pessoa, v);
+
+-- os documentos dos outros modulos: uma ideia, um cliente, um mapa, um
+-- lancamento. mesma forma do dia — JSON opaco com carimbo — mas por (tipo, id)
+-- em vez de por data. o servidor continua nao entendendo o que ha dentro.
+CREATE TABLE IF NOT EXISTS docs (
+  pessoa   TEXT NOT NULL,
+  tipo     TEXT NOT NULL,             -- 'ideias', 'clientes', 'mapas', ...
+  id       TEXT NOT NULL,             -- o id que o cliente deu ao documento
+  doc      TEXT NOT NULL,             -- JSON; {"apagado":true} e um tumulo
+  v        INTEGER NOT NULL,
+  PRIMARY KEY (pessoa, tipo, id),
+  FOREIGN KEY (pessoa) REFERENCES pessoas(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS docs_pessoa_tipo_v ON docs(pessoa, tipo, v);
