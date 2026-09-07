@@ -561,7 +561,13 @@ a.action{color:var(--ink-30);text-decoration:none}
 .preview__empty{font-size:12px;color:var(--ink-30);margin:0}
 .matrix__actions{display:flex;align-items:center;gap:var(--pd);margin-top:var(--pd)}
 
-@media (min-width:1200px){
+/* ---------- os trilhos, quando cabem ----------
+   as tres colunas pedem ~1140px de espaco livre. o @media mede a JANELA, e a
+   barra lateral come 248px (64 quando recolhida) antes de sobrar espaco para
+   a pagina — por isso sao dois pontos de virada, um para cada estado dela.
+   com um so, medindo 1200 de janela, o dia rolava 28px na horizontal a 1360
+   com a barra aberta: a grade ligava antes de caber. */
+@media (min-width:1392px){
   #app{
     /* o aparelho fica na coluna do meio, no tamanho que sempre teve.
        os trilhos so existem se tiverem bloco dentro. */
@@ -575,6 +581,19 @@ a.action{color:var(--ink-30);text-decoration:none}
   #side-right{grid-column:3;grid-row:1}
   /* alinha o topo dos blocos com o topo do aparelho */
   .side{max-width:none}
+}
+/* com a barra recolhida sobram 184px a mais, e os trilhos cabem bem antes */
+@media (min-width:1208px){
+  html.sidebar-closed #app{
+    grid-template-columns:minmax(272px,340px) 496px minmax(300px,380px);
+    justify-content:center;
+    align-items:start;
+    gap:var(--pd);
+  }
+  html.sidebar-closed .device{grid-column:2;grid-row:1}
+  html.sidebar-closed #side-left{grid-column:1;grid-row:1}
+  html.sidebar-closed #side-right{grid-column:3;grid-row:1}
+  html.sidebar-closed .side{max-width:none}
 }
 
 @media (max-width:480px){
