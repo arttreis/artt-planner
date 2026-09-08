@@ -8,8 +8,8 @@ import {
 } from "./shared/core.js";
 import { useState } from "react";
 import {
-  mount, useCollection, useFronts, useKeydown, isTyping,
-  useFields, Form, Field, Dialog, Markdown, FrontBadge, frontOptionList, icon
+  mount, useCollection, useKeydown, isTyping,
+  useFields, Form, Field, Dialog, Markdown, icon
 } from "./shared/ui.jsx";
 
 initPage("habits");
@@ -34,7 +34,6 @@ function normalize(d) {
   return {
     id: d.id,
     name: String(d.name || "").slice(0, 80),
-    front: d.front || "",
     schedule: {
       type: SCHEDULES.some((x) => x.id === s.type) ? s.type : "daily",
       times: Math.min(7, Math.max(1, Math.round(+s.times || 3))),
@@ -123,7 +122,6 @@ function streakOf(h) {
 /* ---------- a pagina ---------- */
 function Habits() {
   const habits = useCollection("habits", { normalize });
-  useFronts();
   const [month, setMonth] = useState(() => monthOf(today()));
   const [form, setForm] = useState(null);       // { id } | null
   const [summary, setSummary] = useState(null); // texto do merlin | null
@@ -144,7 +142,7 @@ function Habits() {
     habits.save({ ...h, archived: true, updatedAt: Date.now() });
     notify("hábito arquivado", () => habits.save({ ...h, archived: false, updatedAt: Date.now() }));
   };
-  const pull = (h) => sendToDay({ title: h.name, min: h.min, front: h.front, client: "", origin: { type: "habit", id: h.id } });
+  const pull = (h) => sendToDay({ title: h.name, min: h.min, client: "", origin: { type: "habit", id: h.id } });
 
   /* ---------- ler o mes com o merlin ---------- */
   const askSummary = async () => {
@@ -228,7 +226,6 @@ function HabitRow({ h, days, today: t, onToggle, onEdit, onArchive, onPull }) {
             {h.name}
             <span className="habit-name__schedule">{scheduleLabel(h)}{h.min ? " · " + formatMin(h.min) : ""}</span>
           </div>
-          <FrontBadge id={h.front} />
         </div>
       </td>
       {days.map((d) => (
@@ -255,7 +252,6 @@ function HabitForm({ habits, id, onClose, onArchive }) {
   const h = id ? habits.get(id) : null;
   const [v, bind, set] = useFields({
     name: h ? h.name : "",
-    front: h ? h.front : "personal",
     type: h ? h.schedule.type : "daily",
     times: h ? h.schedule.times : 3,
     weekdays: h ? h.schedule.weekdays : [1, 2, 3, 4, 5],
@@ -271,8 +267,8 @@ function HabitForm({ habits, id, onClose, onArchive }) {
     const now = Date.now();
     const schedule = { type: v.type, times: Math.min(7, Math.max(1, Math.round(+v.times || 1))), weekdays: v.weekdays.slice().sort() };
     const min = parseDuration(v.duration).min;
-    if (h) habits.save({ ...h, name, front: v.front, schedule, min, color: +v.color, updatedAt: now });
-    else habits.save({ id: newId(), name, front: v.front, schedule, min, color: +v.color, order: now, archived: false, marks: {}, createdAt: now, updatedAt: now });
+    if (h) habits.save({ ...h, name, schedule, min, color: +v.color, updatedAt: now });
+    else habits.save({ id: newId(), name, schedule, min, color: +v.color, order: now, archived: false, marks: {}, createdAt: now, updatedAt: now });
   };
   return (
     <Form title={h ? "hábito" : "novo hábito"} submit={h ? "salvar" : "criar"} remove={h ? "arquivar" : ""}
@@ -292,7 +288,6 @@ function HabitForm({ habits, id, onClose, onArchive }) {
           </div>
         </Field>)}
       <Field label="duração sugerida"><input className="input input--mono" placeholder="30m, 1h" {...bind("duration")} /></Field>
-      <Field label="frente"><select className="select" {...bind("front")}>{frontOptionList("sem frente")}</select></Field>
       <Field label="cor">
         <select className="select" {...bind("color")}>{COLORS.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}</select>
       </Field>

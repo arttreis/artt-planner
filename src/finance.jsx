@@ -9,8 +9,8 @@ import {
 } from "./shared/core.js";
 import { useState } from "react";
 import {
-  mount, useCollection, useFronts, useKeydown, isTyping,
-  useFields, Form, Field, FrontBadge, frontOptionList, icon
+  mount, useCollection, useKeydown, isTyping,
+  useFields, Form, Field, icon
 } from "./shared/ui.jsx";
 
 initPage("finance");
@@ -85,7 +85,7 @@ function projectionsOf(day, ctx) {
     if (alreadyEntered(ctx.entries, "fixed", f.id, day)) return;
     proj.push({
       id: "proj-fixed-" + f.id + "-" + day, name: f.name, amount: f.amount, kind: f.kind,
-      category: f.category, front: f.front, origin: { type: "fixed", id: f.id }
+      category: f.category, origin: { type: "fixed", id: f.id }
     });
   });
 
@@ -96,7 +96,7 @@ function projectionsOf(day, ctx) {
     const remaining = d.total - d.paid;
     proj.push({
       id: "proj-debt-" + d.id + "-" + day, name: d.name, amount: Math.min(d.installment || remaining, remaining),
-      kind: "out", category: "Dívida", front: d.front, origin: { type: "debt", id: d.id }
+      kind: "out", category: "Dívida", origin: { type: "debt", id: d.id }
     });
   });
 
@@ -107,7 +107,7 @@ function projectionsOf(day, ctx) {
     if (alreadyEntered(ctx.entries, "card", c.id, day)) return;
     proj.push({
       id: "proj-card-" + c.id + "-" + day, name: c.name + " · " + n + "/" + c.installments, amount: cardInstallment(c),
-      kind: "out", category: "Cartão", front: c.front, origin: { type: "card", id: c.id }
+      kind: "out", category: "Cartão", origin: { type: "card", id: c.id }
     });
   });
 
@@ -188,7 +188,6 @@ function normalize(d) {
   const base = {
     id: String(d.id || ""),
     type: String(d.type || ""),
-    front: String(d.front || ""),
     createdAt: Number.isFinite(+d.createdAt) ? +d.createdAt : Date.now(),
     updatedAt: Number.isFinite(+d.updatedAt) ? +d.updatedAt : Date.now()
   };
@@ -281,7 +280,6 @@ const pickCategory = (categories, wanted) => categories.includes(wanted) ? wante
    e qual caixa esta aberta. nada disso e documento — some ao recarregar. */
 function Finance() {
   const finance = useCollection("finance", { normalize });
-  useFronts();
   const [tab, setTab] = useState("month");
   const [month, setMonth] = useState(() => today().slice(0, 7));
   const [year, setYear] = useState(() => +today().slice(0, 4));
@@ -320,7 +318,7 @@ function Finance() {
     if (!proj) return;
     finance.save({
       id: newId(), type: "entry", day, name: proj.name, amount: proj.amount,
-      kind: proj.kind, category: proj.category, front: proj.front,
+      kind: proj.kind, category: proj.category,
       paid: true, origin: proj.origin, createdAt: Date.now(), updatedAt: Date.now()
     });
     if (originType === "debt") {
@@ -340,7 +338,7 @@ function Finance() {
     if (amount <= 0) return;
     finance.save({
       id: newId(), type: "entry", day: today(), name: "parcela · " + d.name, amount,
-      kind: "out", category: "Dívida", front: d.front, paid: true,
+      kind: "out", category: "Dívida", paid: true,
       origin: { type: "debt", id: d.id }, createdAt: Date.now(), updatedAt: Date.now()
     });
     finance.save({ ...d, paid: d.paid + amount, updatedAt: Date.now() });
@@ -483,7 +481,6 @@ function DayItem({ it, day, onEditEntry, onTogglePaid, onConfirm }) {
   return (
     <li className="line">
       <span className={"name" + (proj ? " weak" : "")}>{it.name}{it.category && <>{" "}<small>#{it.category}</small></>}{!proj && !it.paid && <>{" "}<small>previsto</small></>}</span>
-      <FrontBadge id={it.front}/>
       <span className="measure mono">{sign} {brl(it.amount)}</span>
       <span className="row-actions">
         {proj
@@ -666,7 +663,6 @@ function PanelView({ ctx, cfg, onEdit, onNewFixed, onNewCard, onNewDebt, onPay }
    ter ou nao um documento por baixo. */
 const MoneyInput = (props) => <input className="input input--num" inputMode="decimal" placeholder="0,00" {...props}/>;
 const DayOfMonthInput = (props) => <input className="input input--num" type="number" min="1" max="31" {...props}/>;
-const FrontSelect = (props) => <select className="select" {...props}>{frontOptionList("sem frente")}</select>;
 const CategorySelect = ({ categories, ...props }) => <select className="select" {...props}>{categories.map((c) => <option key={c} value={c}>{c}</option>)}</select>;
 
 function EntryForm({ finance, categories, id, presetDay, onClose, onRemove, onSave }) {
@@ -677,7 +673,6 @@ function EntryForm({ finance, categories, id, presetDay, onClose, onRemove, onSa
     day: l ? l.day : (presetDay || today()),
     kind: l ? l.kind : "out",
     category: pickCategory(categories, l ? l.category : ""),
-    front: l ? l.front : "",
     paid: l ? l.paid : true
   });
   if (id && !l) return null;
@@ -686,7 +681,7 @@ function EntryForm({ finance, categories, id, presetDay, onClose, onRemove, onSa
     if (!v.name.trim() || !amount) { notify("preciso de um nome e um valor"); return false; }
     onSave({
       id: l ? l.id : newId(), type: "entry", name: v.name.trim(), amount,
-      day: isDay(v.day) ? v.day : today(), kind: v.kind, category: v.category, front: v.front,
+      day: isDay(v.day) ? v.day : today(), kind: v.kind, category: v.category,
       paid: v.paid, origin: l ? l.origin : null
     }, l, l ? "lançamento atualizado" : "lançamento criado");
   };
@@ -698,7 +693,6 @@ function EntryForm({ finance, categories, id, presetDay, onClose, onRemove, onSa
       <Field label="data"><input className="input" type="date" {...bind("day")}/></Field>
       <Field label="tipo"><select className="select" {...bind("kind")}><option value="out">saída</option><option value="in">entrada</option></select></Field>
       <Field label="categoria"><CategorySelect categories={categories} {...bind("category")}/></Field>
-      <Field label="frente"><FrontSelect {...bind("front")}/></Field>
       <label className="row full"><input type="checkbox" {...bind("paid", "check")}/> já pago</label>
     </Form>
   );
@@ -712,7 +706,6 @@ function FixedForm({ finance, categories, id, presetKind, onClose, onRemove, onS
     amount: inReais(f && f.amount),
     dayOfMonth: f ? f.dayOfMonth : "",
     category: pickCategory(categories, f ? f.category : (kind === "in" ? "Recorrente" : "")),
-    front: f ? f.front : "",
     active: f ? f.active : true
   });
   if (id && !f) return null;
@@ -721,7 +714,7 @@ function FixedForm({ finance, categories, id, presetKind, onClose, onRemove, onS
     if (!v.name.trim() || !amount) { notify("preciso de um nome e um valor"); return false; }
     onSave({
       id: f ? f.id : newId(), type: "fixed", name: v.name.trim(), amount, kind,
-      category: v.category, front: v.front, dayOfMonth: +v.dayOfMonth || 1, active: f ? !!v.active : true
+      category: v.category, dayOfMonth: +v.dayOfMonth || 1, active: f ? !!v.active : true
     }, f, f ? "fixo atualizado" : "fixo criado");
   };
   return (
@@ -733,7 +726,6 @@ function FixedForm({ finance, categories, id, presetKind, onClose, onRemove, onS
       <Field label="valor"><MoneyInput {...bind("amount")}/></Field>
       <Field label="dia do mês"><DayOfMonthInput {...bind("dayOfMonth")}/></Field>
       <Field label="categoria"><CategorySelect categories={categories} {...bind("category")}/></Field>
-      <Field label="frente"><FrontSelect {...bind("front")}/></Field>
       {f && <label className="row full"><input type="checkbox" {...bind("active", "check")}/> ativo (desmarque para pausar sem apagar)</label>}
     </Form>
   );
@@ -748,7 +740,6 @@ function CardForm({ finance, id, onClose, onRemove, onSave }) {
     installments: c ? c.installments : 1,
     start: c ? c.start : today().slice(0, 7),
     dayOfMonth: c ? c.dayOfMonth : 10,
-    front: c ? c.front : ""
   });
   if (id && !c) return null;
   const submit = () => {
@@ -756,7 +747,7 @@ function CardForm({ finance, id, onClose, onRemove, onSave }) {
     if (!v.name.trim() || !total) { notify("preciso do que foi comprado e do total"); return false; }
     onSave({
       id: c ? c.id : newId(), type: "card", name: v.name.trim(), card: v.card.trim(), total,
-      installments: +v.installments || 1, start: v.start, dayOfMonth: +v.dayOfMonth || 10, front: v.front
+      installments: +v.installments || 1, start: v.start, dayOfMonth: +v.dayOfMonth || 10
     }, c, c ? "compra atualizada" : "compra parcelada criada");
   };
   return (
@@ -770,7 +761,6 @@ function CardForm({ finance, id, onClose, onRemove, onSave }) {
       <Field label="parcelas"><input className="input input--num" type="number" min="1" max="120" {...bind("installments")}/></Field>
       <Field label="primeira parcela"><input className="input" type="month" {...bind("start")}/></Field>
       <Field label="dia do vencimento"><DayOfMonthInput {...bind("dayOfMonth")}/></Field>
-      <Field label="frente"><FrontSelect {...bind("front")}/></Field>
     </Form>
   );
 }
@@ -784,7 +774,6 @@ function DebtForm({ finance, id, onClose, onRemove, onSave }) {
     paid: inReais(d && d.paid),
     installment: inReais(d && d.installment),
     dayOfMonth: d ? d.dayOfMonth : "",
-    front: d ? d.front : ""
   });
   if (id && !d) return null;
   const submit = () => {
@@ -792,7 +781,7 @@ function DebtForm({ finance, id, onClose, onRemove, onSave }) {
     if (!v.name.trim() || !total) { notify("preciso de um nome e do total"); return false; }
     onSave({
       id: d ? d.id : newId(), type: "debt", name: v.name.trim(), creditor: v.creditor.trim(), total,
-      paid: Math.min(total, parseMoney(v.paid)), installment: parseMoney(v.installment), dayOfMonth: +v.dayOfMonth || 1, front: v.front
+      paid: Math.min(total, parseMoney(v.paid)), installment: parseMoney(v.installment), dayOfMonth: +v.dayOfMonth || 1
     }, d, d ? "dívida atualizada" : "dívida criada");
   };
   return (
@@ -806,7 +795,6 @@ function DebtForm({ finance, id, onClose, onRemove, onSave }) {
       <Field label="já pago"><MoneyInput {...bind("paid")}/></Field>
       <Field label="parcela (opcional)"><MoneyInput {...bind("installment")}/></Field>
       <Field label="dia do mês"><DayOfMonthInput {...bind("dayOfMonth")}/></Field>
-      <Field label="frente"><FrontSelect {...bind("front")}/></Field>
     </Form>
   );
 }

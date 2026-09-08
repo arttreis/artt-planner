@@ -270,9 +270,11 @@ export const cloud = {
   async syncAll() {
     if (!this.signedIn) return;
     for (const c of collections.values()) await c.sync();
-    /* se a primeira carga pegou a rede fora, as sementes ficaram para tras;
-       a sincronizacao seguinte (voltar para a aba, entrar) e a segunda chance */
-    seedFronts();
+    /* a limpeza raramente fecha na primeira carga: as colecoes so entram no
+       mapa quando alguem as abre, e a das frentes entra dentro dela mesma.
+       cada sincronizacao seguinte (voltar para a aba, entrar) e outra chance,
+       e ela fecha assim que todas tiverem baixado */
+    purgeFronts();
   },
   async signOut() {
     await api("/sign-out", { method: "POST" }).catch(() => {});
@@ -347,7 +349,7 @@ export function collection(type, options = {}) {
   let uploadTimer = null;
   let syncing = false;
   /* um download ja voltou nesta sessao — quem precisa saber se a nuvem ja
-     falou antes de decidir alguma coisa (as sementes das frentes) pergunta */
+     falou antes de decidir alguma coisa (a limpeza das frentes) pergunta */
   let downloaded = false;
 
   function read() {
@@ -518,63 +520,77 @@ document.addEventListener("visibilitychange", () => {
   else cloud.syncAll();
 });
 
-/* ---------- frentes ----------
-   o cadastro das empresas. e uma colecao como as outras, mas todo modulo
-   precisa dela para mostrar selo — por isso mora aqui, com as sementes. */
-
-export const SEED_FRONTS = [
-  { id: "artt", name: "Artt Reis", color: 5, order: 1 },
-  { id: "guessless", name: "Guessless", color: 1, order: 2 },
-  { id: "glsuite", name: "GL Suite", color: 4, order: 3 },
-  { id: "saas", name: "SaaS (Léo e Luca)", color: 2, order: 4 },
-  { id: "personal", name: "Pessoal", color: 6, order: 5 }
-];
-
-export function fronts() {
-  return collection("fronts", {
-    normalize: (d) => ({ id: d.id, name: String(d.name || "").slice(0, 60), color: +d.color || 0, order: +d.order || 99, v: d.v })
+/* ---------- a limpeza das frentes ----------
+   as frentes (o cadastro de empresas) sairam do sistema. esta funcao roda uma
+   vez por navegador: apaga a colecao antiga — as lapides sobem e a nuvem
+   esquece junto — e tira o campo `front` de tudo que ja estava gravado. com
+   sessao, so depois de um download que voltou, colecao por colecao: apagar
+   (ou regravar) antes de saber o que ha la em cima e apagar no escuro. o que
+   nao baixou espera a proxima sincronizacao, e a marca de "feito" so e
+   gravada quando todas fecharam. depois disso ela nunca mais faz nada. */
+const FRONTS_PURGED = "merlin:fronts-removed";
+const PURGE_TYPES = ["ideas", "clients", "week", "maps", "funnels", "finance", "habits", "plans"];
+function stripFront(value) {
+  if (Array.isArray(value)) return value.map(stripFront).some(Boolean);
+  if (!value || typeof value !== "object") return false;
+  let hit = false;
+  if ("front" in value) { delete value.front; hit = true; }
+  Object.values(value).forEach((v) => { if (stripFront(v)) hit = true; });
+  return hit;
+}
+export function purgeFronts() {
+  try { if (localStorage.getItem(FRONTS_PURGED)) return; } catch (e) { return; }
+  const old = collection("fronts");
+  if (cloud.signedIn && !old.hasDownloaded()) return; // tenta de novo na proxima abertura
+  old.all().forEach((f) => old.remove(f.id));
+  /* a caixa de entrada e so daqui: nao sincroniza, entao limpa sempre */
+  const box = readInbox();
+  if (stripFront(box)) writeInbox(box);
+  /* so mexe na colecao que ja baixou. regravar carimba v novo, e carimbo novo
+     em cima de copia velha faz a velha ganhar da que esta na nuvem — seria
+     perder trabalho feito no outro aparelho. o que ficar de fora marca
+     pendente; so abrir a colecao aqui ja a poe no mapa, entao a proxima
+     sincronizacao a baixa e a limpeza fecha na passada seguinte. */
+  let pendente = false;
+  PURGE_TYPES.forEach((type) => {
+    const c = collection(type);
+    if (cloud.signedIn && !c.hasDownloaded()) { pendente = true; return; }
+    c.all().forEach((doc) => {
+      const copy = JSON.parse(JSON.stringify(doc));
+      if (stripFront(copy)) c.save(copy);
+    });
   });
+  if (pendente) return;
+  /* sem sessao a limpeza alcancou so este navegador: entrar depois traz da
+     nuvem o que ainda tem `front`, e a marca ja teria trancado a segunda
+     passada. sem marca ela repete a cada abertura, o que nao custa nada
+     depois que nao ha mais o que tirar. */
+  if (!cloud.signedIn) return;
+  try { localStorage.setItem(FRONTS_PURGED, String(Date.now())); } catch (e) {}
 }
 
-/* as sementes so entram quando se sabe que nao ha nada la em cima. plantar
-   ao abrir a pagina, como era, faz um aparelho novo criar cinco frentes com
-   carimbo de agora e subi-las por cima das que ja existem: renomear a frente
-   num aparelho e abrir o Merlin noutro apagaria o nome. sem sessao este
-   navegador e o unico dono e pode semear na hora; com sessao, so depois de um
-   download que voltou — se a rede falhou, semear e chutar no escuro. */
-export function seedFronts() {
-  const c = fronts();
-  if (cloud.signedIn && !c.hasDownloaded()) return;
-  if (!c.all().length) c.saveMany(SEED_FRONTS);
-}
-export const listFronts = () => fronts().all().sort((a, b) => a.order - b.order || a.name.localeCompare(b.name));
-/* o numero da cor da frente (0 se nao ha), para quem pinta alem do selo */
-export const frontColor = (id) => { const f = id && fronts().get(id); return f ? f.color : 0; };
 /* clientes: o indice leve que os outros modulos usam para selo e escolha.
    a colecao inteira mora em clientes.html; aqui so o que e comum. */
 export const clients = () => collection("clients");
 export const listClients = () => clients().all().filter((c) => c.status !== "closed").sort((a, b) => String(a.name).localeCompare(String(b.name)));
 export const clientName = (id) => { const c = id && clients().get(id); return c ? c.name : ""; };
-/* ---------- @frente e @cliente no texto ----------
-   "@guessless" ou "@lojax" liga o que esta sendo escrito a uma frente ou a
-   um cliente. compara sem acento, sem espaco e sem caixa, com o id e com o
-   nome; frente ganha do cliente quando os dois casam. o que nao casou fica
-   no texto, porque pode ser so um arroba. */
+/* ---------- @cliente no texto ----------
+   "@lojax" liga o que esta sendo escrito a um cliente. compara sem acento, sem
+   espaco e sem caixa, com o nome. o que nao casou fica no texto, porque pode
+   ser so um arroba. */
 export const foldKey = (v) => String(v || "").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]/gi, "").toLowerCase();
 const MENTION = /(?:^|\s)@([^\s@]+)/g;
 export function parseMentions(text) {
-  let front = "", client = "";
-  const fr = listFronts(), cl = listClients();
+  let client = "";
+  const cl = listClients();
   const title = String(text || "").replace(MENTION, (m, tok) => {
     const k = foldKey(tok);
     if (!k) return m;
-    const f = fr.find((x) => foldKey(x.id) === k || foldKey(x.name) === k || foldKey(x.name).startsWith(k));
-    if (f && !front) { front = f.id; return " "; }
     const c = cl.find((x) => foldKey(x.name) === k || foldKey(x.name).startsWith(k));
-    if (c && !client) { client = c.id; if (!front && c.front) front = c.front; return " "; }
+    if (c && !client) { client = c.id; return " "; }
     return m;
   });
-  return { front, client, title: title.replace(/\s+/g, " ").trim() };
+  return { client, title: title.replace(/\s+/g, " ").trim() };
 }
 
 /* ---------- caixa de entrada do dia ----------
@@ -589,14 +605,13 @@ export function readInbox() {
 export function writeInbox(list) {
   try { localStorage.setItem(INBOX_KEY, JSON.stringify(list)); } catch (e) {}
 }
-/* item: {title, min?, front?, client?, origin:{type,id}} */
+/* item: {title, min?, client?, origin:{type,id}} */
 export function sendToDay(item) {
   const list = readInbox();
   list.push({
     id: newId(),
     title: String(item.title || "").trim().slice(0, 200),
     min: Math.max(0, Math.round(+item.min || 0)),
-    front: item.front || "",
     client: item.client || "",
     origin: item.origin ? { type: item.origin.type, id: item.origin.id } : null,
     at: Date.now()
@@ -646,11 +661,10 @@ export function setShellRenderer(fn) { renderShell = fn; }
 
 export function initPage(id) {
   if (renderShell) renderShell(id);
-  fronts();
   clients();
-  /* semear e a ultima coisa: resume() descobre se ha sessao e baixa o que a
-     nuvem tem; so entao faz sentido perguntar se faltam frentes. a pagina
-     desenha antes disso com a lista vazia e redesenha quando elas chegam —
-     todas as telas escutam a colecao pelo useFronts. */
-  cloud.resume().finally(seedFronts);
+  /* limpar e a ultima coisa: resume() descobre se ha sessao e baixa o que a
+     nuvem tem; so entao da para apagar as frentes antigas sem apagar no
+     escuro. a pagina desenha antes disso e redesenha quando os dados chegam.
+     quem nao baixou nesta carga fica para a proxima — a limpeza sabe esperar. */
+  cloud.resume().finally(purgeFronts);
 }

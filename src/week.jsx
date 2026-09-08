@@ -1,16 +1,16 @@
 /* merlin · a semana
-   colunas de seg a sex mais o fim de semana, cartoes agrupados por frente.
+   colunas de seg a sex mais o fim de semana, cartoes agrupados por dia.
    nada aqui tem hora: o cartao entra no dia pelo gesto de puxar. */
 import "./shared/base.css";
 import "./week.css";
 import {
   initPage, newId, today, isDay, notify, sendToDay, api,
-  parseMentions, formatMin, parseDuration, mondayOf, addDays, dateLabel, dateOf
+  parseMentions, formatMin, parseDuration, mondayOf, addDays, dateLabel, dateOf, clientName
 } from "./shared/core.js";
 import { useState, useEffect, useRef } from "react";
 import {
-  mount, useCollection, useFronts, useClients, useKeydown, isTyping,
-  useFields, Form, Field, Dialog, Markdown, FrontBadge, ClientBadge, frontOptionList, clientOptionList, icon
+  mount, useCollection, useClients, useKeydown, isTyping,
+  useFields, Form, Field, Dialog, Markdown, ClientBadge, clientOptionList, icon
 } from "./shared/ui.jsx";
 
 initPage("week");
@@ -24,7 +24,6 @@ function normalize(d) {
     id: d.id,
     title: String(d.title || "").slice(0, 200),
     day: isValidDay(d.day) ? d.day : today(),
-    front: d.front || "",
     client: d.client || "",
     min: Math.max(0, Math.round(+d.min || 0)),
     done: !!d.done,
@@ -102,14 +101,14 @@ function cardStatus(c) {
   return c.day < t ? "late" : "future";
 }
 
-/* ---------- "@frente"/"@cliente" e duracao no fim do texto ----------
-   parseMentions e do core: reconhece os dois arrobas de uma vez, comparando
-   sem acento/espaco/caixa com nome e id. so a duracao fica por nossa conta,
-   porque ela precisa rodar DEPOIS de tirar os arrobas do texto. */
+/* ---------- "@cliente" e duracao no fim do texto ----------
+   parseMentions e do core: reconhece o arroba do cliente, comparando sem
+   acento/espaco/caixa com o nome. so a duracao fica por nossa conta, porque
+   ela precisa rodar DEPOIS de tirar o arroba do texto. */
 function parseLine(raw) {
   const found = parseMentions(raw);
   const { min, title } = parseDuration(found.title);
-  return { title: title.trim(), min, front: found.front || "", client: found.client || "" };
+  return { title: title.trim(), min, client: found.client || "" };
 }
 /* o rotulo da coluna: nome do dia e numero ("seg 7"); no fim de semana, os
    dois nomes e os dois numeros ("sáb · dom 12–13") */
@@ -126,8 +125,8 @@ function columnLabel(monday, col) {
    o cartao fica com o selo "no dia" e sem o gesto de puxar, para sempre. */
 const keepLink = (card, day) => (card.day === day ? card.inDay : "");
 
-/* ---------- ordenacao dentro do grupo: aberto por ordem, feito no fim ---------- */
-function sortGroup(list) {
+/* ---------- ordenacao dentro da coluna: aberto por ordem, feito no fim ---------- */
+function sortColumn(list) {
   const open = list.filter((c) => !c.done).sort((a, b) => a.order - b.order || a.createdAt - b.createdAt);
   const done = list.filter((c) => c.done).sort((a, b) => a.updatedAt - b.updatedAt);
   return open.concat(done);
@@ -141,18 +140,18 @@ function spawnRecurring(week, monday) {
   if (monday < mondayOf(today())) return;
   const all = week.all();
   const inWeek = all.filter((c) => mondayOfCard(c) === monday);
-  const exists = (title, front) => inWeek.some((c) => c.title === title && (c.front || "") === (front || ""));
+  const exists = (title) => inWeek.some((c) => c.title === title);
   const fresh = [];
   all.forEach((t) => {
     if (!t.recurring || t.recurringSource) return;
     const sourceMonday = mondayOfCard(t);
     if (sourceMonday === monday) return;
-    if (exists(t.title, t.front)) return;
+    if (exists(t.title)) return;
     const onWeekend = t.day.startsWith(WEEKEND);
     const day = onWeekend ? (WEEKEND + monday) : addDays(monday, daysBetween(sourceMonday, t.day));
     const now = Date.now();
     const copy = {
-      id: newId(), title: t.title, day, front: t.front, client: t.client,
+      id: newId(), title: t.title, day, client: t.client,
       min: t.min, done: false, recurring: true, order: now,
       createdAt: now, updatedAt: now, recurringSource: t.id
     };
@@ -168,7 +167,6 @@ function spawnRecurring(week, monday) {
    disso e documento — some ao recarregar, como deve. */
 function Week() {
   const week = useCollection("week", { normalize });
-  const fronts = useFronts();
   useClients();
   const [monday, setMonday] = useState(() => mondayOf(today()));
   const [form, setForm] = useState(null);         // { id, day } | null
@@ -199,7 +197,7 @@ function Week() {
     const before = week.remove(id);
     if (before) notify("cartão apagado", () => week.save(before));
   };
-  const pull = (c) => sendToDay({ title: c.title, min: c.min, front: c.front, client: c.client, origin: { type: "week", id: c.id } });
+  const pull = (c) => sendToDay({ title: c.title, min: c.min, client: c.client, origin: { type: "week", id: c.id } });
   const bringLate = () => {
     if (!late.length) return;
     const before = late.map((c) => ({ ...c }));
@@ -221,9 +219,8 @@ function Week() {
   const summaryLine = (c) => {
     const col = COLUMNS.find((col) => columnDay(monday, col) === c.day);
     const colLabel = col ? columnLabel(monday, col) : c.day;
-    const front = c.front ? fronts.find((f) => f.id === c.front) : null;
     const parts = [colLabel];
-    if (front) parts.push(front.name);
+    if (c.client) parts.push(clientName(c.client));
     parts.push(c.title);
     if (c.min) parts.push(formatMin(c.min));
     if (c.done) parts.push("feito");
@@ -251,9 +248,9 @@ function Week() {
   });
 
   /* ---------- arrastar e soltar nativo ----------
-     solto na hora exata de largar: muda dia e frente, e se for solto perto de
+     solto na hora exata de largar: muda de dia, e se for solto perto de
      um cartao especifico, entra antes/depois dele (ordem fracionaria, sem
-     precisar reindexar o grupo inteiro). no toque isso nao dispara — e o
+     precisar reindexar a coluna inteira). no toque isso nao dispara — e o
      dialogo de editar, com o seletor de dia, que resolve por la. */
   const onDragStart = (e, c) => {
     if (e.target.tagName === "INPUT") { e.preventDefault(); return; }
@@ -270,12 +267,10 @@ function Week() {
     const original = dragId.current && week.get(dragId.current);
     dragId.current = null;
     if (!original) return;
-    const groupEl = e.target.closest(".group");
-    const front = groupEl ? groupEl.dataset.front : (original.front || "");
     const targetCard = e.target.closest(".card");
 
     const siblings = week.all()
-      .filter((c) => c.day === day && (c.front || "") === (front || "") && c.id !== original.id && !c.done)
+      .filter((c) => c.day === day && c.id !== original.id && !c.done)
       .sort((a, b) => a.order - b.order || a.createdAt - b.createdAt);
 
     let order;
@@ -292,7 +287,7 @@ function Week() {
     } else {
       order = siblings.length ? siblings[siblings.length - 1].order + 1 : Date.now();
     }
-    week.save({ ...original, day, front, order, inDay: keepLink(original, day), updatedAt: Date.now() });
+    week.save({ ...original, day, order, inDay: keepLink(original, day), updatedAt: Date.now() });
   };
 
   const actions = { toggleDone, removeCard, pull, edit: (id) => setForm({ id }), editing, setEditing, week, dragging, onDragStart, onDragEnd };
@@ -334,7 +329,7 @@ function Week() {
             const day = columnDay(monday, col);
             return (
               <Column key={day} day={day} label={columnLabel(monday, col)} isToday={columnIsToday(monday, col)}
-                isTarget={target === day} fronts={fronts} cards={inWeek.filter((c) => c.day === day)}
+                isTarget={target === day} cards={inWeek.filter((c) => c.day === day)}
                 onNew={() => openNew(day)} onEnter={() => setTarget(day)} onLeave={() => setTarget("")}
                 onDrop={(e) => onDrop(e, day)} actions={actions} />
             );
@@ -349,13 +344,8 @@ function Week() {
 }
 
 /* ---------- a coluna: cabecalho com o dia, os minutos abertos e o "+" ---------- */
-function Column({ day, label, isToday, isTarget, fronts, cards, onNew, onEnter, onLeave, onDrop, actions }) {
+function Column({ day, label, isToday, isTarget, cards, onNew, onEnter, onLeave, onDrop, actions }) {
   const openMin = cards.filter((c) => !c.done).reduce((s, c) => s + c.min, 0);
-  const groups = fronts
-    .map((f) => ({ id: f.id, cards: cards.filter((c) => c.front === f.id) }))
-    .filter((g) => g.cards.length);
-  const noFront = cards.filter((c) => !c.front || !fronts.some((f) => f.id === c.front));
-  if (noFront.length) groups.push({ id: "", cards: noFront });
 
   return (
     <section className={"day-column" + (isToday ? " is-today" : "") + (isTarget ? " is-target" : "")}>
@@ -371,14 +361,9 @@ function Column({ day, label, isToday, isTarget, fronts, cards, onNew, onEnter, 
            onDragEnter={onEnter}
            onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) onLeave(); }}
            onDrop={onDrop}>
-        {groups.map((g) => (
-          <div key={g.id} className="group" data-front={g.id}>
-            <p className="group__label">{g.id ? <FrontBadge id={g.id} /> : <span className="t-mono t-mute">sem frente</span>}</p>
-            <ul className="group__list">
-              {sortGroup(g.cards).map((c) => <Card key={c.id} c={c} actions={actions} />)}
-            </ul>
-          </div>
-        ))}
+        <ul className="day-column__list">
+          {sortColumn(cards).map((c) => <Card key={c.id} c={c} actions={actions} />)}
+        </ul>
       </div>
     </section>
   );
@@ -435,15 +420,14 @@ function EditableTitle({ c, week, onClose }) {
 }
 
 /* ---------- a caixa do cartao: criar e editar sao a mesma ----------
-   no titulo, "@frente" e a duracao no fim continuam valendo — e a mesma
+   no titulo, "@cliente" e a duracao no fim continuam valendo — e a mesma
    gramatica do dia — mas os campos ao lado ganham quando preenchidos. */
 function CardForm({ week, monday, id, presetDay, onClose, onRemove }) {
   const c = id ? week.get(id) : null;
-  const [v, bind, set] = useFields({
+  const [v, bind] = useFields({
     title: c ? c.title : "",
     day: c ? c.day : (presetDay || todayColumn()),
     duration: c && c.min ? formatMin(c.min) : "",
-    front: c ? c.front : "",
     client: c ? c.client : "",
     recurring: !!(c && c.recurring)
   });
@@ -453,16 +437,16 @@ function CardForm({ week, monday, id, presetDay, onClose, onRemove }) {
     const title = parsed.title.slice(0, 200);
     if (!title) { notify("o cartão precisa de um título"); return false; }
     const min = parseDuration(v.duration).min || parsed.min;
-    const front = v.front || parsed.front, client = v.client || parsed.client;
+    const client = v.client || parsed.client;
     const now = Date.now();
-    if (c) week.save({ ...c, title, day: v.day, front, client, min, recurring: v.recurring, inDay: keepLink(c, v.day), updatedAt: now });
-    else week.save({ id: newId(), title, day: v.day, front, client, min, done: false, recurring: v.recurring, order: now, createdAt: now, updatedAt: now });
+    if (c) week.save({ ...c, title, day: v.day, client, min, recurring: v.recurring, inDay: keepLink(c, v.day), updatedAt: now });
+    else week.save({ id: newId(), title, day: v.day, client, min, done: false, recurring: v.recurring, order: now, createdAt: now, updatedAt: now });
   };
   return (
     <Form title={c ? "cartão" : "novo cartão"} submit={c ? "salvar" : "adicionar"} remove={c ? "apagar" : ""}
           onRemove={() => onRemove(id)} onClose={onClose} onSubmit={submit}>
       <Field label="título" full>
-        <input className="input" maxLength="200" required placeholder="o que fazer · @frente · 45m" {...bind("title")} />
+        <input className="input" maxLength="200" required placeholder="o que fazer · @cliente · 45m" {...bind("title")} />
       </Field>
       <Field label="dia">
         <select className="select" {...bind("day")}>
@@ -470,11 +454,7 @@ function CardForm({ week, monday, id, presetDay, onClose, onRemove }) {
         </select>
       </Field>
       <Field label="duração"><input className="input input--mono" placeholder="45m, 1h30" {...bind("duration")} /></Field>
-      <Field label="frente">
-        {/* trocar a frente restringe a lista de clientes a ela */}
-        <select className="select" {...bind("front")} onChange={(e) => { set("front", e.currentTarget.value); set("client", ""); }}>{frontOptionList("sem frente")}</select>
-      </Field>
-      <Field label="cliente"><select className="select" {...bind("client")}>{clientOptionList("sem cliente", v.front || undefined)}</select></Field>
+      <Field label="cliente"><select className="select" {...bind("client")}>{clientOptionList("sem cliente")}</select></Field>
       <label className="row full"><input type="checkbox" {...bind("recurring", "check")} /> toda semana</label>
     </Form>
   );

@@ -2,13 +2,13 @@
    lista de mapas e um editor com layout automatico, teclado, arrasto e zoom. */
 import "./shared/base.css";
 import "./maps.css";
-import { initPage, newId, notify, sendToDay, api, collection, clientName, listFronts } from "./shared/core.js";
+import { initPage, newId, notify, sendToDay, api, collection, clientName } from "./shared/core.js";
 import { useState, useEffect, useLayoutEffect, useRef, useMemo } from "react";
 import { createRoot } from "react-dom/client";
 import { flushSync } from "react-dom";
 import {
-  mount, useCollection, useFronts, useClients, useHash, useKeydown, isTyping, useFields,
-  Form, Field, Dialog, Markdown, FrontBadge, frontOptionList, icon
+  mount, useCollection, useClients, useHash, useKeydown, isTyping, useFields,
+  Form, Field, Dialog, Markdown, TemplatePicker, icon
 } from "./shared/ui.jsx";
 import { MAP_TEMPLATES, mapGroups, mapBranches, buildMap } from "./shared/templates.js";
 
@@ -35,7 +35,6 @@ function normalize(d) {
     id: d.id,
     name: String(d.name || "").slice(0, 120) || "mapa sem nome",
     root: normalizeNode(d.root && (d.root.title || d.root.children || d.root.id) ? d.root : { title: d.name || "ideia central" }),
-    front: d.front || "",
     client: d.client || "",
     idea: d.idea || "",
     funnel: d.funnel || "",
@@ -440,7 +439,11 @@ function createMapEngine(mapId, handlers) {
        box esticada, senao o texto sai de escala em um eixo) e a escala nunca
        passa de 1: um mapa pequeno fica do tamanho natural (13px de verdade),
        nao esticado para preencher a tela — so encolhe quando nao cabe. */
-    const scale = Math.min(1, (availW - margin * 2) / bboxW, (availH - margin * 2) / bboxH);
+    /* o enquadrar tem piso: numa tela estreita, caber o mapa inteiro deixava o
+       rotulo do tamanho de um risco e o no menor que o dedo. abaixo do piso o
+       mapa comeca no meio (a raiz) e o resto se le arrastando. */
+    const floor = availW < 700 ? 0.5 : 0.12;
+    const scale = Math.max(floor, Math.min(1, (availW - margin * 2) / bboxW, (availH - margin * 2) / bboxH));
     const cx = (minX + maxX) / 2, cy = (minY + maxY) / 2;
     const w = availW / scale, h = availH / scale;
     view = { x: cx - w / 2, y: cy - h / 2, w, h };
@@ -800,6 +803,16 @@ const FrameIcon = () => (
     <path d="M9 4H5a1 1 0 00-1 1v4M15 4h4a1 1 0 011 1v4M9 20H5a1 1 0 01-1-1v-4M15 20h4a1 1 0 001-1v-4" />
   </svg>
 );
+const BackIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M19 12H5M11 6l-6 6 6 6" />
+  </svg>
+);
+const MoreIcon = () => (
+  <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+    <circle cx="5" cy="12" r="1.7" /><circle cx="12" cy="12" r="1.7" /><circle cx="19" cy="12" r="1.7" />
+  </svg>
+);
 const FabIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
     <path d="M12 5v14M5 12h14" />
@@ -880,7 +893,6 @@ function MapRow({ m, ideas, funnels, maps, renaming, onRename, onRenamed, onDupl
       {renaming
         ? <RenameInput map={m} maps={maps} onDone={onRenamed} />
         : <button type="button" className="mp-line-name">{m.name}</button>}
-      <FrontBadge id={m.front} />
       <span className="measure t-mono">{n + (n === 1 ? " nó" : " nós")}</span>
       <span className="measure t-mono">{"editado há " + relativeTime(m.updatedAt)}</span>
       <span className="mp-links">
@@ -917,15 +929,14 @@ function RenameInput({ map, maps, onDone }) {
     onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); confirm(); } else if (e.key === "Escape") { e.preventDefault(); cancel(); } }} />;
 }
 
-/* criar e um botao e uma caixa, como em todo o sistema: nome, modelo e
-   frente. o mapa ja abre com o nome como ideia central; com modelo, os
-   galhos dele ja nascem pendurados nela, cada um de uma cor. */
+/* criar e um botao e uma caixa, como em todo o sistema: nome e modelo. o
+   mapa ja abre com o nome como ideia central; com modelo, os galhos dele ja
+   nascem pendurados nela, cada um de uma cor. */
 function MapForm({ maps, onClose }) {
-  const [v, bind, set] = useFields({ name: "", front: "", template: "" });
+  const [v, bind, set] = useFields({ name: "", template: "" });
   const tpl = v.template ? MAP_TEMPLATES.find((t) => t.id === v.template) : null;
   /* escolher o modelo batiza o mapa, quando o nome ainda esta vazio */
-  const pickTemplate = (e) => {
-    const id = e.currentTarget.value;
+  const pickTemplate = (id) => {
     set("template", id);
     const chosen = MAP_TEMPLATES.find((t) => t.id === id);
     if (chosen && !v.name.trim()) set("name", chosen.name);
@@ -937,7 +948,7 @@ function MapForm({ maps, onClose }) {
     const doc = {
       id: newId(), name,
       root: tpl ? buildMap(tpl, name) : { id: newId(), title: name, note: "", color: 0, collapsed: false, link: "", children: [] },
-      front: v.front || "", client: "", idea: "", funnel: "", createdAt: now, updatedAt: now
+      client: "", idea: "", funnel: "", createdAt: now, updatedAt: now
     };
     maps.save(doc);
     location.hash = doc.id;
@@ -946,14 +957,8 @@ function MapForm({ maps, onClose }) {
     <Form title="novo mapa" submit="criar e abrir" onSubmit={submit} onClose={onClose}>
       <Field label="nome" full><input className="input" maxLength="120" required placeholder="a ideia central" {...bind("name")} /></Field>
       <Field label="modelo" full>
-        <select className="select" id="map-template" value={v.template} onChange={pickTemplate}>
-          <option value="">mapa em branco</option>
-          {mapGroups().map((g) => (
-            <optgroup key={g.key} label={g.label}>
-              {g.items.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
-            </optgroup>
-          ))}
-        </select>
+        <TemplatePicker id="map-template" groups={mapGroups()} empty="mapa em branco"
+                        value={v.template} onChange={pickTemplate} />
         {tpl && (
           <>
             <p className="tpl-note">{tpl.summary}</p>
@@ -961,7 +966,6 @@ function MapForm({ maps, onClose }) {
           </>
         )}
       </Field>
-      <Field label="frente"><select className="select" {...bind("front")}>{frontOptionList("sem frente")}</select></Field>
     </Form>
   );
 }
@@ -972,7 +976,6 @@ function MapForm({ maps, onClose }) {
    versoes anteriores. selecao, edicao inline, painel e dialogos sao estado
    de tela; o desenho e o motor (createMapEngine), que so recebe update(). */
 function Editor({ id, maps }) {
-  const fronts = useFronts();
   useClients();
   const [doc, setDoc] = useState(() => maps.get(id));
   const docRef = useRef(doc); docRef.current = doc;
@@ -980,6 +983,7 @@ function Editor({ id, maps }) {
   const [editing, setEditing] = useState(null);         // { id, initial } | null
   const [panelOpen, setPanelOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [suggestions, setSuggestions] = useState(null); // { targetId, list } | null
   const [thinking, setThinking] = useState(false);
   const [fontsReady, setFontsReady] = useState(false);
@@ -1205,14 +1209,14 @@ function Editor({ id, maps }) {
   const withSelected = (fn, options) => mutate((d) => { const f = findNode(d.root, selectedId); if (!f) return false; return fn(f.node, d); }, options);
   const pullToDay = () => {
     if (!selectedNode) return;
-    sendToDay({ title: selectedNode.node.title || doc.name, front: doc.front, client: doc.client, origin: { type: "map", id: doc.id } });
+    sendToDay({ title: selectedNode.node.title || doc.name, client: doc.client, origin: { type: "map", id: doc.id } });
   };
   const toIdea = () => {
     if (!selectedNode) return;
     const now = Date.now();
     collection("ideas").save({
       id: newId(), title: selectedNode.node.title || doc.name, body: selectedNode.node.note || "",
-      stage: "seed", front: doc.front, client: doc.client,
+      stage: "seed", client: doc.client,
       steps: [], outputs: [], history: [], createdAt: now, updatedAt: now
     });
     notify("virou ideia");
@@ -1238,7 +1242,6 @@ function Editor({ id, maps }) {
     const f = findNode(d.root, nid);
     if (!f) return null;
     const node = f.node;
-    const front = d.front ? fronts.find((x) => x.id === d.front) : null;
     return {
       map: d.name,
       path: pathToRoot(d, nid),
@@ -1246,7 +1249,6 @@ function Editor({ id, maps }) {
       note: node.note || "",
       children: (node.children || []).map((c) => c.title),
       siblings: f.parent ? f.parent.children.filter((c) => c.id !== nid).map((c) => c.title) : [],
-      front: front ? front.name : "",
       client: d.client ? (clientName(d.client) || "") : ""
     };
   };
@@ -1414,20 +1416,18 @@ function Editor({ id, maps }) {
   return (
     <>
       <main className="page page--full mp-editor">
+        {/* a barra de cima e so o indispensavel: voltar, o nome, o merlin e o
+            enquadrar. exportar e atalhos moram no "mais" — sao coisas de uma
+            vez na vida, e nao merecem ocupar tela em cima do mapa. */}
         <div className="mp-bar">
+          <a className="action" href="maps.html" id="mp-back" title="voltar para os mapas" aria-label="Voltar"><BackIcon /></a>
           <input className="mp-name" id="mp-name" maxLength="120" aria-label="Nome do mapa" value={doc.name}
             onChange={(e) => { const v = e.currentTarget.value; mutate((d) => { d.name = v; }, { history: false }); }} />
-          <select className="select mp-front" id="mp-front" aria-label="Frente do mapa" value={doc.front}
-            onChange={(e) => { const v = e.currentTarget.value; mutate((d) => { d.front = v; }, { history: false }); }}>{frontOptionList("sem frente")}</select>
-          <span className="spacer"></span>
-          <button className="pill" type="button" id="mp-suggest" disabled={thinking} title="Merlin desenha ramos tracejados no nó selecionado; clique num deles para ficar com ele (tecla S)" onClick={() => askSuggestions(selectedId || doc.root.id)}>
-            <SparkIcon /><span id="mp-suggest-text">{thinking ? "pensando…" : "sugerir"}</span>
-          </button>
-          <button className="pill pill--icon" type="button" id="mp-frame" title="Enquadrar (Ctrl+0)" onClick={() => engine.frame()}><FrameIcon /></button>
-          <button className="pill" type="button" id="mp-png" onClick={exportPng}>exportar png</button>
-          <button className="pill" type="button" id="mp-outline" onClick={exportOutline}>exportar outline</button>
-          <button className="pill pill--icon" type="button" id="mp-help" title="Atalhos do teclado" onClick={() => setHelpOpen(true)}>?</button>
-          <a className="pill" href="maps.html" id="mp-back">voltar</a>
+          <button className="pill pill--green pill--icon" type="button" id="mp-suggest" disabled={thinking} aria-busy={thinking}
+            title={thinking ? "pensando…" : "sugerir ramos para o nó selecionado (S)"} aria-label="Sugerir ramos"
+            onClick={() => askSuggestions(selectedId || doc.root.id)}><SparkIcon /></button>
+          <button className="action" type="button" id="mp-frame" title="enquadrar (Ctrl+0)" aria-label="Enquadrar" onClick={() => engine.frame()}><FrameIcon /></button>
+          <button className="action" type="button" id="mp-more" title="mais" aria-label="Mais" onClick={() => setMenuOpen(true)}><MoreIcon /></button>
         </div>
         <MapCanvas engine={engine} layout={layout} selectedId={selectedId} rootId={doc.root.id} editing={!!editing}
           onAddChild={() => createChild(selectedId || doc.root.id)} />
@@ -1441,6 +1441,15 @@ function Editor({ id, maps }) {
         onLink={(v) => withSelected((n) => { n.link = v.trim(); })}
         onColor={(c) => withSelected((n) => { n.color = c; })}
         onPull={pullToDay} onIdea={toIdea} />}
+      {menuOpen && (
+        <Dialog title="mais" onClose={() => setMenuOpen(false)}>
+          <div className="mp-menu">
+            <button className="pill" type="button" onClick={() => { setMenuOpen(false); exportPng(); }}>exportar png</button>
+            <button className="pill" type="button" onClick={() => { setMenuOpen(false); exportOutline(); }}>exportar outline</button>
+            <button className="pill" type="button" onClick={() => { setMenuOpen(false); setHelpOpen(true); }}>atalhos do teclado</button>
+          </div>
+        </Dialog>
+      )}
       {helpOpen && <HelpDialog onClose={() => setHelpOpen(false)} />}
       {suggestions && <p className="mp-ghost-hint" id="mp-ghost-hint">clique num ramo tracejado para ficar com ele · <kbd>Esc</kbd> dispensa</p>}
     </>

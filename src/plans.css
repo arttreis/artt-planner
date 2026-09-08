@@ -21,9 +21,7 @@
 .horizon__body{display:flex;flex-direction:column;gap:var(--pd2)}
 .horizon .empty{padding:var(--pd2) 0}
 
-/* objetivos agrupados por frente, como os cartoes da semana */
-.goal-group{display:flex;flex-direction:column;gap:4px}
-.goal-group__label{margin:0}
+/* o objetivo: caixa, texto, e os selos e desdobramentos no rodape */
 .goal{padding:6px 6px 6px 10px;gap:8px;align-items:flex-start}
 .goal__check{flex:0 0 auto;width:14px;height:14px;margin-top:2px;accent-color:var(--green);cursor:pointer}
 .goal__main{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:3px}

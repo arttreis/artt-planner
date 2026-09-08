@@ -85,7 +85,7 @@ qualquer página ou módulo novo.
 | `merlin:sidebar` (`fechada`/`aberta`) | `merlin:sidebar` (`closed`/`open`) |
 | `merlin:entrada` | `merlin:inbox` |
 | `merlin:dia` | `merlin:day` |
-| `merlin:frentes`, `merlin:clientes`, `merlin:ideias`, `merlin:semana`, `merlin:mapas`, `merlin:funis`, `merlin:financeiro` | `merlin:fronts`, `merlin:clients`, `merlin:ideas`, `merlin:week`, `merlin:maps`, `merlin:funnels`, `merlin:finance` |
+| ~~`merlin:frentes`~~, `merlin:clientes`, `merlin:ideias`, `merlin:semana`, `merlin:mapas`, `merlin:funis`, `merlin:financeiro` | ~~`merlin:fronts`~~ (só existe para a purga esvaziar), `merlin:clients`, `merlin:ideas`, `merlin:week`, `merlin:maps`, `merlin:funnels`, `merlin:finance` |
 | forma da coleção `{itens, vServidor, sujos}` | `{items, serverV, dirty}` |
 | túmulo `{apagado:true}` | `{deleted:true}` |
 
@@ -94,26 +94,28 @@ qualquer página ou módulo novo.
 | antes | depois |
 | --- | --- |
 | `titulo`, `nome`, `corpo`, `nota` | `title`, `name`, `body`, `note` |
-| `frente`, `cliente` | `front`, `client` |
+| ~~`frente`~~, `cliente` | ~~`front`~~, `client` |
 | `feito`, `apagado` | `done`, `deleted` |
 | `criada`, `atualizada`, `quando` | `createdAt`, `updatedAt`, `at` |
 | `ordem`, `cor`, `tipo`, `estagio` | `order`, `color`, `type`, `stage` |
 | `origem:{tipo,id}` | `origin:{type,id}` |
 
-Por coleção:
+Por coleção (as formas de hoje; **as frentes saíram do sistema em 07/09/2026** — a coleção
+`fronts` foi apagada, o campo `front` saiu de todas as formas abaixo e o `purgeFronts()` do
+core tira o que já estava gravado, coleção por coleção, ver "Frentes: saíram" na VISAO):
 
-- **fronts** `{id, name, color (1-6), order}`; sementes `artt, guessless, glsuite, saas, personal`.
-- **clients** `{id, name, front, status ('active'|'paused'|'closed'), summary, channels:[{id, type, name, items:[{id, text, done}]}], goals:[{id, text, done}], backlog:[{id, text, done}], journal:[{id, text, at}], contract:{…}, contacts:[…], links:[…], offers:[…]}`.
-- **ideas** `{id, title, body, stage, front, client, steps:[{id, text, done}], outputs:[{type, id, at}], history:[{type:'stage', from, to, at}]}`.
-- **week** `{id, title, day ('YYYY-MM-DD' | 'weekend:YYYY-MM-DD'), front, client, min, done, recurring, order, createdAt, updatedAt, recurringSource, inDay}`.
-- **maps** `{id, name, root:{id, title, note, color, collapsed, children:[…]}, front, client, idea, funnel}`.
-- **funnels** `{id, name, client, channel, front, nodes:[{id, type, title, x, y, fields:{}, number}], edges:[{from, to}], creatives:[…], automations:[…], offers:[…], triggers:[…], snapshots:[…]}`; tipos de nó `traffic, ad, lp, vsl, capture, cta, checkout, thanks, email, whatsapp, remarketing, upsell, downsell, bump`.
+- ~~**fronts** `{id, name, color (1-6), order}`; sementes `artt, guessless, glsuite, saas, personal`.~~
+- **clients** `{id, name, status ('active'|'paused'|'closed'), summary, channels:[{id, type, name, items:[{id, text, done}]}], goals:[{id, text, done}], backlog:[{id, text, done}], journal:[{id, text, at}], contract:{…}, contacts:[…], links:[…], offers:[…]}`.
+- **ideas** `{id, title, body, stage, client, steps:[{id, text, done}], outputs:[{type, id, at}], history:[{type:'stage', from, to, at}]}`.
+- **week** `{id, title, day ('YYYY-MM-DD' | 'weekend:YYYY-MM-DD'), client, min, done, recurring, order, createdAt, updatedAt, recurringSource, inDay}`.
+- **maps** `{id, name, root:{id, title, note, color, collapsed, children:[…]}, client, idea, funnel}`.
+- **funnels** `{id, name, client, channel, nodes:[{id, type, title, x, y, fields:{}, number}], edges:[{from, to}], creatives:[…], automations:[…], offers:[…], triggers:[…], snapshots:[…]}`; tipos de nó `traffic, ad, lp, vsl, capture, cta, checkout, thanks, email, whatsapp, remarketing, upsell, downsell, bump`.
 - **finance** vários docs `{id, type:'entry'|'fixed'|'card'|'debt'|'config', …}`.
-- **inbox** (`merlin:inbox`) `[{id, title, min, front, client, origin:{type, id}, at}]`.
+- **inbox** (`merlin:inbox`) `[{id, title, min, client, origin:{type, id}, at}]`.
 - **day** (`merlin:day`, tabela `days`) é do `index.html`, em inglês.
 - **vault** (`merlin:vault`) um doc `{id:'config', salt}`, de `clients.html`.
-- **habits** `{id, name, front, schedule:{type:'daily'|'perWeek'|'weekdays', times, weekdays:[0-6]}, min, color, order, archived, marks:{'YYYY-MM-DD':true}}`.
-- **plans** um doc por período, id `kind:period`: `{id, kind:'quarter'|'month'|'week', period, goals:[{id, text, front, client, done, parent, card, order}], review:{went, didnt, next}}`.
+- **habits** `{id, name, schedule:{type:'daily'|'perWeek'|'weekdays', times, weekdays:[0-6]}, min, color, order, archived, marks:{'YYYY-MM-DD':true}}`.
+- **plans** um doc por período, id `kind:period`: `{id, kind:'quarter'|'month'|'week', period, goals:[{id, text, client, done, parent, card, order}], review:{went, didnt, next}}`.
 
 ### API e banco
 
@@ -168,10 +170,11 @@ quando o Arthur quiser.
 ```
 shared/
   preact.js     preact + hooks + htm, copiado (npm run preact). nao se edita.
-  core.js       dados: tema, sidebar, sessao/nuvem, colecoes, frentes, inbox, notify, md.
-  ui.js         tela: hooks (useCollection, useFronts, useClients, useCloud, useHash,
+  core.js       dados: tema, sidebar, sessao/nuvem, colecoes, inbox, notify, md e a
+                purga das frentes (purgeFronts, uma vez por navegador).
+  ui.js         tela: hooks (useCollection, useClients, useCloud, useHash,
                 useKeydown, useFields), componentes (Dialog, Form, Field, Markdown,
-                FrontBadge, ClientBadge) e icones como vnode (icon, svg).
+                ClientBadge) e icones como vnode (icon, svg).
   base.css / shell.css   os mesmos, com classes em ingles.
 server/         worker.js, schema.sql, test.mjs, site.mjs, wrangler.toml
 ```
@@ -225,7 +228,7 @@ Regras da página migrada:
 ### Fase 1 · piloto: `week.html` — feita
 
 - [x] `Week`, `Column`, `Card`, `EditableTitle`, `CardForm`, `MerlinDialog`.
-- [x] Arrastar e soltar: dia, frente, antes/depois de um cartão (ordem fracionária).
+- [x] Arrastar e soltar: dia, ~~frente~~, antes/depois de um cartão (ordem fracionária).
 - [x] Edição inline com foco e seleção; Enter salva, Esc cancela, blur salva.
 - [x] Faixa "ficou de trás" com trazer e arquivar, ambos com desfazer.
 - [x] Atalhos `n`, `Alt+←/→`, `Esc`.
@@ -241,7 +244,8 @@ Regras da página migrada:
 
 ### Fase 3 · `clients.html` — feita
 
-- [x] Cadastro de frentes, lista por frente, painel do cliente em oito abas (`useHash`).
+- [x] ~~Cadastro de frentes, lista por frente~~ (saíram em 07/09/2026), painel do cliente
+  em oito abas (`useHash`).
 - [x] Canais, objetivos, backlog, diário, ofertas, contrato, contatos, links e o cofre, com
   a mesma cifra de antes (PBKDF2 300k + AES-GCM; a coleção `vault` guarda só o sal).
 - [x] Pauta de reunião com o Merlin (`task: "meeting"`).
@@ -265,6 +269,7 @@ Regras da página migrada:
 - [x] Desfazer (pilha de 12), dia de ontem, matriz de Eisenhower efêmera, ClickUp.
 - [x] Documento do dia em inglês: `{day, start, end, doneOpen, v, tasks:[{id, title, min,
   done, reserved, clickup, front, client, origin}]}`; a ordem do array é a prioridade.
+  (o `front` saiu em 07/09/2026, ver "Frentes: saíram" na VISAO.)
   A chave antiga `artt-planner:v2` saiu. 1746 → 1519 linhas de JS, 15 → 0 `innerHTML`,
   3 → 0 escapes, e o escapador próprio do dia desapareceu.
 
@@ -335,7 +340,7 @@ mensal e semanal**. As duas nasceram já em Preact e em inglês, com o desenho d
 - `habits.html` — a grade do mês, frequência `daily|perWeek|weekdays`, sequência, taxa do
   mês, puxar para o dia (`origin: {type:"habit"}`), arquivar com desfazer, Merlin
   (`task: "habits"`). Coleção `habits`, marcas dentro do documento.
-- `plans.html` — trimestre, mês e semana lado a lado; objetivos por frente, desdobrar
+- `plans.html` — trimestre, mês e semana lado a lado; objetivos por cliente, desdobrar
   (filho com `parent`), puxar para a semana (cartão com `origin: {type:"plan"}`), revisão em
   três campos e Merlin (`task: "review"`). Coleção `plans`, um documento por período.
 
@@ -366,7 +371,7 @@ no React 18.3.1, a última versão com UMD.
 
 ### O que mudou de forma
 
-A unidade do sistema continua sendo **uma página por frente**. O que mudou é que ela virou dois
+A unidade do sistema continua sendo **uma página por assunto**. O que mudou é que ela virou dois
 arquivos em vez de um:
 
 ```

@@ -140,22 +140,13 @@ body::after{
   display:grid;place-items:center;margin-bottom:calc(var(--pd) * 1.5);
 }
 .logo-tile svg{width:23px;height:23px;color:var(--green)}
-/* frente e cliente na linha da tarefa: o selo vem da casca, aqui so encolhe.
-   ficam na mesma linha da duracao, e nao numa terceira — o projeto e parte
+/* o cliente na linha da tarefa: o selo vem da casca, aqui so encolhe.
+   fica na mesma linha da duracao, e nao numa terceira — o cliente e parte
    da leitura rapida da tarefa, nao um rodape. */
 .task__foot{display:flex;align-items:center;gap:var(--pd2);flex-wrap:wrap;min-width:0}
 .task__badges{display:flex;gap:4px;flex-wrap:wrap;min-width:0}
-.task__badges .badge{height:18px;font-size:9.5px;padding:0 7px}
-.task__badges .badge:not([data-color]){color:var(--ink-70)}
+.task__badges .badge{height:18px;font-size:9.5px;padding:0 7px;color:var(--ink-70)}
 .task.is-done .task__badges{display:none}
-/* o friso: a cor da frente na borda da tarefa, para o projeto ser visto
-   antes mesmo de ler o selo. curto e dentro do cartao, como uma aba. */
-.task{position:relative}
-.task[data-color]::before{
-  content:"";position:absolute;left:0;top:14px;bottom:14px;width:3px;
-  border-radius:0 3px 3px 0;background:var(--color);
-}
-.task.is-done[data-color]::before{opacity:.35}
 
 /* ---------- chamada ---------- */
 .headline{

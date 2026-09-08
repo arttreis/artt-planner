@@ -1,6 +1,6 @@
 /* merlin · ui: a camada de tela em React
  *
- * o core.js continua sendo o dono dos dados (colecoes, sessao, nuvem, frentes,
+ * o core.js continua sendo o dono dos dados (colecoes, sessao, nuvem,
  * caixa de entrada). aqui mora so o que uma pagina precisa para DESENHAR: os
  * hooks que ligam a tela as colecoes, os componentes comuns e a casca (barra,
  * busca, tema, nuvem, entrar, aviso).
@@ -16,7 +16,7 @@
 import { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback, createElement, Fragment } from "react";
 import { createRoot } from "react-dom/client";
 import {
-  collection, cloud, fronts, clients, listFronts, listClients, clientName, md, brl, parseMoney,
+  collection, cloud, clients, listClients, clientName, md, brl, parseMoney,
   api, notify, sendToDay,
   PAGES, CLOUD_STATUS, search, signIn, currentNotice, onNotice, closeNotice,
   toggleTheme, toggleSidebar, setShellRenderer
@@ -53,13 +53,6 @@ export function useCollection(type, options) {
   const c = useMemo(() => collection(type, options), [type]);
   useSubscription(c);
   return c;
-}
-
-/* as frentes, ordenadas, redesenhando quando o cadastro muda */
-export function useFronts() {
-  const c = useMemo(() => fronts(), []);
-  useSubscription(c);
-  return listFronts();
 }
 
 /* os clientes vivos, redesenhando quando mudam */
@@ -153,27 +146,16 @@ export function Markdown({ text, tag = "div", class: _c, className: _cn, ...rest
   });
 }
 
-/* o selo de frente: bolinha da cor e o nome. nada quando a frente nao existe. */
-export function FrontBadge({ id }) {
-  const f = id && fronts().get(id);
-  if (!f) return null;
-  return <span className="badge" data-color={f.color}><i className="dot" />{f.name}</span>;
-}
 /* o selo de cliente, so o nome */
 export function ClientBadge({ id }) {
   const name = clientName(id);
   return name ? <span className="badge">{name}</span> : null;
 }
 
-/* as <option> de frente/cliente para um <select> controlado: o `value` fica no
+/* as <option> de cliente para um <select> controlado: o `value` fica no
    select, aqui so a lista */
-export function frontOptionList(empty) {
-  const list = listFronts().map((f) => <option key={f.id} value={f.id}>{f.name}</option>);
-  return empty != null ? [<option key="" value="">{empty}</option>, ...list] : list;
-}
-export function clientOptionList(empty, front) {
-  const list = listClients().filter((c) => !front || c.front === front)
-    .map((c) => <option key={c.id} value={c.id}>{c.name}</option>);
+export function clientOptionList(empty) {
+  const list = listClients().map((c) => <option key={c.id} value={c.id}>{c.name}</option>);
   return empty != null ? [<option key="" value="">{empty}</option>, ...list] : list;
 }
 
@@ -248,6 +230,40 @@ export function Field({ label, full, children }) {
   return <div className={full ? "full" : undefined}><label className="field-label">{label}</label>{children}</div>;
 }
 
+/* o escolhedor de modelo: a lista inteira, agrupada, dentro do formulario.
+   era um <select> com <optgroup> e o popup nativo abria branco por cima da
+   tela; com dezenas de modelos, cobria a tela toda. `groups` vem de
+   funnelGroups()/mapGroups(); `empty` e a primeira linha, a do em branco. */
+export function TemplatePicker({ groups, empty, value, onChange, id }) {
+  const ref = useRef(null);
+  /* uma parada de tabulacao so — a do escolhido — e as setas andando dentro
+     da lista: sem isso o Tab passaria por dezenas de modelos ate o proximo
+     campo, que era justamente o que o <select> resolvia de graca */
+  const walk = (e) => {
+    const step = e.key === "ArrowDown" ? 1 : e.key === "ArrowUp" ? -1 : 0;
+    if (!step) return;
+    e.preventDefault();
+    const all = Array.from(ref.current.querySelectorAll(".picker__item"));
+    const next = all[Math.min(all.length - 1, Math.max(0, all.indexOf(e.target) + step))];
+    if (next) next.focus();
+  };
+  const item = (key, label, on) => (
+    <button key={key || "-"} type="button" className={"picker__item" + (on ? " is-on" : "")}
+            aria-pressed={on} tabIndex={on ? 0 : -1} onClick={() => onChange(key)}>{label}</button>
+  );
+  return (
+    <div className="picker" id={id} ref={ref} onKeyDown={walk}>
+      {item("", empty, !value)}
+      {groups.map((g) => (
+        <Fragment key={g.key}>
+          <p className="picker__group t-mono">{g.label}</p>
+          {g.items.map((t) => item(t.id, t.name, value === t.id))}
+        </Fragment>
+      ))}
+    </div>
+  );
+}
+
 /* o numero grande com legenda (.meter do base.css) */
 export function Meter({ label, value, ...rest }) {
   return <div className="meter"><span className={"num" + (cx(rest) ? " " + cx(rest) : "")}>{value}</span><span className="legend">{label}</span></div>;
@@ -296,16 +312,14 @@ export function useDelegate() {
   const [busy, setBusy] = useState("");
   const [answer, setAnswer] = useState(null);
 
-  /* demanda: {id, title, min?, due?, front?, client?, about?, where, origin} —
-     front e client sao ids, e viram nome antes de subir: o merlin le "Guessless",
-     nao um uuid. */
+  /* demanda: {id, title, min?, due?, client?, about?, where, origin} — client e
+     id, e vira nome antes de subir: o merlin le "lojax", nao um uuid. */
   const ask = async (demand) => {
     /* uma pergunta por vez: `busy` e o id de quem esta no ar, e e ele que
        apaga o botao das outras linhas enquanto isso */
     if (busy) return;
     setBusy(demand.id || "?");
     try {
-      const front = demand.front && fronts().get(demand.front);
       const r = await api("/merlin", {
         method: "POST",
         body: JSON.stringify({
@@ -315,7 +329,6 @@ export function useDelegate() {
             min: demand.min || 0,
             due: demand.due || "",
             where: demand.where || "",
-            front: front ? front.name : "",
             client: demand.client ? clientName(demand.client) : "",
             about: demand.about || ""
           }
@@ -328,7 +341,6 @@ export function useDelegate() {
           title: demand.title || "",
           text: (line ? text.replace(line[0], "") : text).trim(),
           setup: line ? line[1].slice(0, 160) : "",
-          front: demand.front || "",
           client: demand.client || "",
           origin: demand.origin || null
         });
@@ -352,7 +364,7 @@ export function useDelegate() {
 export function DelegateDialog({ answer, onClose, onBuild }) {
   const build = () => {
     if (onBuild) onBuild(answer.setup);
-    else sendToDay({ title: answer.setup, front: answer.front, client: answer.client, origin: answer.origin });
+    else sendToDay({ title: answer.setup, client: answer.client, origin: answer.origin });
     onClose();
   };
   return (

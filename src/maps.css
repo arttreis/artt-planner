@@ -4,7 +4,7 @@
    especificidade. importado logo depois do base.css, a ordem volta a ser a de
    sempre: primeiro o comum, depois o da pagina. */
 
-/* tintas dos ramos: as mesmas do .badge (base.css), replicadas em variavel
+/* tintas dos ramos: os mesmos tons da paleta --color-N (shell.css), replicados em variavel
    porque dentro do svg inline so custom property resolve nos dois temas —
    a cor 5 nao tem entrada aqui porque usa --green-ink direto (ja e tema-aware). */
 :root{
@@ -43,18 +43,19 @@ html.light{
 }
 .mp-bar{
   flex:0 0 auto;position:relative;z-index:2;
-  display:flex;align-items:center;gap:6px;flex-wrap:wrap;
-  min-height:48px;padding:6px var(--pd2);
+  display:flex;align-items:center;gap:4px;
+  min-height:46px;padding:5px var(--pd2);
   background:var(--surface);border-bottom:1px solid var(--line-soft);
 }
 .mp-name{
-  flex:1 1 220px;min-width:100px;max-width:340px;
+  flex:1 1 auto;min-width:60px;
   background:none;border:1px solid transparent;border-radius:var(--br2);
   padding:6px 8px;font-size:14px;font-weight:600;color:var(--ink);
   transition:background var(--t),border-color var(--t);
 }
 .mp-name:hover,.mp-name:focus{background:var(--fill);border-color:var(--line);outline:none}
-.mp-front{flex:0 0 auto;width:auto;max-width:170px}
+.mp-menu{display:flex;flex-direction:column;gap:8px}
+.mp-menu .pill{justify-content:flex-start;height:38px}
 .mp-body{position:relative;flex:1 1 auto;min-height:0;background:var(--mp-canvas)}
 /* sem selecao de texto: arrastar um no por cima dos outros selecionava os
    titulos, e o arraste seguinte, comecando em texto selecionado, virava um
@@ -139,9 +140,7 @@ html.light{
 
 @media (max-width:640px){
   .mp-panel{width:100vw}
-  .mp-bar{gap:4px}
-  .mp-name{max-width:none}
-  /* a linha da lista quebra: nome numa linha, selo, medidas e acoes nas
+  /* a linha da lista quebra: nome numa linha, medidas, vinculos e acoes nas
      seguintes — senao as acoes saem da tela e a pagina rola na horizontal */
   .mp-list .line{flex-wrap:wrap}
   .mp-list .mp-line-name{flex-basis:100%}

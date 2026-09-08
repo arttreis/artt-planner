@@ -7,7 +7,7 @@ Vite; o build sai em `server/site/`. O que é comum vive aqui:
 - `base.css` — tokens dos dois temas (escuro no `:root`, claro em `html.light`), a sidebar
   (via `shell.css`), e os componentes: `.block`, `.pill`, `.chip`, `.badge`, `.input`,
   `.line`, `.table`, `.dialog`, `.notice`, `.meter`, `.bar`, `.tabs`, `.grid`/`.col-*`.
-- `core.js` — os **dados**: tema, sidebar, sessão/nuvem, coleções sincronizadas, frentes,
+- `core.js` — os **dados**: tema, sidebar, sessão/nuvem, coleções sincronizadas, clientes,
   caixa de entrada do dia, aviso com desfazer, markdown. **JavaScript puro, sem React**: dá
   para testar sem navegador. Não desenha tela de módulo.
 - `icons.jsx` — os SVGs comuns como elementos React. `icon("plus")` devolve um deles.
@@ -58,11 +58,11 @@ E `src/ideas.jsx` é a tela:
 import "./shared/base.css";                 // o dia importa "./shared/shell.css" no lugar
 import { initPage, newId, today, notify, sendToDay } from "./shared/core.js";
 import { useState } from "react";
-import { mount, useCollection, useFronts, useHash, useFields,
-         Form, Field, Dialog, Markdown, FrontBadge, ClientBadge,
-         frontOptionList, clientOptionList, icon } from "./shared/ui.jsx";
+import { mount, useCollection, useClients, useHash, useFields,
+         Form, Field, Dialog, Markdown, ClientBadge,
+         clientOptionList, icon } from "./shared/ui.jsx";
 
-initPage("ideas");   // monta a casca, carrega frentes e clientes, retoma a sessão
+initPage("ideas");   // monta a casca, carrega os clientes, retoma a sessão
 
 const normalize = (d) => ({ ...d, title: String(d.title || "") });
 
@@ -95,18 +95,18 @@ vezes numa montagem (esvaziar a caixa de entrada, gerar a recorrência da semana
 
 | o quê | para quê |
 | --- | --- |
-| `initPage(id)` | sidebar, frentes, clientes, sessão. `id` é `day, week, ideas, clients, funnels, maps, finance` |
+| `initPage(id)` | sidebar, clientes, sessão. `id` é `day, week, ideas, clients, funnels, maps, finance` |
 | `collection(type, {normalize})` | fora de componente; dentro use `useCollection` |
 | `newId()`, `today()`, `dayOf(date)`, `isDay(v)`, `dateOf(day)`, `addDays(day, n)`, `mondayOf(day)` | datas como `YYYY-MM-DD` |
 | `dateLabel(day, withYear?)`, `weekdayOf(day)`, `monthLabel("YYYY-MM")` | rótulos |
 | `brl(cents, sign?)`, `parseMoney(text)` | dinheiro em centavos |
 | `formatMin(min)`, `parseDuration(text) → {min, title}` | duração no fim do texto |
-| `parseMentions(text) → {front, client, title}` | `@frente` e `@cliente` no texto |
+| `parseMentions(text) → {client, title}` | `@cliente` no texto |
 | `notify(text, undo?)` | aviso com desfazer |
-| `sendToDay({title, min, front, client, origin:{type, id}})` | manda para o dia |
+| `sendToDay({title, min, client, origin:{type, id}})` | manda para o dia |
 | `api(route, options) → {ok, status, body}` | fala com o worker |
 | `md(text)` | markdown mínimo (use `<Markdown/>`) |
-| `listFronts()`, `listClients()`, `clientName(id)`, `frontColor(id)`, `foldKey(text)` | leitura |
+| `listClients()`, `clientName(id)`, `foldKey(text)` | leitura |
 | `ICONS` | fonte dos ícones (use `icon("plus")`) |
 
 ## `ui.js` — hooks e componentes
@@ -115,7 +115,7 @@ vezes numa montagem (esvaziar a caixa de entrada, gerar a recorrência da semana
 | --- | --- |
 | `mount(<Pagina />, "app")` | desenha a raiz dentro do elemento |
 | `useCollection(type, {normalize})` | a coleção, redesenhando a cada mudança (local, nuvem, outra aba) |
-| `useFronts()`, `useClients()` | as listas, redesenhando quando mudam |
+| `useClients()` | a lista de clientes, redesenhando quando muda |
 | `useCloud()` | `signedIn`, `email`, `status` |
 | `useHash()` | o `#id` da URL, acompanhando o `hashchange` |
 | `useKeydown(handler)` | atalho no documento; o handler é sempre o atual, sem deps. Use `isTyping()` para não disparar dentro de um campo |
@@ -128,10 +128,10 @@ vezes numa montagem (esvaziar a caixa de entrada, gerar a recorrência da semana
 | `<Meter label value className?>` | o número grande com legenda |
 | `<MoneyInput value onChange/>` | dinheiro em centavos; só reformata ao sair do campo |
 | `<NewItemRow placeholder button onAdd/>` | "novo item" no pé de uma lista, Enter adiciona |
-| `useDelegate()` → `{ask, busy, answer, close}` | "dá pra fazer com Claude?": `ask({id, title, min?, due?, front?, client?, about?, where, origin})` pergunta ao Merlin; `busy` é o id em análise |
+| `useDelegate()` → `{ask, busy, answer, close}` | "dá pra fazer com Claude?": `ask({id, title, min?, due?, client?, about?, where, origin})` pergunta ao Merlin; `busy` é o id em análise |
 | `<DelegateDialog answer onClose/>` | o veredicto, com o botão que manda o que há para montar à caixa de entrada do dia |
-| `<FrontBadge id/>`, `<ClientBadge id/>` | os selos |
-| `frontOptionList("sem frente")`, `clientOptionList("sem cliente", front?)` | `<option>`s; o escolhido vai no `value` do `<select>` |
+| `<ClientBadge id/>` | o selo do cliente |
+| `clientOptionList("sem cliente")` | `<option>`s; o escolhido vai no `value` do `<select>` |
 | `icon("plus")` | um ícone de `icons.jsx` como elemento. SVG só desta página vira um componente no topo do arquivo dela |
 
 Ícones em `ICONS`: `trash, arrow, plus, check, pencil, link, grip, x, clock, map, spark,
@@ -148,7 +148,7 @@ archive, arrowLeft, chevronLeft, chevronRight, unfold`.
   com `save(before)`).
 - `onChange(fn)` → chama `fn(origin)` a cada mudança. `useCollection` já assina por você.
 - Nunca escreva no `localStorage` por conta própria. A chave `merlin:<type>` é do core.
-- A coleção é uma só por tipo. Se o core já a abriu (ele abre `fronts` e `clients` em
+- A coleção é uma só por tipo. Se o core já a abriu (ele abre `clients` em
   `initPage`), chamar `collection(type, {normalize})` de novo entrega o normalizador à
   coleção existente — a ordem das chamadas não importa.
 
@@ -158,7 +158,6 @@ Um documento é um objeto JSON plano. Coloque nele o que o módulo precisa, mas 
 | campo | tipo | significado |
 | --- | --- | --- |
 | `id` | string | do `newId()` |
-| `front` | string | id de uma frente (`listFronts()`), ou `""` |
 | `client` | string | id de um cliente (`listClients()`), ou `""` |
 | `createdAt` | number | epoch ms |
 | `updatedAt` | number | epoch ms |
@@ -168,16 +167,15 @@ Um documento é um objeto JSON plano. Coloque nele o que o módulo precisa, mas 
 
 | tipo | dono | forma mínima que outros módulos leem |
 | --- | --- | --- |
-| `fronts` | core | `{id, name, color (1-6), order}` |
-| `clients` | clients.html | `{id, name, front, status, channels:[{id, type, name, items:[{id, text, done}]}], goals:[…], backlog:[…], journal:[…], contract:{…}, contacts:[…], links:[…], offers:[…]}` |
-| `ideas` | ideas.html | `{id, title, body, stage, front, client, steps:[{id, text, done}], outputs:[{type, id, at}], history:[{type:'stage', from, to, at}]}` |
-| `week` | week.html | `{id, title, day ('YYYY-MM-DD' ou 'weekend:YYYY-MM-DD' da segunda), front, client, min, done, recurring}` |
-| `maps` | maps.html | `{id, name, root:{id, title, note, color, collapsed, children:[…]}, front, client, idea, funnel}` |
-| `funnels` | funnels.html | `{id, name, client, channel, front, nodes:[{id, type, title, x, y, fields:{}, number}], edges:[{from, to}], creatives:[…], automations:[…], offers:[…], triggers:[…], snapshots:[…]}` |
+| `clients` | clients.html | `{id, name, status, channels:[{id, type, name, items:[{id, text, done}]}], goals:[…], backlog:[…], journal:[…], contract:{…}, contacts:[…], links:[…], offers:[…]}` |
+| `ideas` | ideas.html | `{id, title, body, stage, client, steps:[{id, text, done}], outputs:[{type, id, at}], history:[{type:'stage', from, to, at}]}` |
+| `week` | week.html | `{id, title, day ('YYYY-MM-DD' ou 'weekend:YYYY-MM-DD' da segunda), client, min, done, recurring}` |
+| `maps` | maps.html | `{id, name, root:{id, title, note, color, collapsed, children:[…]}, client, idea, funnel}` |
+| `funnels` | funnels.html | `{id, name, client, channel, nodes:[{id, type, title, x, y, fields:{}, number}], edges:[{from, to}], creatives:[…], automations:[…], offers:[…], triggers:[…], snapshots:[…]}` |
 | `finance` | finance.html | vários docs: `{id, type:'entry'|'fixed'|'card'|'debt'|'config', …}` (`card` é uma compra parcelada: `{name, card, total, installments, start:'YYYY-MM', dayOfMonth}`) |
 | `vault` | clients.html | um doc `{id:'config', salt}` — só o sal do cofre; o segredo vai cifrado dentro do cliente |
-| `habits` | habits.html | `{id, name, front, schedule:{type:'daily'|'perWeek'|'weekdays', times, weekdays:[0-6]}, min, color, order, archived, marks:{'YYYY-MM-DD':true}}` |
-| `plans` | plans.html | um doc por período, id `kind:period`: `{id, kind:'quarter'|'month'|'week', period:'2026-Q4'|'2026-09'|'2026-W37', goals:[{id, text, front, client, done, parent, card, order}], review:{went, didnt, next}}` |
+| `habits` | habits.html | `{id, name, schedule:{type:'daily'|'perWeek'|'weekdays', times, weekdays:[0-6]}, min, color, order, archived, marks:{'YYYY-MM-DD':true}}` |
+| `plans` | plans.html | um doc por período, id `kind:period`: `{id, kind:'quarter'|'month'|'week', period:'2026-Q4'|'2026-09'|'2026-W37', goals:[{id, text, client, done, parent, card, order}], review:{went, didnt, next}}` |
 
 Ligações entre módulos são **por id**, nunca por cópia. Para abrir outra página num item:
 `clients.html#<id>`, `maps.html#<id>`, `funnels.html#<id>`, `ideas.html#<id>`. Cada
@@ -220,7 +218,7 @@ por isso o funil criado a partir de um deles já nasce ligado ao canal do client
 
 ## Mandar para o dia
 
-`sendToDay({title, min, front, client, origin:{type, id}})`. Com `min`, vira tarefa na
+`sendToDay({title, min, client, origin:{type, id}})`. Com `min`, vira tarefa na
 fila de hoje; sem `min`, vai para a caixa de ideias do dia (onde ganha duração). Nada mais
 toca no documento do dia. O aviso já é mostrado pelo core.
 

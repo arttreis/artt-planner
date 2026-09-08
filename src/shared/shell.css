@@ -3,7 +3,7 @@
    o minimo que TODA pagina carrega, inclusive o dia: os tokens dos dois
    modos (escuro no :root, claro em html.light — a mesma chave do site), a
    sidebar (navegacao, busca, tema, nuvem, quem esta aqui), o dialogo de
-   entrar e o selo de frente/cliente. o resto dos componentes fica em base.css, que
+   entrar e o selo. o resto dos componentes fica em base.css, que
    importa este arquivo. o dia carrega so a casca porque tem CSS proprio com
    nomes de classe que colidiriam com os componentes.
    --------------------------------------------------------------- */
@@ -292,7 +292,7 @@ html.light .knob__sun{opacity:1;transform:none}
 .signin-message{margin:var(--pd2) 0 0;font-size:12.5px;color:var(--ink-50);min-height:1.2em}
 
 /* ---------- selos ----------
-   frente, cliente, estagio, status: tudo que classifica sem ordenar. */
+   cliente, estagio, status: tudo que classifica sem ordenar. */
 .badge{
   display:inline-flex;align-items:center;gap:5px;height:20px;padding:0 8px;
   border-radius:var(--br-pill);border:1px solid var(--line-soft);background:var(--fill);
@@ -301,18 +301,10 @@ html.light .knob__sun{opacity:1;transform:none}
 }
 .badge--green{color:var(--green-ink);border-color:color-mix(in srgb,var(--green) 40%,transparent)}
 .badge--solid{background:var(--green);color:var(--on-green);border-color:var(--green)}
-.badge .dot{width:6px;height:6px;border-radius:50%;background:currentColor}
-/* a paleta das frentes. qualquer elemento com data-color recebe --color, e quem
-   quiser pintar (selo, friso da tarefa, coluna da semana) le so a variavel. */
+/* a paleta: qualquer elemento com data-color recebe --color, e quem quiser
+   pintar le so a variavel. hoje o unico consumidor e o ponto do habito. */
 :root{--color-1:#6bb8ff;--color-2:#ffb35c;--color-3:#ff7a9a;--color-4:#c58bff;--color-5:var(--green-ink);--color-6:#5ce0d8}
 html.light{--color-1:#1c6fc4;--color-2:#b8600a;--color-3:#c4234f;--color-4:#7a3bd8;--color-6:#127f79}
 [data-color="1"]{--color:var(--color-1)}[data-color="2"]{--color:var(--color-2)}[data-color="3"]{--color:var(--color-3)}
 [data-color="4"]{--color:var(--color-4)}[data-color="5"]{--color:var(--color-5)}[data-color="6"]{--color:var(--color-6)}
-/* o selo de frente e tingido, nao so escrito: e ele que diz de que projeto e
-   a coisa, e precisa ser lido de longe */
-.badge[data-color]{
-  color:var(--color);
-  background:color-mix(in srgb,var(--color) 13%,transparent);
-  border-color:color-mix(in srgb,var(--color) 34%,transparent);
-}
 

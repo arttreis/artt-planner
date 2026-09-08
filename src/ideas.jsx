@@ -5,15 +5,15 @@ import "./shared/base.css";
 import "./ideas.css";
 import {
   initPage, newId, today, dayOf, addDays, dateLabel, notify, sendToDay, api,
-  parseMentions, listClients, clientName, collection, fronts
+  parseMentions, listClients, clientName, collection
 } from "./shared/core.js";
 import { useState, useEffect, useLayoutEffect, useRef } from "react";
 import {
-  mount, useCollection, useFronts, useClients, useHash,
-  useKeydown, isTyping, useFields, Form, Field, Dialog, Markdown, frontOptionList, clientOptionList, icon
+  mount, useCollection, useClients, useHash,
+  useKeydown, isTyping, useFields, Form, Field, Dialog, Markdown, clientOptionList, icon
 } from "./shared/ui.jsx";
 
-initPage("ideas");   // monta a barra, carrega frentes e clientes, retoma a sessao
+initPage("ideas");   // monta a barra, carrega os clientes, retoma a sessao
 
 /* icones proprios: so esta pagina usa. a faisca e o gesto de pedir ajuda ao
    Merlin; a caixa e arquivar (a de icons.jsx); a pessoa e "virar projeto de
@@ -73,7 +73,6 @@ function normalize(d) {
     title: String(d.title || "").slice(0, 300),
     body: String(d.body || ""),
     stage: STAGE_IDS.includes(d.stage) ? d.stage : "seed",
-    front: d.front || "",
     client: d.client || "",
     steps: Array.isArray(d.steps) ? d.steps : [],
     outputs: Array.isArray(d.outputs) ? d.outputs : [],
@@ -132,21 +131,12 @@ function preview(d) {
 const isUntouched = (d) => d.stage === "seed" && !d.body && !d.steps.length;
 const stepsDone = (d) => d.steps.filter((s) => s.done).length;
 
-/* ---------- avatar da frente: a inicial na cor dela ---------- */
-function Initial({ front, small }) {
-  const f = front && fronts().get(front);
-  const cls = "initial" + (small ? " initial--sm" : "");
-  if (!f) return <span className={cls} aria-hidden="true">·</span>;
-  return <span className={cls} data-color={f.color} title={f.name}>{String(f.name).trim().charAt(0)}</span>;
-}
-
 /* ---------- a pagina ----------
    o estado de tela mora aqui: a visao (lista/quadro), a ideia aberta, a
    caixa de ideia nova, as sugestoes do merlin e as secoes dobradas. nada
    disso e documento — some ao recarregar, como deve (a visao e a excecao). */
 function Ideas() {
   const ideas = useCollection("ideas", { normalize });
-  useFronts();
   useClients();
   const hash = useHash();
   const [view, setView] = useState(readView);
@@ -207,13 +197,13 @@ function Ideas() {
   const saveIdea = (doc) => ideas.save({ ...doc, updatedAt: Date.now() });
   const recordOutput = (doc, type, refId) => saveIdea({ ...doc, outputs: doc.outputs.concat([{ type, id: refId || "", at: Date.now() }]) });
   /* mudar de estagio deixa rastro: e a unica mudanca de campo que conta como
-     acontecimento — frente e cliente sao classificacao, estagio e caminho */
+     acontecimento — cliente e classificacao, estagio e caminho */
   const changeStage = (doc, next) => {
     if (!doc || doc.stage === next) return;
     saveIdea({ ...doc, stage: next, history: doc.history.concat([{ type: "stage", from: doc.stage, to: next, at: Date.now() }]) });
   };
   const pull = (doc) => {
-    sendToDay({ title: doc.title || "ideia sem título", front: doc.front || "", client: doc.client || "", origin: { type: "idea", id: doc.id } });
+    sendToDay({ title: doc.title || "ideia sem título", client: doc.client || "", origin: { type: "idea", id: doc.id } });
     recordOutput(doc, "day", "");
   };
   const removeIdea = (id) => {
@@ -242,7 +232,7 @@ function Ideas() {
     const maps = collection("maps");
     const mapId = newId(), now = Date.now();
     maps.save({
-      id: mapId, name: d.title || "sem título", idea: d.id, front: d.front || "", client: d.client || "",
+      id: mapId, name: d.title || "sem título", idea: d.id, client: d.client || "",
       root: { id: newId(), title: d.title || "sem título", note: "", color: 0, collapsed: false, children: [] },
       createdAt: now, updatedAt: now
     });
@@ -258,7 +248,6 @@ function Ideas() {
   const expand = async (d) => {
     if (thinking) return;
     const targetId = d.id;
-    const f = d.front && fronts().get(d.front);
     setThinking(true);
     try {
       const r = await api("/merlin", {
@@ -268,7 +257,7 @@ function Ideas() {
           context: {
             title: d.title || "", body: d.body || "", stage: d.stage || "",
             steps: d.steps.map((s) => s.text),
-            front: f ? f.name : "", client: clientName(d.client) || ""
+            client: clientName(d.client) || ""
           }
         })
       });
@@ -403,7 +392,6 @@ function IdeaItem({ d, active, actions }) {
     <div className={"item" + (active ? " is-active" : "")} role="listitem" tabIndex="0" data-id={d.id}
          onClick={() => actions.open(d.id)}
          onKeyDown={(e) => { if (e.target !== e.currentTarget) return; if (e.key === "Enter" || e.key === " ") { e.preventDefault(); actions.open(d.id); } }}>
-      <Initial front={d.front} />
       <div className="item__text">
         <div className="item__line1">
           <span className="item__title">{d.title || "sem título"}</span>
@@ -471,7 +459,6 @@ function BoardCard({ d, dragging, onDragStart, onDragEnd, onOpen }) {
         <span className="board__grip" aria-hidden="true">{icon("grip")}</span>
       </div>
       <div className="row">
-        <Initial front={d.front} small />
         {total > 0 && <span className="small weak">{done + "/" + total}</span>}
         <span className="small weak board__when">{longWhen(d.updatedAt || d.createdAt)}</span>
       </div>
@@ -518,7 +505,7 @@ function IdeaPanel({ idea, ideas, sync, thinking, focusTitle, sections, actions 
   };
 
   /* titulo e corpo salvam com debounce (digitar nao pode gravar a cada tecla);
-     estagio/frente/cliente salvam na hora, porque "change" ja e um gesto so */
+     estagio e cliente salvam na hora, porque "change" ja e um gesto so */
   const flush = () => {
     clearTimeout(saveTimer.current); saveTimer.current = null;
     const now = ideas.get(idea.id);
@@ -564,20 +551,8 @@ function IdeaPanel({ idea, ideas, sync, thinking, focusTitle, sections, actions 
   const onBodyInput = (e) => { const body = e.currentTarget.value; setDraft((v) => ({ ...v, body })); scheduleSave(); };
 
   /* ---------- a ficha ---------- */
-  const frontValue = fronts().get(idea.front) ? idea.front : "";
-  const visibleClients = listClients().filter((c) => !idea.front || c.front === idea.front);
-  const clientValue = visibleClients.some((c) => c.id === idea.client) ? idea.client : "";
+  const clientValue = listClients().some((c) => c.id === idea.client) ? idea.client : "";
   const onStageChange = (e) => { actions.changeStage(ideas.get(idea.id), e.currentTarget.value); showSaved(); };
-  const onFrontChange = (e) => {
-    const front = e.currentTarget.value;
-    const now = ideas.get(idea.id);
-    if (!now) return;
-    /* o cliente pode nao pertencer a nova frente: se sumiu da lista, o valor
-       volta para "" — e e exatamente esse valor que gravamos */
-    const inFront = listClients().filter((c) => !front || c.front === front);
-    actions.save({ ...now, front, client: inFront.some((c) => c.id === clientValue) ? clientValue : "" });
-    showSaved();
-  };
   const onClientChange = (e) => {
     const now = ideas.get(idea.id);
     if (!now) return;
@@ -599,7 +574,7 @@ function IdeaPanel({ idea, ideas, sync, thinking, focusTitle, sections, actions 
   const pullStep = (step) => {
     const now = ideas.get(idea.id);
     if (!now) return;
-    sendToDay({ title: step.text, front: now.front || "", client: now.client || "", origin: { type: "idea", id: now.id } });
+    sendToDay({ title: step.text, client: now.client || "", origin: { type: "idea", id: now.id } });
   };
   const removeStep = (stepId) => {
     const now = ideas.get(idea.id);
@@ -647,10 +622,8 @@ function IdeaPanel({ idea, ideas, sync, thinking, focusTitle, sections, actions 
                 {STAGES.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
               </select>
             </span>
-            <span className="k">frente</span>
-            <span className="v"><select className="pill-select" aria-label="Frente" value={frontValue} onChange={onFrontChange}>{frontOptionList("sem frente")}</select></span>
             <span className="k">cliente</span>
-            <span className="v"><select className="pill-select" aria-label="Cliente" value={clientValue} onChange={onClientChange}>{clientOptionList("sem cliente", idea.front || undefined)}</select></span>
+            <span className="v"><select className="pill-select" aria-label="Cliente" value={clientValue} onChange={onClientChange}>{clientOptionList("sem cliente")}</select></span>
             <span className="k">criada</span>
             <span className="v"><span className="weak" title={stampLabel(idea.createdAt)}>{longWhen(idea.createdAt)}</span></span>
             <span className="k">passos</span>
@@ -720,7 +693,6 @@ function Activity({ idea }) {
     <ul className="activity">
       {events.map((ev) => (
         <li key={ev.key}>
-          <Initial front={idea.front} small />
           <span className="txt">{ev.node}</span>
           <span className="when" title={stampLabel(ev.at)}>{longWhen(ev.at)}</span>
         </li>
@@ -730,31 +702,28 @@ function Activity({ idea }) {
 }
 
 /* ---------- criar ideia (botao + caixa) ----------
-   o titulo aceita "@frente" e "@cliente" como o resto do sistema; os
+   o titulo aceita "@cliente" como o resto do sistema; os
    campos ao lado ganham quando preenchidos. a ideia nasce semente e ja
    abre no painel, para ganhar corpo se for o caso. */
 function IdeaForm({ onCreate, onClose }) {
-  const [v, bind, set] = useFields({ title: "", front: "", client: "" });
+  const [v, bind] = useFields({ title: "", client: "" });
   const submit = () => {
-    const found = parseMentions(v.title);   // @frente / @cliente no texto viram os campos, e somem do titulo
+    const found = parseMentions(v.title);   // @cliente no texto vira o campo, e some do titulo
     const title = found.title.slice(0, 300);
     if (!title) { notify("a ideia precisa de um título"); return false; }
     const now = Date.now();
     onCreate({
       id: newId(), title, body: "", stage: "seed",
-      front: v.front || found.front || "", client: v.client || found.client || "",
+      client: v.client || found.client || "",
       steps: [], outputs: [], history: [], createdAt: now, updatedAt: now
     });
   };
   return (
     <Form title="nova ideia" submit="guardar" onClose={onClose} onSubmit={submit}>
       <Field label="título" full>
-        <input className="input" maxLength="300" required placeholder="o que ainda não é tarefa · @frente" {...bind("title")} />
+        <input className="input" maxLength="300" required placeholder="o que ainda não é tarefa · @cliente" {...bind("title")} />
       </Field>
-      <Field label="frente">
-        <select className="select" {...bind("front")} onChange={(e) => { set("front", e.currentTarget.value); set("client", ""); }}>{frontOptionList("sem frente")}</select>
-      </Field>
-      <Field label="cliente"><select className="select" {...bind("client")}>{clientOptionList("sem cliente", v.front || undefined)}</select></Field>
+      <Field label="cliente"><select className="select" {...bind("client")}>{clientOptionList("sem cliente")}</select></Field>
     </Form>
   );
 }

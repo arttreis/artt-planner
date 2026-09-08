@@ -27,10 +27,6 @@
 .editable-line{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:6px}
 .editable-line .input{flex:1 1 120px;min-width:0}
 
-.front-line{display:flex;gap:var(--pd2);align-items:center;padding:7px 0;border-bottom:1px solid var(--line-soft)}
-.front-line:last-child{border-bottom:0}
-.front-line .input{flex:1 1 auto}
-.front-line input[type="number"]{width:64px;flex:0 0 auto}
 
 .journal-text{font-size:13px;color:var(--ink-70)}
 .journal-text p{margin:0 0 6px}

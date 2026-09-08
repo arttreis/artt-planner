@@ -415,7 +415,6 @@ const LIST_TASKS = {
       (c.note ? "Nota do nó: " + String(c.note).slice(0, 800) + "\n" : "") +
       "Filhos que já existem: " + (Array.isArray(c.children) && c.children.length ? c.children.map((x) => String(x).slice(0, 80)).join("; ") : "nenhum") + "\n" +
       "Irmãos: " + (Array.isArray(c.siblings) && c.siblings.length ? c.siblings.map((x) => String(x).slice(0, 80)).join("; ") : "nenhum") + "\n" +
-      (c.front ? "Frente (empresa): " + String(c.front).slice(0, 60) + "\n" : "") +
       (c.client ? "Cliente: " + String(c.client).slice(0, 60) + "\n" : "")
   }),
   /* o que falta num funil */
@@ -469,7 +468,6 @@ const LIST_TASKS = {
       "Estágio: " + String(c.stage || "").slice(0, 30) + "\n" +
       (c.body ? "Corpo:\n" + String(c.body).slice(0, 2500) + "\n" : "") +
       "Passos que já existem:\n" + linesOf(c.steps, 30) + "\n" +
-      (c.front ? "Frente (empresa): " + String(c.front).slice(0, 60) + "\n" : "") +
       (c.client ? "Cliente: " + String(c.client).slice(0, 60) + "\n" : "")
   })
 };
@@ -477,15 +475,15 @@ const LIST_TASKS = {
 /* tarefas que respondem com um texto, nao com uma lista: o formato e
    {"text":"…"} em markdown simples (paragrafos, listas com -, negrito). */
 const TEXT_TASKS = {
-  /* a semana: o que fechou, o que ficou, por frente */
+  /* a semana: o que fechou, o que ficou, por cliente */
   week: (c) => ({
     instruction:
-      "Resuma esta semana de trabalho em até 180 palavras, em markdown simples: um parágrafo do que foi feito, uma lista curta do que ficou aberto agrupada por frente (empresa), e uma frase de recomendação para a próxima semana. " +
+      "Resuma esta semana de trabalho em até 180 palavras, em markdown simples: um parágrafo do que foi feito, uma lista curta do que ficou aberto agrupada por cliente, e uma frase de recomendação para a próxima semana. " +
       "Seja específico com os títulos dos cartões; não invente nada que não esteja na lista. " +
       'Formato: {"text":"…"}',
     context:
       "Semana: " + String(c.range || "").slice(0, 60) + "\n" +
-      "Cartões (dia · frente · título · duração · feito?):\n" + linesOf(c.cards, 120) + "\n" +
+      "Cartões (dia · cliente quando houver · título · duração quando houver · feito?):\n" + linesOf(c.cards, 120) + "\n" +
       (c.dayDone ? "O que o dia registrou como concluído:\n" + linesOf(c.dayDone, 80) + "\n" : "")
   }),
   /* pauta de reuniao com um cliente */
@@ -496,7 +494,6 @@ const TEXT_TASKS = {
       'Formato: {"text":"…"}',
     context:
       "Cliente: " + String(c.name || "").slice(0, 100) + " (" + String(c.status || "").slice(0, 20) + ")\n" +
-      (c.front ? "Frente: " + String(c.front).slice(0, 60) + "\n" : "") +
       (c.summary ? "Resumo: " + String(c.summary).slice(0, 800) + "\n" : "") +
       (c.contract ? "Contrato: " + String(c.contract).slice(0, 300) + "\n" : "") +
       "Objetivos:\n" + linesOf(c.goals, 20) + "\n" +
@@ -523,7 +520,7 @@ const TEXT_TASKS = {
       'Formato: {"text":"…"}',
     context:
       "Período: " + String(c.kind || "").slice(0, 20) + " · " + String(c.period || "").slice(0, 60) + "\n" +
-      "Objetivos (texto · frente · cliente · feito/aberto):\n" + linesOf(c.goals, 60) + "\n" +
+      "Objetivos (texto · cliente quando houver · feito/aberto):\n" + linesOf(c.goals, 60) + "\n" +
       (Array.isArray(c.weekDone) && c.weekDone.length ? "Cartões da semana concluídos:\n" + linesOf(c.weekDone, 60) + "\n" : "") +
       (c.review && (c.review.went || c.review.didnt || c.review.next)
         ? "Revisão já escrita — foi: " + String(c.review.went || "").slice(0, 400) + " | não foi: " + String(c.review.didnt || "").slice(0, 400) + " | muda: " + String(c.review.next || "").slice(0, 400) + "\n"
@@ -564,7 +561,6 @@ const TEXT_TASKS = {
       (c.where ? "Onde ela está: " + String(c.where).slice(0, 60) + "\n" : "") +
       (+c.min > 0 ? "Estimativa atual: " + Math.round(+c.min) + " minutos\n" : "Estimativa atual: ainda não tem\n") +
       (c.due ? "Prazo: " + String(c.due).slice(0, 30) + "\n" : "") +
-      (c.front ? "Frente (empresa): " + String(c.front).slice(0, 60) + "\n" : "") +
       (c.client ? "Cliente: " + String(c.client).slice(0, 60) + "\n" : "") +
       (c.about ? "Sobre o cliente: " + String(c.about).slice(0, 800) + "\n" : "")
   })

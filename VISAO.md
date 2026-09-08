@@ -1,7 +1,7 @@
 # Merlin · visão
 
 O `artt planner` deixa de ser um app para qualquer pessoa usar e vira **Merlin**: um sistema
-de uma pessoa só, do Arthur, com várias frentes ligadas entre si. O aparelho do dia continua
+de uma pessoa só, do Arthur, com vários módulos ligados entre si. O aparelho do dia continua
 sendo o coração — o que muda é o que gira em volta dele.
 
 Este documento é a fonte das decisões. O que está aqui é o que o código faz ou vai fazer; o que
@@ -45,19 +45,26 @@ sozinhos** ao abrir o dia. Vale porque colocar um cartão em "seg 7" já foi a d
 ganha a marca "no dia" e concluir a tarefa fecha o cartão. Prazo vencendo em qualquer outro
 lugar continua sendo aviso, nunca tarefa que "rolou sozinha".
 
-### Frentes
+### Frentes: saíram (07/09/2026)
 
-O Arthur trabalha em mais de uma empresa, e tudo no sistema pode pertencer a uma **frente**:
+Por um tempo tudo no sistema podia pertencer a uma **frente** (a empresa: Artt Reis, Guessless,
+GL Suite, o SaaS, Pessoal): cliente pertencia a uma, tarefa, ideia, funil e lançamento apontavam
+para uma, e ela aparecia como selo em tudo.
 
-- **Artt Reis** — consultoria, a principal.
-- **Guessless** — agência de growth, com o Juliano.
-- **GL Suite** — tecnologia sob demanda, com o Juliano (glsuite.io).
-- **SaaS com Léo e Luca** — em definição.
-- **Pessoal** — o que não é trabalho.
+Não pegou. O selo repetia o que o cliente já dizia, o `select` de frente entrava em toda caixa de
+criar e a semana quebrava o dia em grupos por empresa sem que isso mudasse o que fazer primeiro.
+Foram removidas por inteiro — cadastro, selos, `select`s, o `@frente` da gramática do dia, o
+agrupamento da semana e a etiqueta do financeiro —, e o dado apagado: `purgeFronts()` no core roda
+uma vez por navegador, apaga a coleção (as lápides sobem e a nuvem esquece junto) e tira o campo
+`front` de tudo que já estava gravado. **O cliente é a única classificação que sobrou.**
 
-Frente é um cadastro editável, não código. Cliente pertence a uma frente; tarefa, ideia, funil e
-lançamento financeiro podem apontar para uma. A frente aparece como selo em tudo — mas não há
-filtro por frente (nem por nada) nas telas: decidido em 07/09/2026, minimalismo antes de tudo.
+### No celular
+
+Nenhuma tela é "versão móvel": é a mesma tela, medida em 390px. O que muda é o gesto — a pinça
+de dois dedos dá zoom no mapa e no funil, biblioteca e painel viram folhas que sobem de baixo, e
+todo alvo de toque tem no mínimo 36px. **Enquadrar tem piso**: caber o funil inteiro numa tela
+estreita dava 10% de zoom, com etapa de dois pixels que ninguém lê nem toca; abaixo do piso a
+vista encosta no começo do funil e o resto se lê arrastando.
 
 ### Criar é sempre o mesmo gesto
 
@@ -91,10 +98,10 @@ plano e o estado da migração estão em `MIGRACAO.md`.
 ```
 index.html             o dia (aparelho) — o que já existia, com barra de navegação
 ideas.html            caixa de ideias com corpo, estágio e desenvolvimento
-week.html            a semana em colunas, por frente
+week.html            a semana em colunas
 maps.html             mapa mental
 funnels.html             funil: mapa com tipos de nó e vazão
-clients.html          clientes, frentes, canais, objetivos, backlog
+clients.html          clientes, canais, objetivos, backlog
 finance.html        do jeito da planilha: mês dia a dia, ano, painel de fixos/cartão/dívidas
 shared/
   base.css             tokens dos dois temas + navegação + componentes comuns
@@ -116,7 +123,7 @@ O dia continua sendo um documento por data na tabela `dias`. Nada muda ali.
 ### Caixa de entrada do dia
 
 Nenhum módulo mexe no documento do dia. Quem quer mandar algo para hoje escreve na fila
-`merlin:inbox` (`{titulo, min?, frente?, cliente?, origem}`) e o dia a esvazia ao abrir ou ao
+`merlin:inbox` (`{titulo, min?, cliente?, origem}`) e o dia a esvazia ao abrir ou ao
 receber o evento de `storage`. Com duração, vira tarefa; sem duração, cai na caixa de ideias do
 dia e passa pelo pedágio de lá. É um gesto só, sem acoplamento.
 
@@ -127,13 +134,13 @@ duração", o aparelho e a barra que se gasta.
 
 ---
 
-## 4. As frentes do sistema
+## 4. Os módulos do sistema
 
 ### 4.1 O dia (`index.html`)
 
 O que existe, mais:
 
-- `@frente` e `@cliente` no campo de nova tarefa, com selo na linha.
+- `@cliente` no campo de nova tarefa, com selo na linha.
 - Caixa de ideias do dia passa a ler a mesma coleção de `ideas.html`.
 - Esvazia a caixa de entrada.
 - Barra de navegação e tema.
@@ -144,7 +151,6 @@ Semelhante ao financeiro em estrutura: não é uma lista solta, é um lugar orga
 
 - **Corpo**: título e texto livre (markdown simples).
 - **Estágio**: `semente → explorando → definida → executando → arquivada`. Filtro por estágio.
-- **Frente** opcional.
 - **Ramificações**: lista de próximos passos/perguntas dentro da ideia (checklist).
 - **Saídas**: "puxar para o dia", "abrir mapa mental" (cria um mapa com a ideia no centro),
   "virar projeto de cliente" (leva para clientes com o texto).
@@ -154,10 +160,10 @@ Semelhante ao financeiro em estrutura: não é uma lista solta, é um lugar orga
 ### 4.3 Semana (`week.html`)
 
 Inspirado no quadro do parceiro no Google Tarefas: colunas `seg · ter · qua · qui · sex · fim
-de semana`, e dentro de cada coluna os cartões agrupados por **frente**.
+de semana`, e dentro de cada coluna uma lista só de cartões.
 
-- Cartão: título, frente, cliente opcional, duração opcional, feito.
-- Arrastar entre colunas e entre frentes.
+- Cartão: título, cliente opcional, duração opcional, feito.
+- Arrastar entre colunas.
 - "Hoje" é destacado; **puxar para o dia** manda o cartão pela caixa de entrada.
 - Semana atual e navegação para a próxima/anterior. O que ficou aberto na semana passada
   aparece numa faixa "ficou de trás", com a escolha de trazer ou arquivar. Nada rola sozinho.
@@ -170,7 +176,7 @@ Referência: MindMaster / XMind. O que faz um mapa ser bom é **teclado e layout
 - `Enter` irmão, `Tab` filho, `Shift+Tab` sobe, `Delete` apaga o ramo (com desfazer), setas
   navegam, `F2`/digitar edita, `Espaço` colapsa/expande.
 - Layout automático em árvore, balanceado dos dois lados do centro. Arrastar ramo para outro pai.
-- Pan e zoom (scroll, `Ctrl+scroll`, `Ctrl+0` enquadra).
+- Pan e zoom (scroll, `Ctrl+scroll`, pinça de dois dedos, `Ctrl+0` enquadra).
 - Nó: título, nota, cor de ramo (as tintas + o verde), link.
 - Exportar PNG e outline em markdown.
 - Vários mapas, cada um ligado opcionalmente a ideia, cliente ou funil.
@@ -179,6 +185,9 @@ Referência: MindMaster / XMind. O que faz um mapa ser bom é **teclado e layout
   criar. O nome digitado vira a ideia central e os galhos do modelo nascem nela, cada um de
   uma cor.
 - SVG próprio, sem biblioteca.
+- **A barra de cima é só o indispensável**: voltar, o nome, o merlin e o enquadrar. Exportar e
+  atalhos moram no "mais" — são coisas de uma vez na vida e não merecem ocupar tela em cima do
+  mapa. O `+` flutuante cria filho do nó selecionado, para quem está sem teclado.
 
 ### 4.5 Funil (`funnels.html`)
 
@@ -218,11 +227,14 @@ Mapa com **tipos de nó**, **fluxo direcionado** e **números em cima**.
   do cliente (4.6). Escolher é um `<select>` na caixa de criar; a taxa média vem como ponto de
   partida, para ser corrigida com o número real.
 - Período selecionável; retratos com data para comparar.
-- Pertence a um cliente e a um **canal** (4.6), ou à frente.
+- **A barra de cima é só o indispensável**: voltar, o nome, biblioteca, painel, o merlin e o
+  "mais" (enquadrar, arrumar, fantasmas, zoom). A roda, a pinça e as teclas `+ - 0` dão zoom,
+  então não há régua por cima do palco.
+- Pertence a um cliente e a um **canal** (4.6).
 
 ### 4.6 Clientes (`clients.html`)
 
-Cliente pertence a uma frente. O que um cliente tem:
+O que um cliente tem:
 
 - **Ficha**: nome, contatos, links (site, redes, Drive, ClickUp, Meta Ads), status
   (`prospecto → proposta → ativo → pausado → encerrado`).
@@ -235,11 +247,10 @@ Cliente pertence a uma frente. O que um cliente tem:
   canal já oferece os modelos daquele canal, criando o funil ligado ao cliente e ao canal. É o
   que responde "nesse cliente ainda não fiz X".
 - **Objetivos** com resultado-chave e prazo, cada um com planejamento (checklist ou mapa).
-- **Backlog**: tarefas sem hora, com prazo opcional, frente e cliente já preenchidos; "puxar
+- **Backlog**: tarefas sem hora, com prazo opcional, cliente já preenchido; "puxar
   para o dia".
 - **Diário**: notas de reunião, decisões e entregas com data, só append.
 - **Painel do cliente**: objetivos, prazos, canais incompletos, último contato.
-- **Frentes**: o cadastro das empresas mora aqui.
 
 - **Cofre**: acessos do cliente (rótulo, usuário, segredo, URL, nota) guardados **cifrados** no
   documento, com AES-GCM e chave derivada de uma senha-mestra por PBKDF2. A senha fica só na
@@ -262,12 +273,12 @@ partir dela). Três abas:
   cartão, parcelamento "3/12", total) e **dívidas** (nome, pessoa, valor, pago) — cada uma com
   o total e o "+" que abre a caixa. Embaixo, a **divisão 50/30/20** sobre as entradas fixas e
   a sobra dos fixos.
-- **Lançamentos** avulsos: entrada ou saída, valor, data, categoria, frente, pago/previsto.
+- **Lançamentos** avulsos: entrada ou saída, valor, data, categoria, pago/previsto.
 - **Config**: saldo inicial (o marco a partir do qual a conta anda), percentuais da divisão e
   categorias.
 
 Fora: assinaturas e planos de compra (apagados em 07/09/2026), conta/cartão por lançamento,
-filtro por frente, conciliação bancária, extrato, NF.
+conciliação bancária, extrato, NF.
 
 ### 4.8 Merlin, o conselheiro
 
@@ -279,7 +290,7 @@ tracejada no próprio palco, onde ela nasceria, e um clique é que a torna real.
   `claude-opus-5`) com dez tarefas: **ramos** (mapa mental, nó selecionado), **funil** (o que
   falta: etapas, automações, criativos, ofertas, gatilhos), **próxima etapa** (o que vem depois
   de uma etapa só, para refinar a tira de fantasmas do funil), **ramificar** (perguntas, caminhos
-  e passos para uma ideia), **semana** (resumo do que fechou e ficou, por frente), **reunião**
+  e passos para uma ideia), **semana** (resumo do que fechou e ficou), **reunião**
   (pauta com um cliente, que pode ir para o diário), **números** (onde o funil está perdendo),
   **hábitos** (o mês que passou), **revisão** (o período de planejamento) e **delegar**, abaixo.
 - **Ramos do mapa como fantasma**, decidido em 07/09/2026. O `S` continua sendo o gatilho, mas
@@ -311,7 +322,7 @@ Pedido do Arthur em 07/09/2026, para depois da migração ao Preact: um lugar pa
 próprio desenvolvimento, não o trabalho. Um hábito não é tarefa: não tem hora nem duração,
 tem **frequência** e um **registro por dia**.
 
-- **Hábito**: nome, frente (quase sempre Pessoal), frequência (`todo dia`, `N vezes por
+- **Hábito**: nome, frequência (`todo dia`, `N vezes por
   semana`, `dias da semana`), duração sugerida opcional, cor (as tintas + o verde), ordem,
   arquivado.
 - **A grade**: hábitos nas linhas, os dias do mês nas colunas, uma marca por célula. É a tela
@@ -325,7 +336,7 @@ tem **frequência** e um **registro por dia**.
 - **Merlin**: `task: "habits"` recebe o mês (marcas por hábito e frequência esperada) e
   devolve um texto curto: o que segurou, o que caiu, um ajuste para o mês que vem.
 - Coleção `habits` (`merlin:habits`), um documento por hábito:
-  `{id, name, front, schedule:{type:'daily'|'perWeek'|'weekdays', times, weekdays:[0-6]},
+  `{id, name, schedule:{type:'daily'|'perWeek'|'weekdays', times, weekdays:[0-6]},
   min, color, order, archived, marks:{'YYYY-MM-DD': true}, createdAt, updatedAt}`. As marcas
   moram dentro do hábito porque um mês inteiro cabe em poucos bytes e um hábito é editado
   por uma pessoa só.
@@ -336,7 +347,7 @@ O mesmo pedido: planejamento **trimestral, mensal e semanal**, com "o que está 
 trimestre / no meu mês / na minha semana" visível de um lugar só.
 
 - **Três colunas, três horizontes**: trimestre atual, mês atual, semana atual, lado a lado.
-  Cada coluna lista os objetivos daquele período, agrupados por frente, com feito/aberto e a
+  Cada coluna lista os objetivos daquele período, com feito/aberto e a
   contagem no topo ("4 abertos no trimestre"). Navegação por período em cada coluna.
 - **Desdobrar**: um objetivo do trimestre pode ser desdobrado no mês (cria um objetivo no mês
   com `parent` apontando para ele), e o do mês na semana. Concluir todos os filhos não fecha
@@ -349,7 +360,7 @@ trimestre / no meu mês / na minha semana" visível de um lugar só.
   que a semana e o dia registraram como feito. Quem escreve é o Arthur; o Merlin só sugere.
 - Coleção `plans` (`merlin:plans`), um documento por período:
   `{id, kind:'quarter'|'month'|'week', period:'2026-Q4'|'2026-09'|'2026-W37',
-  goals:[{id, text, front, client, done, parent, order}], review:{went, didnt, next},
+  goals:[{id, text, client, done, parent, order}], review:{went, didnt, next},
   createdAt, updatedAt}`.
 - A sidebar ganha duas telas: **hábitos** e **planos**. A busca global passa a procurar em
   objetivos e hábitos.
@@ -366,7 +377,7 @@ qualquer gráfico antes de existir um mês inteiro de marcas.
 | 0 | Fundação: nome, tema claro, navegação, `shared/`, `/api/docs`, trava de e-mail | feito |
 | 1 | Ideias | feito |
 | 2 | Semana | feito |
-| 3 | Clientes com frentes e canais | feito |
+| 3 | Clientes com canais | feito |
 | 4 | Financeiro | feito |
 | 5 | Mapa mental | feito |
 | 6 | Funil | feito |
@@ -395,7 +406,7 @@ Decidido em 07/09/2026:
 6. **Clientes**: nada de importar; entram conforme a necessidade.
 7. **Semana → dia**: os cartões de hoje entram no dia sozinhos.
 8. **Vazão no funil**: taxa média digitada por etapa, sem integração por enquanto.
-9. **Merlin**: as quatro frentes que faltavam (ideias, semana, reunião, números) foram feitas.
+9. **Merlin**: as quatro pontas que faltavam (ideias, semana, reunião, números) foram feitas.
 10. **Financeiro ↔ clientes**: contrato não gera "a receber" (nem todo cliente paga fee).
 11. **Planilha**: sem importador.
 12. **Navegação**: sidebar, não barra no topo.

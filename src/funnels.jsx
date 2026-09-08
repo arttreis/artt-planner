@@ -9,8 +9,8 @@ import {
 } from "./shared/core.js";
 import { useState, useEffect, useLayoutEffect, useRef, useMemo, createElement } from "react";
 import {
-  mount, useCollection, useFronts, useClients, useHash, useKeydown, isTyping, useFields,
-  Form, Field, Dialog, Markdown, FrontBadge, ClientBadge, frontOptionList, clientOptionList, icon
+  mount, useCollection, useClients, useHash, useKeydown, isTyping, useFields,
+  Form, Field, Dialog, Markdown, ClientBadge, clientOptionList, TemplatePicker, icon
 } from "./shared/ui.jsx";
 import { FUNNEL_TEMPLATES, funnelGroups, funnelChain, buildFunnel } from "./shared/templates.js";
 import { NODE_W, NODE_H, computeLayers, layoutNodes } from "./shared/funnel-layout.js";
@@ -230,6 +230,12 @@ const DRAWERS = { creatives: "criativos", automations: "automações", offers: "
    é fixa para as portas ficarem sempre no meio e as arestas não pularem. */
 const PORT_Y = NODE_H / 2;
 const GRID = 24; // passo da grade de pontos do palco, em px de tela a 100%
+const MIN_K = 0.2, MAX_K = 2.5; // limites do zoom, os mesmos para botão, roda e pinça
+/* enquadrar tem piso: numa tela estreita, caber o funil inteiro dava 10% —
+   letra de formiga e etapa de dois pixels, impossível de tocar. abaixo deste
+   piso o enquadrar prefere encostar no começo do funil e deixar o resto para
+   o arrasto. */
+const MIN_FIT_K = 0.62;
 const VIEW_KEY = "merlin:funnels:view:";
 const GHOSTS_KEY = "merlin:funnels:ghosts"; // a tira de próximas etapas, ligada ou desligada neste aparelho
 
@@ -259,6 +265,9 @@ const GhostIcon = () => (
 );
 const SparkIcon = () => (
   <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.5l1.9 6.1 6.1 1.9-6.1 1.9L12 18.5l-1.9-6.1-6.1-1.9 6.1-1.9z" /></svg>
+);
+const MoreIcon = () => (
+  <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.7" /><circle cx="12" cy="12" r="1.7" /><circle cx="19" cy="12" r="1.7" /></svg>
 );
 const CopyIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><rect x="4" y="4" width="12" height="12" rx="2" /><path d="M9 16v2a2 2 0 002 2h7a2 2 0 002-2v-7a2 2 0 00-2-2h-2" /></svg>
@@ -469,7 +478,6 @@ function normalize(raw) {
     name: String(d.name || ""),
     client: d.client || "",
     channel: d.channel || "",
-    front: d.front || "",
     nodes: Array.isArray(d.nodes) ? d.nodes.map(normalizeNode) : [],
     edges: Array.isArray(d.edges) ? d.edges.map(normalizeEdge) : [],
     creatives: normalizeList(d.creatives),
@@ -762,15 +770,27 @@ function Stage(props) {
     const bottom = p.drawerOpen ? Math.min(r.height * 0.46, 440) + 76 : 64;
     return { left, top: 64, width: Math.max(120, r.width - left - right), height: Math.max(120, r.height - 64 - bottom) };
   };
-  const fitView = (area, nodes) => {
+  /* `readable` e a vista de quando o funil abre: ali o que importa e enxergar
+     o comeco, nao caber tudo. o "enquadrar tudo" do menu passa sem ela e
+     mostra o funil inteiro — mas nem ai desce abaixo do piso numa tela
+     estreita, onde uma etapa de dois pixels nao se toca. */
+  const fitView = (area, nodes, readable) => {
     if (!nodes.length) return { x: area.left + 60, y: area.top + 60, k: 1 };
     const xs = nodes.map((n) => n.x), ys = nodes.map((n) => n.y);
     const minX = Math.min(...xs) - 40, minY = Math.min(...ys) - 40;
     const maxX = Math.max(...xs.map((x) => x + NODE_W)) + 40;
     const maxY = Math.max(...ys.map((y) => y + NODE_H)) + 40;
     const worldW = Math.max(1, maxX - minX), worldH = Math.max(1, maxY - minY);
-    const k = Math.min(1, area.width / worldW, area.height / worldH);
-    return { x: area.left - minX * k + (area.width - worldW * k) / 2, y: area.top - minY * k + (area.height - worldH * k) / 2, k };
+    const floor = readable || area.width < 700 ? MIN_FIT_K : MIN_K;
+    const k = Math.max(floor, Math.min(1, area.width / worldW, area.height / worldH));
+    /* o que couber fica centrado; o que não couber começa no canto de cima à
+       esquerda — que num funil é a primeira etapa, por onde se lê */
+    const restX = area.width - worldW * k, restY = area.height - worldH * k;
+    return {
+      x: area.left - minX * k + (restX > 0 ? restX / 2 : 24),
+      y: area.top - minY * k + (restY > 0 ? restY / 2 : 16),
+      k
+    };
   };
 
   /* a grade de pontos do palco anda junto com o mundo: é css no fundo do
@@ -796,7 +816,7 @@ function Stage(props) {
     const a = freeArea(), v = viewRef.current;
     const cx = a.left + a.width / 2, cy = a.top + a.height / 2;
     const wx = (cx - v.x) / v.k, wy = (cy - v.y) / v.k;
-    const k = Math.min(2.5, Math.max(0.2, v.k * factor));
+    const k = Math.min(MAX_K, Math.max(MIN_K, v.k * factor));
     viewRef.current = { x: cx - wx * k, y: cy - wy * k, k };
     applyView(); saveView();
   };
@@ -876,7 +896,7 @@ function Stage(props) {
      e uma escala degenerada. */
   useEffect(() => {
     liveRef.current = { nodes: doc.nodes.map((n) => ({ ...n })), edges: doc.edges };
-    if (!viewRef.current) { viewRef.current = readView(doc.id) || fitView(freeArea(), doc.nodes); applyView(); }
+    if (!viewRef.current) { viewRef.current = readView(doc.id) || fitView(freeArea(), doc.nodes, true); applyView(); }
     redraw();
   }, [doc, selected, comparing, projections, ghosts]);
 
@@ -893,8 +913,35 @@ function Stage(props) {
   useEffect(() => {
     const el = svgRef.current;
     let dragNode = null, pan = null, linking = null;
+    /* os dedos na tela. com dois, quem manda e a pinca: o que estava
+       comecando (arrastar o palco, arrastar a etapa, puxar uma ligacao) e
+       encerrado ali mesmo, senao a etapa viajava junto com o zoom. */
+    const pointers = new Map();
+    let pinch = null;
+    const commitDrag = () => {
+      if (!dragNode) return;
+      if (dragNode.moved) {
+        const n = liveRef.current.nodes.find((x) => x.id === dragNode.id);
+        if (n) {
+          n.x = Math.round(n.x / 12) * 12; n.y = Math.round(n.y / 12) * 12;
+          patchNode(n.id);
+          latest.current.onMoveNode(n.id, n.x, n.y);
+        }
+      }
+      dragNode = null;
+    };
+    const startPinch = () => {
+      const [a, b] = [...pointers.values()];
+      commitDrag();
+      linking = null; tempRef.current.replaceChildren();
+      if (pan) { pan = null; el.classList.remove("is-panning"); }
+      pinch = { dist: Math.hypot(a.x - b.x, a.y - b.y) || 1, cx: (a.x + b.x) / 2, cy: (a.y + b.y) / 2, view: { ...viewRef.current } };
+    };
     const down = (e) => {
       if (e.button > 0) return;
+      pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (pointers.size === 2) { e.preventDefault(); startPinch(); return; }
+      if (pointers.size > 2) return;
       /* tocar no palco tira o cursor de qualquer campo: os atalhos (Tab,
          Del, +/-) passam a valer no fluxo. o preventDefault abaixo engole o
          mousedown que faria isso sozinho. */
@@ -928,6 +975,21 @@ function Stage(props) {
       el.setPointerCapture(e.pointerId);
     };
     const move = (e) => {
+      if (pointers.has(e.pointerId)) pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      /* pinca: a escala segue a distancia entre os dedos, e o ponto do mundo
+         que estava entre eles continua entre eles enquanto a mao anda. */
+      if (pinch) {
+        if (pointers.size < 2) return;
+        const [a, b] = [...pointers.values()];
+        const r = el.getBoundingClientRect();
+        const dist = Math.hypot(a.x - b.x, a.y - b.y) || 1;
+        const k = Math.min(MAX_K, Math.max(MIN_K, pinch.view.k * (dist / pinch.dist)));
+        const wx = (pinch.cx - r.left - pinch.view.x) / pinch.view.k;
+        const wy = (pinch.cy - r.top - pinch.view.y) / pinch.view.k;
+        viewRef.current = { x: (a.x + b.x) / 2 - r.left - wx * k, y: (a.y + b.y) / 2 - r.top - wy * k, k };
+        applyView();
+        return;
+      }
       if (linking) {
         const m = toWorld(e.clientX, e.clientY);
         const from = liveRef.current.nodes.find((x) => x.id === linking.from);
@@ -954,6 +1016,11 @@ function Stage(props) {
       }
     };
     const up = (e) => {
+      pointers.delete(e.pointerId);
+      if (pinch) {
+        if (pointers.size < 2) { pinch = null; saveView(); }
+        return;
+      }
       const p = latest.current;
       if (linking) {
         tempRef.current.replaceChildren();
@@ -962,18 +1029,7 @@ function Stage(props) {
         if (nodeEl && nodeEl.dataset.id !== linking.from) p.onLink(linking.from, nodeEl.dataset.id);
         linking = null;
       }
-      if (dragNode) {
-        if (dragNode.moved) {
-          /* encaixa na grade ao soltar: o fluxo fica alinhado sem régua */
-          const n = liveRef.current.nodes.find((x) => x.id === dragNode.id);
-          if (n) {
-            n.x = Math.round(n.x / 12) * 12; n.y = Math.round(n.y / 12) * 12;
-            patchNode(n.id);
-            p.onMoveNode(n.id, n.x, n.y);
-          }
-        }
-        dragNode = null;
-      }
+      commitDrag(); // encaixa na grade ao soltar: o fluxo fica alinhado sem régua
       if (pan) { pan = null; el.classList.remove("is-panning"); saveView(); }
     };
     /* dois cliques no vazio: uma etapa nova ali mesmo, sem ir até a biblioteca */
@@ -990,7 +1046,7 @@ function Stage(props) {
       const mx = e.clientX - r.left, my = e.clientY - r.top;
       if (e.ctrlKey || e.metaKey || (!e.shiftKey && Math.abs(e.deltaX) < 1 && !e.deltaMode && Math.abs(e.deltaY) >= 40)) {
         const wx = (mx - v.x) / v.k, wy = (my - v.y) / v.k;
-        const k = Math.min(2.5, Math.max(0.2, v.k * (1 - e.deltaY * 0.0012)));
+        const k = Math.min(MAX_K, Math.max(MIN_K, v.k * (1 - e.deltaY * 0.0012)));
         viewRef.current = { x: mx - wx * k, y: my - wy * k, k };
       } else if (e.shiftKey) {
         viewRef.current = { ...v, x: v.x - e.deltaY };
@@ -1065,12 +1121,12 @@ function Editor({ id, funnels }) {
   const [panelOpen, setPanelOpen] = useState(false); // começa fechado: o palco inteiro à vista; selecionar algo abre
   const [zoom, setZoom] = useState(100);
   const [snapshotForm, setSnapshotForm] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [suggestions, setSuggestions] = useState(null);
   const [reading, setReading] = useState(null);      // a leitura dos números, em markdown
   const [thinking, setThinking] = useState(false);
   const [readingNumbers, setReadingNumbers] = useState(false);
   useClients();
-  useFronts();
 
   const projections = useMemo(() => computeProjections(doc), [doc]);
 
@@ -1234,7 +1290,7 @@ function Editor({ id, funnels }) {
   };
   const pullCreative = (c) => {
     const d = docRef.current;
-    sendToDay({ title: "produzir criativo: " + (c.title || "sem título"), front: d.front, client: d.client, origin: { type: "funnel", id: d.id } });
+    sendToDay({ title: "produzir criativo: " + (c.title || "sem título"), client: d.client, origin: { type: "funnel", id: d.id } });
   };
   const suggestRemarketing = () => {
     const d = docRef.current;
@@ -1253,7 +1309,7 @@ function Editor({ id, funnels }) {
   /* ---------- o funil em si (painel sem seleção) ---------- */
   const setClient = (cid) => update((d) => {
     const c = cid && clients().get(cid);
-    return { ...d, client: cid, channel: "", front: c && c.front ? c.front : d.front }; // acompanha a frente do cliente escolhido
+    return { ...d, client: cid, channel: "" }; // trocar de cliente derruba o canal, que era dele
   }, { undo: true });
   const setFunnelField = (key, value) => update((d) => ({ ...d, [key]: value }), { undo: true });
   const setPeriod = (key, value) => update((d) => ({ ...d, period: { ...d.period, [key]: value } }), { undo: true });
@@ -1358,7 +1414,7 @@ function Editor({ id, funnels }) {
       onRate={(eid, v) => patchEdge(eid, { avgRate: v })} onAdd={addHere} onRemove={() => removeNode(node.id)} onClose={() => showPanel(false)} />;
   } else {
     panel = <FunnelPanel key="funnel" doc={doc} comparing={comparing}
-      onClient={setClient} onChannel={(v) => setFunnelField("channel", v)} onFront={(v) => setFunnelField("front", v)} onPeriod={setPeriod}
+      onClient={setClient} onChannel={(v) => setFunnelField("channel", v)} onPeriod={setPeriod}
       onCompare={setComparing} onSnapshot={() => setSnapshotForm(true)} onClose={() => showPanel(false)} />;
   }
   const listActions = { addItem, patchItem, removeItem, addTrigger, pullCreative, suggestRemarketing };
@@ -1370,28 +1426,21 @@ function Editor({ id, funnels }) {
         onSelect={select} onCreateNode={createNode} onMoveNode={moveNode} onLink={linkNodes}
         onAcceptGhost={acceptGhost} onAskMerlin={askGhosts} onZoom={(k) => setZoom(Math.round(k * 100))} />
 
+      {/* a barra de cima e so o indispensavel: voltar, o nome, o que abre
+          (biblioteca e painel), o merlin e o "mais". zoom, enquadrar, arrumar
+          e os fantasmas moram no "mais" — a roda, a pinca e as teclas +, - e 0
+          ja fazem o mesmo, e o palco nao precisa de uma regua por cima. */}
       <div className="fe-top">
         <div className="fe-group glass fe-trail">
           <button className="action" id="back-btn" type="button" title="voltar para a lista" aria-label="Voltar" onClick={() => { location.hash = ""; }}><BackIcon /></button>
-          <span className="t-mono">funis /</span>
           <input className="fe-name" id="funnel-name" placeholder="nome do funil" maxLength="80" value={doc.name} onChange={(e) => update((d) => ({ ...d, name: e.currentTarget.value }))} />
-        </div>
-        <div className="fe-group glass fe-zoom">
-          <button className="action" id="zoom-out" type="button" title="afastar" aria-label="Afastar" onClick={() => stage.current.zoomBy(1 / 1.2)}><MinusIcon /></button>
-          <output id="zoom-label" title="clique para voltar a 100%" onClick={() => stage.current.resetZoom()}>{zoom}%</output>
-          <button className="action" id="zoom-in" type="button" title="aproximar" aria-label="Aproximar" onClick={() => stage.current.zoomBy(1.2)}>{icon("plus")}</button>
-          <span className="sep"></span>
-          <button className="action" id="fit-btn" type="button" title="enquadrar tudo" aria-label="Enquadrar" onClick={() => stage.current.fit()}><FitIcon /></button>
-          <button className="action" id="layout-btn" type="button" title="arrumar em camadas" aria-label="Arrumar" onClick={arrange}><LayoutIcon /></button>
         </div>
         <div className="fe-group glass">
           <button className="action" id="library-toggle" type="button" title="biblioteca de tipos" aria-label="Biblioteca" aria-pressed={String(libraryOpen)} onClick={() => showLibrary(!libraryOpen)}><LibraryIcon /></button>
           <button className="action" id="panel-toggle" type="button" title="painel do funil" aria-label="Painel" aria-pressed={String(panelOpen)} onClick={() => showPanel(!panelOpen)}><PanelIcon /></button>
-          <button className="action" id="ghosts-toggle" type="button" title="mostrar a próxima etapa sugerida" aria-label="Próxima etapa" aria-pressed={String(ghostsOn)} onClick={toggleGhosts}><GhostIcon /></button>
-          <span className="sep"></span>
-          <button className="pill pill--mini pill--green" id="suggest-btn" type="button" disabled={thinking} title="pedir sugestões ao Merlin para este funil" onClick={suggest}>
-            {thinking ? "pensando…" : <><SparkIcon /><span>sugerir</span></>}
-          </button>
+          <button className="pill pill--mini pill--green pill--icon" id="suggest-btn" type="button" disabled={thinking}
+            title={thinking ? "pensando…" : "pedir sugestões ao Merlin para este funil"} aria-label="Sugerir" aria-busy={thinking} onClick={suggest}><SparkIcon /></button>
+          <button className="action" id="more-btn" type="button" title="mais" aria-label="Mais" onClick={() => setMenuOpen(true)}><MoreIcon /></button>
         </div>
       </div>
 
@@ -1401,6 +1450,21 @@ function Editor({ id, funnels }) {
         onNumber={(nid, v) => patchNode(nid, { number: v })} onRead={readNumbers} reading={readingNumbers} onClose={() => setDrawer(null)} />}
       <Dock doc={doc} drawer={drawer} onToggle={(k) => setDrawer(drawer === k ? null : k)} />
 
+      {menuOpen && (
+        <Dialog title="mais" sub={"zoom em " + zoom + "% · a roda e a pinça também dão zoom"} onClose={() => setMenuOpen(false)}>
+          <div className="fe-menu">
+            <button className="pill" type="button" onClick={() => { setMenuOpen(false); stage.current.fit(); }}><FitIcon />enquadrar tudo</button>
+            <button className="pill" type="button" onClick={() => { setMenuOpen(false); arrange(); }}><LayoutIcon />arrumar em camadas</button>
+            <button className="pill" type="button" aria-pressed={String(ghostsOn)} onClick={() => { setMenuOpen(false); toggleGhosts(); }}><GhostIcon />{ghostsOn ? "esconder" : "mostrar"} a próxima etapa sugerida</button>
+            <div className="fe-menu__zoom">
+              <button className="action" type="button" aria-label="Afastar" onClick={() => stage.current.zoomBy(1 / 1.2)}><MinusIcon /></button>
+              <output>{zoom}%</output>
+              <button className="action" type="button" aria-label="Aproximar" onClick={() => stage.current.zoomBy(1.2)}>{icon("plus")}</button>
+              <button className="pill pill--mini" type="button" onClick={() => stage.current.resetZoom()}>100%</button>
+            </div>
+          </div>
+        </Dialog>
+      )}
       {snapshotForm && <SnapshotForm onSave={saveSnapshot} onClose={() => setSnapshotForm(false)} />}
       {suggestions && <SuggestionsDialog list={suggestions} onAdd={addSuggestions} onClose={() => setSuggestions(null)} />}
       {reading != null && <ReadingDialog text={reading} onClose={() => setReading(null)} />}
@@ -1487,7 +1551,7 @@ function PanelHead({ icon: iconNode, kind, title, actions, onClose }) {
 }
 
 /* nada selecionado: o painel é do funil — cliente, canal, período, retratos */
-function FunnelPanel({ doc, comparing, onClient, onChannel, onFront, onPeriod, onCompare, onSnapshot, onClose }) {
+function FunnelPanel({ doc, comparing, onClient, onChannel, onPeriod, onCompare, onSnapshot, onClose }) {
   const client = doc.client && clients().get(doc.client);
   const channels = client && Array.isArray(client.channels) ? client.channels : [];
   const snapshots = [...doc.snapshots].sort((a, b) => b.at - a.at);
@@ -1503,8 +1567,6 @@ function FunnelPanel({ doc, comparing, onClient, onChannel, onFront, onPeriod, o
           <option value="">{channels.length ? "sem canal" : "o cliente não tem canais"}</option>
           {channels.map((ch) => <option key={ch.id} value={ch.id}>{ch.name || ch.type || "canal"}</option>)}
         </select>
-        <label className="field-label">frente</label>
-        <select className="select" id="funnel-front" value={doc.front} onChange={(e) => onFront(e.currentTarget.value)}>{frontOptionList("sem frente")}</select>
         <label className="field-label">período dos números</label>
         <div className="pn-period">
           <input type="date" className="input" value={doc.period.from} onChange={(e) => onPeriod("from", e.currentTarget.value)} />
@@ -1929,7 +1991,7 @@ function FunnelCard({ f, onDuplicate, onRemove }) {
     <div className="fl-card" data-id={f.id} tabIndex="0" role="link" onClick={open} onKeyDown={(e) => { if (e.key === "Enter" && e.target === e.currentTarget) open(); }}>
       <div className="fl-thumb"><Thumbnail f={f} /></div>
       <p className="fl-name">{f.name || "sem nome"}</p>
-      <div className="fl-badges"><FrontBadge id={f.front} /><ClientBadge id={f.client} /></div>
+      <div className="fl-badges"><ClientBadge id={f.client} /></div>
       <div className="fl-foot">
         <span>{stages}{stages === 1 ? " etapa" : " etapas"}</span>
         {total && <span>{total}</span>}
@@ -1970,16 +2032,15 @@ function applyTemplate(doc, tpl) {
   return doc;
 }
 
-/* criar é um botão e uma caixa, como em todo o sistema. no nome, "@frente"
-   e "@cliente" continuam valendo (a mesma gramática do dia); os campos ao
-   lado ganham quando preenchidos. o modelo é opcional: em branco, o funil
-   nasce vazio como sempre nasceu. */
+/* criar é um botão e uma caixa, como em todo o sistema. no nome, "@cliente"
+   continua valendo (a mesma gramática do dia); o campo ao lado ganha quando
+   preenchido. o modelo é opcional: em branco, o funil nasce vazio como
+   sempre nasceu. */
 function FunnelForm({ funnels, onClose }) {
-  const [v, bind, set] = useFields({ name: "", front: "", client: "", template: "" });
+  const [v, bind, set] = useFields({ name: "", client: "", template: "" });
   const tpl = v.template ? FUNNEL_TEMPLATES.find((t) => t.id === v.template) : null;
   /* escolher o modelo batiza o funil, quando o nome ainda está vazio */
-  const pickTemplate = (e) => {
-    const id = e.currentTarget.value;
+  const pickTemplate = (id) => {
     set("template", id);
     const chosen = FUNNEL_TEMPLATES.find((t) => t.id === id);
     if (chosen && !v.name.trim()) set("name", chosen.name);
@@ -1991,7 +2052,7 @@ function FunnelForm({ funnels, onClose }) {
     const now = Date.now();
     const doc = {
       id: newId(), name,
-      client: v.client || parsed.client || "", channel: "", front: v.front || parsed.front || "",
+      client: v.client || parsed.client || "", channel: "",
       nodes: [], edges: [], creatives: [], automations: [], offers: [], triggers: [],
       period: { from: "", to: "" }, snapshots: [],
       createdAt: now, updatedAt: now
@@ -2002,22 +2063,13 @@ function FunnelForm({ funnels, onClose }) {
   };
   return (
     <Form title="novo funil" submit="criar e abrir" onClose={onClose} onSubmit={submit}>
-      <Field label="nome" full><input className="input" maxLength="80" required placeholder="funil da lojax · @guessless" {...bind("name")} /></Field>
+      <Field label="nome" full><input className="input" maxLength="80" required placeholder="funil da lojax · @cliente" {...bind("name")} /></Field>
       <Field label="modelo" full>
-        <select className="select" id="funnel-template" value={v.template} onChange={pickTemplate}>
-          <option value="">funil em branco</option>
-          {funnelGroups().map((g) => (
-            <optgroup key={g.key} label={g.label}>
-              {g.items.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
-            </optgroup>
-          ))}
-        </select>
+        <TemplatePicker id="funnel-template" groups={funnelGroups()} empty="funil em branco"
+                        value={v.template} onChange={pickTemplate} />
         {tpl && <TemplateNote tpl={tpl} />}
       </Field>
-      <Field label="frente">
-        <select className="select" {...bind("front")} onChange={(e) => { set("front", e.currentTarget.value); set("client", ""); }}>{frontOptionList("sem frente")}</select>
-      </Field>
-      <Field label="cliente"><select className="select" {...bind("client")}>{clientOptionList("sem cliente", v.front || undefined)}</select></Field>
+      <Field label="cliente"><select className="select" {...bind("client")}>{clientOptionList("sem cliente")}</select></Field>
     </Form>
   );
 }

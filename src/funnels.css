@@ -52,7 +52,7 @@
 }
 
 /* barra de cima: trilha à esquerda, zoom no meio, ações à direita */
-.fe-top{position:absolute;top:12px;left:12px;right:12px;z-index:8;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;pointer-events:none}
+.fe-top{position:absolute;top:12px;left:12px;right:12px;z-index:8;display:grid;grid-template-columns:1fr auto;align-items:center;gap:8px;pointer-events:none}
 .fe-top>*{pointer-events:auto}
 .fe-group{display:inline-flex;align-items:center;gap:4px;padding:5px;border-radius:var(--br3)}
 .fe-top .fe-group:first-child{justify-self:start;min-width:0;max-width:100%}
@@ -65,8 +65,11 @@
   padding:5px 8px;border-radius:var(--br2);
 }
 .fe-name:hover,.fe-name:focus{background:var(--fill);outline:none}
-.fe-zoom output{font-family:var(--mono);font-size:11.5px;color:var(--ink-70);min-width:46px;text-align:center;cursor:pointer;border-radius:var(--br2);padding:5px 0}
-.fe-zoom output:hover{background:var(--fill)}
+/* a caixa do "mais": uma acao por linha, e o zoom numa linha so */
+.fe-menu{display:flex;flex-direction:column;gap:8px}
+.fe-menu .pill{justify-content:flex-start;height:38px;gap:9px}
+.fe-menu__zoom{display:flex;align-items:center;gap:8px;padding-top:2px}
+.fe-menu__zoom output{font-family:var(--mono);font-size:12px;color:var(--ink-70);min-width:46px;text-align:center}
 .fe-group .sep{width:1px;height:18px;background:var(--line-soft);margin:0 3px}
 .fe-group .action{width:30px;height:30px}
 .fe-group .action[aria-pressed="true"]{color:var(--ink);background:var(--fill-hover)}
@@ -261,14 +264,15 @@ html.light .node-body{fill-opacity:.35}
 
 /* ---------- celular: biblioteca e painel viram folhas embaixo ---------- */
 @media (max-width:899px){
-  .fe-top{grid-template-columns:1fr auto}
-  .fe-zoom{display:none}
-  .fe-name{max-width:40vw}
+  .fe-group .action{width:36px;height:36px}
+  .fe-group .pill--icon{width:36px;min-height:36px}
+  .pn-add{min-height:34px}
+  .fe-name{max-width:none;width:auto;flex:1 1 auto}
   .fe-library,.fe-panel{top:auto;left:12px;right:12px;bottom:64px;width:auto;height:52%}
   .fe.is-drawer .fe-panel{display:none}
   .fe-drawer{height:60%}
   .fe-dock{gap:0;padding:4px;overflow-x:auto;scrollbar-width:none;justify-content:flex-start}
   .fe-dock::-webkit-scrollbar{display:none}
-  .fe-dock button{padding:0 9px;font-size:12px}
+  .fe-dock button{height:36px;padding:0 8px;font-size:11.5px}
   #suggest-btn span{display:none}
 }

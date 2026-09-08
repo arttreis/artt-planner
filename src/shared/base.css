@@ -125,7 +125,31 @@ body::after{
 .form-grid .full{grid-column:1 / -1}
 .form-row{display:flex;gap:var(--pd2);align-items:center}
 .form-row .input{flex:1 1 auto}
-/* o modelo escolhido, logo abaixo do select: a frase do que ele e, e o
+/* a lista de modelos, no lugar do <select> com <optgroup>: o popup nativo
+   abria branco por cima da tela, e com dezenas de modelos cobria a tela
+   inteira. aqui a lista e do sistema — prateleira por grupo, como na
+   biblioteca do editor de funil, rolando dentro do proprio formulario. */
+.picker{
+  max-height:230px;overflow-y:auto;padding:6px;
+  background:var(--surface-2);border:1px solid var(--line);border-radius:var(--br2);
+  scrollbar-width:thin;scrollbar-color:var(--line) transparent;
+}
+.picker__group{margin:12px 0 5px;padding:0 2px;color:var(--ink-30);font-size:9.5px}
+.picker__item{
+  display:block;width:100%;text-align:left;line-height:1.2;
+  padding:6px 8px;margin-top:4px;border-radius:10px;
+  background:var(--fill);border:1px solid var(--line-soft);
+  font-size:12.5px;color:var(--ink);
+  transition:background var(--t),border-color var(--t),color var(--t);
+}
+.picker__item:first-child{margin-top:0}
+.picker__item:hover{background:var(--fill-hover);border-color:var(--line)}
+.picker__item.is-on{
+  color:var(--green-ink);
+  background:color-mix(in srgb,var(--green) 12%,transparent);
+  border-color:color-mix(in srgb,var(--green) 32%,transparent);
+}
+/* o modelo escolhido, logo abaixo da lista: a frase do que ele e, e o
    caminho das etapas em uma linha so — para escolher sem abrir nada */
 .tpl-note{margin:6px 0 0;font-size:12px;color:var(--ink-50);line-height:1.4}
 .tpl-chain{
@@ -222,3 +246,13 @@ kbd{font-family:var(--mono);font-size:10.5px;padding:1px 6px;border-radius:5px;b
 
 @media (prefers-reduced-motion:reduce){*{transition:none !important;animation:none !important}}
 @media (max-width:720px){:root{--br:12px}}
+/* no toque nao ha mira: o dedo pede alvo maior do que o mouse. so o tamanho
+   do alvo cresce — o icone continua do mesmo tamanho. */
+@media (pointer:coarse){
+  .action{min-width:36px;min-height:36px}
+  .pill{min-height:36px}
+  .pill--icon{min-width:36px}      /* redondo, nunca ovalado */
+  .pill--mini{min-height:30px}
+  .pill--mini.pill--icon{min-width:30px}
+  .dialog__close{width:36px;height:36px}
+}

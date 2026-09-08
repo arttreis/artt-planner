@@ -1,11 +1,11 @@
 # merlin
 
 Sistema pessoal do Arthur, de uma pessoa só. Nasceu como o `artt · planner` — um controle
-de tarefas de um dia — e virou um conjunto de frentes ligadas entre si: o dia, a semana, as
-ideias, os clientes (com frentes e canais), os funis, os mapas mentais, o financeiro, os
+de tarefas de um dia — e virou um conjunto de módulos ligados entre si: o dia, a semana, as
+ideias, os clientes (com canais), os funis, os mapas mentais, o financeiro, os
 hábitos e os planos. A visão completa e as decisões estão em [VISAO.md](VISAO.md).
 
-Cada frente é **uma página**: um HTML na raiz, com o CSS dela inline, e um módulo em
+Cada módulo é **uma página**: um HTML na raiz, com o CSS dela inline, e um módulo em
 [`src/`](src/) com a tela. A tela é **React 19 com JSX**, e o build é o **Vite**, que cospe as
 páginas prontas em `server/site/` — a mesma pasta que o Worker serve. O que é comum vive em
 [`src/shared/`](src/shared/README.md): os tokens dos dois temas, a barra de navegação, a
@@ -23,14 +23,14 @@ está em [MIGRATION.md](MIGRATION.md).
 | página | o que é |
 | --- | --- |
 | `index.html` | o dia: a fila de hoje, a barra que se gasta, a sobra. O único lugar com minutos. |
-| `week.html` | a semana em colunas (seg a sex e fim de semana), agrupada por frente. |
+| `week.html` | a semana em colunas (seg a sex e fim de semana). |
 | `ideas.html` | o que ainda não é tarefa, numa caixa de entrada: lista por dia à esquerda, a ideia aberta à direita com corpo, estágio, passos e atividade. |
-| `clients.html` | clientes por frente, com canais (Mercado Livre, Shopee, TikTok Shop…), objetivos, backlog, diário e ofertas. Também o cadastro de frentes. |
+| `clients.html` | clientes com canais (Mercado Livre, Shopee, TikTok Shop…), objetivos, backlog, diário e ofertas. |
 | `funnels.html` | funil como grafo com tipos de nó, vazão por etapa, criativos, automações, ofertas e gatilhos. |
 | `maps.html` | mapa mental com teclado e layout automático. |
 | `finance.html` | do jeito da planilha: o mês dia a dia com saldo previsto, o ano em doze colunas, e o painel com saídas fixas, entradas fixas, compras no cartão e dívidas, mais a divisão 50/30/20. |
 | `habits.html` | a grade do mês: hábitos nas linhas, dias nas colunas, uma marca por dia. Sequência e taxa do mês. |
-| `plans.html` | trimestre, mês e semana lado a lado: objetivos por frente, desdobrar de um horizonte para o outro, e a revisão de cada período. |
+| `plans.html` | trimestre, mês e semana lado a lado: desdobrar de um horizonte para o outro, e a revisão de cada período. |
 
 Em toda tela, criar é o mesmo gesto: um botão "+" abre uma caixa (pop-up) com os campos. Nenhuma
 lista tem formulário aberto no meio, e nenhuma tela tem filtro — a busca da sidebar acha qualquer

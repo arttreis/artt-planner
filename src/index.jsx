@@ -5,12 +5,12 @@ import "./shared/shell.css";
 import "./index.css";
 import {
   initPage, newId, today, isDay, mondayOf, api, cloud,
-  readInbox, writeInbox, parseMentions, listFronts, clientName, frontColor
+  readInbox, writeInbox, parseMentions, clientName
 } from "./shared/core.js";
 import { useState, useEffect, useLayoutEffect, useRef } from "react";
 import {
-  mount, useCollection, useFronts, useClients, useKeydown, isTyping,
-  useDelegate, DelegateDialog, FrontBadge, ClientBadge, icon
+  mount, useCollection, useClients, useKeydown, isTyping,
+  useDelegate, DelegateDialog, ClientBadge, icon
 } from "./shared/ui.jsx";
 
 initPage("day");
@@ -41,9 +41,8 @@ function normalizeTask(t) {
        formato e conferido aqui porque documento vindo do disco ou da nuvem
        nao e confiavel so por ter chegado. */
     clickup: CLICKUP_ID.test(String(t.clickup || "")) ? String(t.clickup) : "",
-    /* de qual frente (empresa) e de qual cliente e o trabalho. so ids: o
-       nome vem do cadastro na hora de desenhar, e some se o cadastro sumir. */
-    front: String(t.front || "").slice(0, 64),
+    /* de qual cliente e o trabalho. so o id: o nome vem do cadastro na hora
+       de desenhar, e some se o cadastro sumir. */
     client: String(t.client || "").slice(0, 64),
     origin
   };
@@ -143,7 +142,7 @@ function readClickup(text) {
 /* o composer inteiro le a linha por aqui. a previa e o submit precisam
    entender exatamente a mesma coisa: se so o submit tirasse a URL, a previa
    mostraria o link cru como titulo e ainda acusaria "nao entendi o tempo"
-   por causa dos digitos do id. @frente e @cliente vem do core: e a mesma
+   por causa dos digitos do id. o @cliente vem do core: e a mesma
    leitura em todo modulo. */
 function readLine(text) {
   const l = readClickup(text);
@@ -151,7 +150,7 @@ function readLine(text) {
   const d = readDuration(m.title);
   /* noLink e o texto sem a URL: e sobre ele que a suspeita de tempo mal
      escrito tem que ser avaliada. */
-  return { min: d.min, title: d.title, clickup: l.clickup, noLink: m.title, front: m.front, client: m.client };
+  return { min: d.min, title: d.title, clickup: l.clickup, noLink: m.title, client: m.client };
 }
 
 /* o texto tem numero mas nada casou: provavelmente e tempo mal escrito.
@@ -280,7 +279,7 @@ function withTask(doc, spec) {
   if (isStale(doc)) { tasks = pendingOf(doc); day = today(); }
   const task = normalizeTask({
     id: newId(), title, min: spec.min, done: false, reserved: !!spec.reserved,
-    clickup: spec.clickup, front: spec.front, client: spec.client, origin: spec.origin
+    clickup: spec.clickup, client: spec.client, origin: spec.origin
   });
   return { doc: { ...doc, day, tasks: [task, ...tasks] }, id: task.id };
 }
@@ -333,7 +332,6 @@ function Day() {
   const docRef = useRef(doc);
   const week = useCollection("week");
   const ideasCol = useCollection("ideas", { normalize: normalizeIdea });
-  useFronts();
   useClients();
   const delegate = useDelegate();               /* "da pra fazer com Claude?" */
   const [, setTick] = useState(0);              /* o relogio: redesenha a cada 30s */
@@ -593,25 +591,24 @@ function Day() {
     e.preventDefault();
     const raw = text.replace(/\s+/g, " ").trim();
     if (!raw) return;
-    const { min, title, clickup, front, client } = readLine(text);
+    const { min, title, clickup, client } = readLine(text);
     const name = title || raw;
     const reserved = isReserve(name);
-    if (min) { createAndClose({ title: stripPrefix(name), min, reserved, clickup, front, client, ideaId: null }); return; }
+    if (min) { createAndClose({ title: stripPrefix(name), min, reserved, clickup, client, ideaId: null }); return; }
     /* o link e o @ lidos do campo sobrevivem ao pedagio: a tarefa so nasce
        depois dos chips, e a URL ja saiu do campo. digitar no campo e uma
        intencao nova: uma ideia que esperava duracao nao tem a ver com isso. */
-    setPending({ title: stripPrefix(name), reserved, clickup, front, client, ideaId: null });
+    setPending({ title: stripPrefix(name), reserved, clickup, client, ideaId: null });
   };
 
   const createAndClose = (spec) => {
     /* promocao de ideia: sair da caixa e entrar na fila sao o mesmo gesto,
        entao um desfazer so devolve os dois. criar tarefa do zero continua sem
        desfazer — o que ganha desfazer aqui e a ideia ter sumido. a ideia traz
-       a frente e o cliente dela, se o @ nao disse outra coisa. */
+       o cliente dela, se o @ nao disse outra coisa. */
     const idea = spec.ideaId ? ideasCol.get(spec.ideaId) : null;
-    const front = spec.front || (idea && idea.front) || "";
     const client = spec.client || (idea && idea.client) || "";
-    const task = { title: spec.title, min: spec.min, reserved: spec.reserved, clickup: spec.clickup, front, client };
+    const task = { title: spec.title, min: spec.min, reserved: spec.reserved, clickup: spec.clickup, client };
     if (idea) {
       withUndo("puxei “" + shortTitle(spec.title) + "” pro dia", () => {
         create(task);
@@ -649,7 +646,7 @@ function Day() {
     const now = Date.now();
     ideasCol.save({
       id: newId(), title: clean.slice(0, 300), body: "", stage: "seed",
-      front: (extra && extra.front) || "", client: (extra && extra.client) || "",
+      client: (extra && extra.client) || "",
       steps: [], outputs: [], history: [], createdAt: now, updatedAt: now
     });
     return true;
@@ -665,7 +662,7 @@ function Day() {
   const pullIdea = (id) => {
     const i = ideasCol.get(id);
     if (!i) return;
-    setPending({ title: i.title, reserved: isReserve(i.title), clickup: "", front: "", client: "", ideaId: id });
+    setPending({ title: i.title, reserved: isReserve(i.title), clickup: "", client: "", ideaId: id });
   };
   /* o desfazer guarda um retrato da caixa; voltar e gravar de novo o que
      sumiu e apagar o que nasceu depois — a colecao carimba tudo como novo. */
@@ -691,7 +688,7 @@ function Day() {
       if (it.min) {
         /* a origem viaja junto: e ela que faz concluir a tarefa fechar o
            cartao da semana de onde ela veio */
-        const r = withTask(d, { title, min: it.min, reserved: isReserve(title), front: it.front, client: it.client, origin: it.origin });
+        const r = withTask(d, { title, min: it.min, reserved: isReserve(title), client: it.client, origin: it.origin });
         if (r) { d = r.doc; tasks++; }
       } else if (createIdea(title, it)) newIdeas++;
     });
@@ -721,7 +718,7 @@ function Day() {
     cards.slice().reverse().forEach((c) => {
       const title = String(c.title);
       const r = withTask(d, {
-        title, min: +c.min || 0, reserved: isReserve(title), front: c.front, client: c.client,
+        title, min: +c.min || 0, reserved: isReserve(title), client: c.client,
         origin: { type: "week", id: c.id }, allowNoMin: true
       });
       if (r) { d = r.doc; updates.push({ ...c, inDay: r.id }); }
@@ -961,7 +958,7 @@ function Day() {
   /* a pergunta do merlin sobre uma tarefa da fila: ele so responde, e o que
      precisar ser montado volta pela caixa de entrada como qualquer outra coisa */
   const askDelegate = (t) => delegate.ask({
-    id: t.id, title: t.title, min: t.min, front: t.front, client: t.client,
+    id: t.id, title: t.title, min: t.min, client: t.client,
     where: "a fila de hoje", origin: { type: "task", id: t.id }
   });
   const rowActions = { complete, remove, rename, move, setDuration, dragStart, delegate: askDelegate, thinking: delegate.busy };
@@ -1183,9 +1180,7 @@ function TaskRow({ t, start, slot, fits, dragging, leaving, actions }) {
   const [draft, setDraft] = useState(t.title);
   useEffect(() => { setDraft(t.title); }, [t.title]);
   const [editingTime, setEditingTime] = useState(false);
-  const front = t.front ? listFronts().find((f) => f.id === t.front) : null;
   const client = t.client ? clientName(t.client) : "";
-  const color = frontColor(t.front);
   const partial = slot && slot.partial ? " · só " + fmt(slot.min) + " hoje" : "";
 
   const onKeyDown = (e) => {
@@ -1225,7 +1220,7 @@ function TaskRow({ t, start, slot, fits, dragging, leaving, actions }) {
 
   return (
     <li className={"task" + (dragging ? " is-dragging" : "") + (leaving ? " is-leaving" : "")} data-id={t.id}
-        data-fits={fits ? null : "no"} data-color={color || null} tabIndex="0"
+        data-fits={fits ? null : "no"} tabIndex="0"
         title={slot ? clock(start + slot.from) + "–" + clock(start + slot.from + slot.min) : null}
         onKeyDown={onKeyDown}>
       <button className="mark" type="button" aria-label={"Concluir: " + t.title} onClick={() => actions.complete(t.id)}>{icon("check")}</button>
@@ -1239,7 +1234,7 @@ function TaskRow({ t, start, slot, fits, dragging, leaving, actions }) {
             : <button className="task__time" type="button" data-missing={t.min ? null : "yes"}
                 aria-label={t.min ? "Duração: " + longFmt(t.min) + ". Alterar" : "Sem duração, contando " + longFmt(GUESS) + " como palpite. Definir"}
                 onClick={() => setEditingTime(true)}>{icon("clock")}<span>{(t.min ? fmt(t.min) : "definir duração · contando " + fmt(GUESS)) + partial}</span></button>}
-          {!!(front || client) && <div className="task__badges"><FrontBadge id={t.front} /><ClientBadge id={t.client} /></div>}
+          {!!client && <div className="task__badges"><ClientBadge id={t.client} /></div>}
         </div>
       </div>
       <div className="actions">
@@ -1348,13 +1343,12 @@ function Composer({ b, text, setText, pending, fieldRef, storageBroken, onSubmit
   const raw = text.replace(/\s+/g, " ").trim();
   let ghost = null;
   if (focused && !pending && raw) {
-    const { min, title, clickup, noLink, front, client } = readLine(text);
+    const { min, title, clickup, noLink, client } = readLine(text);
     const fits = !min || min <= b.slack;
     /* o link e o @ reconhecidos sao ditos na previa: senao a URL some do
        campo e voce nao sabe se ela virou vinculo ou se foi engolida. numero
        no texto que o parser nao entendeu quase sempre e tempo mal escrito. */
-    const frontName = front ? (listFronts().find((f) => f.id === front) || {}).name : "";
-    const tag = (clickup ? " · clickup" : "") + (frontName ? " · " + frontName : "") + (client ? " · " + clientName(client) : "");
+    const tag = (clickup ? " · clickup" : "") + (client ? " · " + clientName(client) : "");
     ghost = {
       name: title || raw,
       fits,

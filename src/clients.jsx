@@ -1,16 +1,16 @@
 /* merlin · clientes
-   o cadastro de frentes e de clientes: cada cliente abre num painel de oito
+   o cadastro de clientes: cada cliente abre num painel de oito
    abas, e a pauta da reuniao sai do que estiver escrito nelas. */
 import "./shared/base.css";
 import "./clients.css";
 import {
-  initPage, collection, fronts, newId, notify, sendToDay, api,
+  initPage, collection, newId, notify, sendToDay, api,
   dateLabel, dayOf, brl, parseMoney, parseDuration, formatMin
 } from "./shared/core.js";
 import { useState, useEffect, useRef } from "react";
 import {
-  mount, useCollection, useFronts, useHash, setHash, useKeydown, isTyping,
-  useFields, Form, Field, Dialog, Markdown, FrontBadge, frontOptionList, icon,
+  mount, useCollection, useHash, setHash, useKeydown, isTyping,
+  useFields, Form, Field, Dialog, Markdown, TemplatePicker, icon,
   useDelegate, DelegateDialog
 } from "./shared/ui.jsx";
 import {
@@ -53,7 +53,6 @@ function normalize(d) {
   return {
     id: String(d.id),
     name: String(d.name || "").slice(0, 120),
-    front: d.front || "",
     status: STATUSES.includes(d.status) ? d.status : "prospect",
     brand: String(d.brand || "").slice(0, 120),
     summary: String(d.summary || ""),
@@ -189,11 +188,9 @@ function contractText(c) {
   return parts.join(" — ");
 }
 function meetingContext(c) {
-  const f = c.front && fronts().get(c.front);
   return {
     name: c.name,
     status: STATUS_LABEL[c.status] || c.status,
-    front: f ? f.name : "",
     summary: c.summary,
     contract: contractText(c),
     goals: c.goals.map((g) => g.text + " · " + (g.keyResult || "") + " · " + (g.due || "sem prazo") + " · " + (g.done ? "feito" : "aberto")),
@@ -214,7 +211,7 @@ function meetingContext(c) {
    chave-mestra do cofre. nada disso e documento — some ao recarregar. */
 function Clients() {
   /* clients.html e a dona da colecao "clients". initPage() ja a abriu para
-     as outras paginas terem nome/frente/status; passar o normalizador aqui a
+     as outras paginas terem nome e status; passar o normalizador aqui a
      entrega a colecao existente. */
   const clients = useCollection("clients", { normalize });
   /* funis sao de funnels.html: aqui so lemos os de cada canal e criamos um
@@ -225,12 +222,10 @@ function Clients() {
      cliente porque a senha-mestra tambem e uma so — o Arthur digita ela uma
      vez por sessao, nao uma por cliente. */
   const vaultStore = useCollection("vault");
-  useFronts();
   const hash = useHash();
   const [selectedId, setSelectedId] = useState(null);
   const [tab, setTab] = useState("dashboard");
   const [newForm, setNewForm] = useState(null);         // { name?, summary?, ideaOrigin? } | null
-  const [frontsOpen, setFrontsOpen] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [meeting, setMeeting] = useState(null);         // texto da pauta | null
   const [thinking, setThinking] = useState(false);
@@ -332,9 +327,9 @@ function Clients() {
 
   /* ---------- criar e apagar ---------- */
 
-  const createClient = ({ name, front, status, summary, ideaOrigin }) => {
+  const createClient = ({ name, status, summary, ideaOrigin }) => {
     const now = Date.now();
-    const created = normalize({ id: newId(), name, front, status, summary: summary || "", ideaOrigin: ideaOrigin || "", createdAt: now, updatedAt: now });
+    const created = normalize({ id: newId(), name, status, summary: summary || "", ideaOrigin: ideaOrigin || "", createdAt: now, updatedAt: now });
     clients.save(created);
     setNewForm(null);
     openClient(created.id);
@@ -416,7 +411,6 @@ function Clients() {
           <p className="sub">ficha, contrato, canais, objetivos, backlog e diário de cada cliente</p>
         </div>
         <div className="actions">
-          <button className="pill" type="button" id="fronts-btn" onClick={() => setFrontsOpen(true)}>frentes</button>
           <button className="pill pill--green" type="button" id="new-client-btn" onClick={() => openNew()}>novo cliente</button>
         </div>
       </div>
@@ -439,7 +433,6 @@ function Clients() {
       </div>
 
       {newForm && <ClientForm prefill={newForm} onCreate={createClient} onClose={closeNew} />}
-      {frontsOpen && <FrontsDialog onClose={() => setFrontsOpen(false)} />}
       {confirming && doc && (
         <Dialog title="apagar cliente?" label="Confirmar" onClose={() => setConfirming(false)}
             sub={'isso apaga "' + doc.name + '" e tudo que está nele — dá para desfazer logo em seguida.'}
@@ -459,7 +452,6 @@ function ClientRow({ c, active, onOpen }) {
     <li className={"line" + (active ? " is-active" : "")} data-id={c.id} tabIndex="0" role="button"
         onClick={onOpen} onKeyDown={(e) => { if (e.key === "Enter") onOpen(); }}>
       <span className="name">{c.name}{isStale(c) && <> <span className="weak" title="mais de 14 dias sem entrada no diário">— faz tempo</span></>}</span>
-      <FrontBadge id={c.front} />
       <StatusBadge status={c.status} />
     </li>
   );
@@ -490,7 +482,7 @@ function Panel({ doc, tab, ctx, vault, thinking, onBack, onDelete, onMeeting }) 
         <button className="pill back-btn" type="button" id="back-btn" onClick={onBack}>‹ clientes</button>
         <div className="client-title">
           <h2 id="panel-name">{doc.name || "(sem nome)"}</h2>
-          <div className="row" id="panel-badges"><FrontBadge id={doc.front} /><StatusBadge status={doc.status} /></div>
+          <div className="row" id="panel-badges"><StatusBadge status={doc.status} /></div>
         </div>
         <button className="pill" type="button" id="meeting-btn" disabled={thinking} onClick={onMeeting}
             title="pedir ao Merlin uma pauta a partir da ficha, canais, objetivos e diário">
@@ -582,8 +574,6 @@ function Profile({ doc, ctx }) {
         <input className="input" id="f-brand" value={doc.brand} onChange={(e) => update((d) => { d.brand = e.currentTarget.value.slice(0, 120); })} />
         <label className="field-label">resumo</label>
         <textarea className="textarea" id="f-summary" value={doc.summary} onChange={(e) => update((d) => { d.summary = e.currentTarget.value; })} />
-        <label className="field-label">frente</label>
-        <select className="select" id="f-front" value={doc.front} onChange={(e) => update((d) => { d.front = e.currentTarget.value; })}>{frontOptionList("sem frente")}</select>
         <label className="field-label">status</label>
         <select className="select" id="f-status" value={doc.status} onChange={(e) => update((d) => { d.status = e.currentTarget.value; })}>
           {STATUSES.map((s) => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
@@ -738,7 +728,7 @@ function ChannelFunnelForm({ doc, ch, funnels, onClose }) {
     if (!name) { notify("o funil precisa de um nome"); return false; }
     const now = Date.now();
     const f = {
-      id: newId(), name, client: doc.id, channel: ch.id, front: doc.front,
+      id: newId(), name, client: doc.id, channel: ch.id,
       nodes: [], edges: [], creatives: [], automations: [], offers: [], triggers: [],
       period: { from: "", to: "" }, snapshots: [], createdAt: now, updatedAt: now
     };
@@ -758,14 +748,8 @@ function ChannelFunnelForm({ doc, ch, funnels, onClose }) {
     <Form title="novo funil" sub={"do canal " + (CHANNEL_LABEL[ch.type] || ch.type)} submit="criar e abrir" onSubmit={submit} onClose={onClose}>
       <Field label="nome" full><input className="input" maxLength="80" required {...bind("name")} /></Field>
       <Field label="modelo" full>
-        <select className="select" value={v.template} onChange={(e) => set("template", e.currentTarget.value)}>
-          <option value="">funil em branco</option>
-          {groups.map((g) => (
-            <optgroup key={g.key} label={g.label}>
-              {g.items.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
-            </optgroup>
-          ))}
-        </select>
+        <TemplatePicker groups={groups} empty="funil em branco"
+                        value={v.template} onChange={(id) => set("template", id)} />
         {tpl && (
           <>
             <p className="tpl-note">{tpl.summary}</p>
@@ -859,9 +843,9 @@ function Backlog({ doc, ctx }) {
   const { updateItem, removeFrom } = ctx;
   const backlogOf = (d) => d.backlog;
   const items = doc.backlog.slice().sort(compareBacklog);
-  const pull = (b) => sendToDay({ title: b.text, min: b.min, front: doc.front, client: doc.id, origin: { type: "client", id: doc.id } });
+  const pull = (b) => sendToDay({ title: b.text, min: b.min, client: doc.id, origin: { type: "client", id: doc.id } });
   const ask = (b) => delegate.ask({
-    id: b.id, title: b.text, min: b.min, due: b.due, front: doc.front, client: doc.id,
+    id: b.id, title: b.text, min: b.min, due: b.due, client: doc.id,
     about: aboutClient(doc), where: "o backlog do cliente", origin: { type: "client", id: doc.id }
   });
   return (
@@ -1138,53 +1122,17 @@ function MeetingDialog({ text, onClose, onKeep }) {
 
 /* ---------- caixa: novo cliente ---------- */
 function ClientForm({ prefill, onCreate, onClose }) {
-  const [v, bind] = useFields({ name: prefill.name || "", front: "", status: "prospect" });
+  const [v, bind] = useFields({ name: prefill.name || "", status: "prospect" });
   const submit = () => {
     const name = v.name.trim();
     if (!name) return false;
-    return onCreate({ name, front: v.front, status: v.status, summary: prefill.summary || "", ideaOrigin: prefill.ideaOrigin || "" });
+    return onCreate({ name, status: v.status, summary: prefill.summary || "", ideaOrigin: prefill.ideaOrigin || "" });
   };
   return (
     <Form title="novo cliente" submit="criar" onSubmit={submit} onClose={onClose}>
       <Field label="nome" full><input className="input" required {...bind("name")} /></Field>
-      <Field label="frente" full><select className="select" {...bind("front")}>{frontOptionList("sem frente")}</select></Field>
       <Field label="status" full><select className="select" {...bind("status")}>{STATUSES.map((s) => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}</select></Field>
     </Form>
-  );
-}
-
-/* ---------- caixa: frentes (o cadastro mora aqui) ---------- */
-function FrontsDialog({ onClose }) {
-  const list = useFronts();
-  const store = fronts();
-  const saveFront = (f, patch) => store.save({ ...f, ...patch });
-  const add = () => {
-    const used = list.map((f) => f.color);
-    const color = [1, 2, 3, 4, 5, 6].find((c) => !used.includes(c)) || 1;
-    const maxOrder = list.reduce((m, f) => Math.max(m, f.order), 0);
-    store.save({ id: newId(), name: "nova frente", color, order: maxOrder + 1 });
-  };
-  const remove = (id) => {
-    if (list.length <= 1) { notify("precisa sobrar ao menos uma frente"); return; }
-    const before = store.remove(id);
-    notify("frente apagada", () => store.save(before));
-  };
-  return (
-    <Dialog title="frentes" label="Frentes" sub="o cadastro das empresas — cliente, tarefa, ideia e funil apontam para uma frente" onClose={onClose}>
-      <div id="front-list">
-        {list.map((f) => (
-          <div key={f.id} className="front-line" data-id={f.id}>
-            <input className="input" value={f.name} onChange={(e) => saveFront(f, { name: e.currentTarget.value })} />
-            <select className="select input--mono" value={f.color} onChange={(e) => saveFront(f, { color: +e.currentTarget.value })}>
-              {[1, 2, 3, 4, 5, 6].map((n) => <option key={n} value={n}>{n}</option>)}
-            </select>
-            <span className="badge" data-color={f.color}>amostra</span>
-            <input className="input" type="number" value={f.order} onChange={(e) => saveFront(f, { order: +e.currentTarget.value })} />
-            <button className="action" type="button" aria-label="Apagar frente" onClick={() => remove(f.id)}>{icon("trash")}</button>
-          </div>))}
-      </div>
-      <button className="pill mt" type="button" id="add-front" onClick={add}>+ nova frente</button>
-    </Dialog>
   );
 }
 

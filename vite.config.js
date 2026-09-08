@@ -1,6 +1,6 @@
 /* merlin · build
  *
- * uma pagina HTML por frente continua sendo a unidade do sistema — o que muda
+ * uma pagina HTML por assunto continua sendo a unidade do sistema — o que muda
  * e que o JS de cada uma vive ao lado, em src/, e passa pelo Vite. cada HTML
  * da raiz e uma entrada: o build cospe os mesmos nomes de arquivo em
  * server/site/, que e a pasta que o Worker serve.

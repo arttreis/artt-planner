@@ -78,15 +78,14 @@ export const FUNNEL_TEMPLATES = [
     stages: {
       traffic: ["traffic", "tráfego frio", { source: "meta", campaign: "captação" }],
       ad: ["ad", "criativo da isca"],
-      lp: ["lp", "página de captura"],
+      lp: ["lp", "página de captura", { cta: "quero o material", ctaTarget: "formulário" }],
       form: ["capture", "formulário", { what: "nome e e-mail" }],
       deliver: ["email", "e-mail 1 · entrega da isca", { sequence: "boas-vindas" }],
       nurture: ["email", "e-mails 2 a 4 · nutrição", { sequence: "nutrição" }],
-      invite: ["cta", "convite para a oferta", { text: "quero começar" }],
       checkout: ["checkout", "checkout", { platform: "Stripe" }],
       thanks: ["thanks", "obrigado"]
     },
-    flow: "traffic>ad 100, ad>lp 2, lp>form 35, form>deliver 100, deliver>nurture 45, nurture>invite 20, invite>checkout 30, checkout>thanks 55",
+    flow: "traffic>ad 100, ad>lp 2, lp>form 35, form>deliver 100, deliver>nurture 45, nurture>checkout 6, checkout>thanks 55",
     automations: [{ name: "entrega da isca", trigger: "novo lead", action: "manda o material e começa a sequência", node: "deliver" }],
     triggers: [{ name: "reciprocidade", usage: "a isca entrega resultado antes de pedir dinheiro" }]
   },
@@ -97,17 +96,16 @@ export const FUNNEL_TEMPLATES = [
     stages: {
       traffic: ["traffic", "tráfego frio", { source: "meta", campaign: "tripwire" }],
       ad: ["ad", "criativo de oferta"],
-      lp: ["lp", "página do produto de entrada"],
+      page: ["product", "página do produto de entrada", { marketplace: "own", cta: "quero agora" }],
       checkout: ["checkout", "checkout de entrada", { platform: "Stripe" }],
-      bump: ["bump", "item no checkout"],
       upsell: ["upsell", "oferta seguinte"],
       thanks: ["thanks", "obrigado"],
       post: ["email", "pós-compra e próxima oferta", { sequence: "pós-compra" }]
     },
-    flow: "traffic>ad 100, ad>lp 2.5, lp>checkout 8, checkout>bump 25, checkout>upsell 15, checkout>thanks 100, thanks>post 100",
+    flow: "traffic>ad 100, ad>page 2.5, page>checkout 8, checkout>upsell 15, checkout>thanks 100, thanks>post 100",
     offers: [
       { name: "produto de entrada", type: "main", promise: "um resultado pequeno e rápido", node: "checkout" },
-      { name: "bump", type: "bump", node: "bump" },
+      { name: "bump no checkout", type: "bump", node: "checkout" },
       { name: "upsell", type: "upsell", node: "upsell" }
     ]
   },
@@ -118,16 +116,14 @@ export const FUNNEL_TEMPLATES = [
     stages: {
       traffic: ["traffic", "tráfego frio", { source: "meta", campaign: "vsl" }],
       ad: ["ad", "criativo de gancho"],
-      lp: ["lp", "página da vsl"],
-      vsl: ["vsl", "vsl", { duration: "22 min" }],
-      cta: ["cta", "botão que aparece no pitch", { text: "quero garantir" }],
+      vsl: ["vsl", "página da vsl", { duration: "22 min", cta: "quero garantir", ctaTarget: "checkout" }],
       checkout: ["checkout", "checkout", { platform: "Stripe" }],
-      bump: ["bump", "bump no checkout"],
       upsell: ["upsell", "upsell pós-compra"],
-      thanks: ["thanks", "obrigado"],
-      remarketing: ["remarketing", "assistiu 50% e não comprou", { window: 7, channel: "meta" }]
+      thanks: ["thanks", "obrigado"]
     },
-    flow: "traffic>ad 100, ad>lp 2, lp>vsl 65, vsl>cta 30, cta>checkout 40, checkout>bump 22, checkout>upsell 12, checkout>thanks 100, vsl>remarketing 35, remarketing>lp 12",
+    flow: "traffic>ad 100, ad>vsl 2, vsl>checkout 12, checkout>upsell 12, checkout>thanks 100",
+    offers: [{ name: "bump no checkout", type: "bump", node: "checkout" }],
+    automations: [{ name: "remarketing de quem assistiu", trigger: "viu 50% da vsl e não comprou", action: "anúncio de volta por 7 dias", tool: "meta", node: "vsl" }],
     triggers: [
       { name: "autoridade", usage: "prova e método na primeira metade da vsl" },
       { name: "garantia", usage: "reverte o risco antes de falar de preço" }
@@ -140,17 +136,16 @@ export const FUNNEL_TEMPLATES = [
     stages: {
       traffic: ["traffic", "tráfego", { source: "meta", campaign: "webinário" }],
       ad: ["ad", "criativo de convite"],
-      lp: ["lp", "página de inscrição"],
+      lp: ["lp", "página de inscrição", { cta: "quero minha vaga", ctaTarget: "inscrição" }],
       form: ["capture", "inscrição", { what: "nome, e-mail e whatsapp" }],
       reminders: ["email", "lembretes d-1, 1h e no ar", { sequence: "lembretes" }],
-      group: ["whatsapp", "grupo dos inscritos", { flow: "avisos e aquecimento" }],
-      live: ["custom", "webinário ao vivo"],
-      pitch: ["cta", "oferta no fim da aula", { text: "quero entrar" }],
+      group: ["group", "grupo dos inscritos", { platform: "whatsapp" }],
+      live: ["webinar", "webinário ao vivo", { when: "quinta, 20h", cta: "quero entrar" }],
       checkout: ["checkout", "checkout", { platform: "Stripe" }],
       thanks: ["thanks", "obrigado"],
       replay: ["email", "replay por 48h", { sequence: "replay" }]
     },
-    flow: "traffic>ad 100, ad>lp 3, lp>form 40, form>reminders 100, form>group 55, reminders>live 35, group>live 60, live>pitch 55, pitch>checkout 20, checkout>thanks 60, form>replay 100, replay>checkout 3",
+    flow: "traffic>ad 100, ad>lp 3, lp>form 40, form>reminders 100, form>group 55, reminders>live 35, group>live 60, live>checkout 11, checkout>thanks 60, form>replay 100, replay>checkout 3",
     triggers: [{ name: "urgência", usage: "a oferta cai quando o replay expira" }]
   },
   {
@@ -160,16 +155,15 @@ export const FUNNEL_TEMPLATES = [
     stages: {
       traffic: ["traffic", "tráfego", { source: "meta", campaign: "desafio" }],
       ad: ["ad", "criativo do desafio"],
-      lp: ["lp", "página do desafio"],
+      lp: ["lp", "página do desafio", { cta: "entrar no desafio", ctaTarget: "inscrição" }],
       form: ["capture", "inscrição", { what: "nome, e-mail e whatsapp" }],
-      group: ["whatsapp", "grupo do desafio", { flow: "tarefa do dia + prova social" }],
+      group: ["group", "grupo do desafio", { platform: "whatsapp" }],
       lessons: ["email", "aulas dos dias 1 a 5", { sequence: "desafio" }],
-      final: ["custom", "aula final ao vivo"],
-      pitch: ["cta", "oferta na aula final", { text: "quero continuar" }],
+      final: ["webinar", "aula final ao vivo", { cta: "quero continuar" }],
       checkout: ["checkout", "checkout", { platform: "Stripe" }],
       thanks: ["thanks", "obrigado"]
     },
-    flow: "traffic>ad 100, ad>lp 3.5, lp>form 45, form>group 70, form>lessons 100, group>final 40, lessons>final 20, final>pitch 60, pitch>checkout 22, checkout>thanks 60"
+    flow: "traffic>ad 100, ad>lp 3.5, lp>form 45, form>group 70, form>lessons 100, group>final 40, lessons>final 20, final>checkout 13, checkout>thanks 60"
   },
   {
     id: "content-organic", group: "structures", channel: "",
@@ -178,13 +172,12 @@ export const FUNNEL_TEMPLATES = [
     stages: {
       traffic: ["traffic", "audiência do conteúdo", { source: "organic" }],
       content: ["custom", "vídeo/artigo/episódio"],
-      cta: ["cta", "chamada no meio e no fim", { text: "material gratuito" }],
-      lp: ["lp", "página do material"],
+      lp: ["lp", "página do material", { cta: "baixar o material", ctaTarget: "captura" }],
       form: ["capture", "captura", { what: "e-mail" }],
       nurture: ["email", "sequência de nutrição", { sequence: "nutrição" }],
       checkout: ["checkout", "checkout", { platform: "Stripe" }]
     },
-    flow: "traffic>content 100, content>cta 25, cta>lp 20, lp>form 40, form>nurture 100, nurture>checkout 4"
+    flow: "traffic>content 100, content>lp 5, lp>form 40, form>nurture 100, nurture>checkout 4"
   },
 
   /* ---------- lançamentos e cursos ---------- */
@@ -196,14 +189,13 @@ export const FUNNEL_TEMPLATES = [
       base: ["custom", "base atual (lista, grupo, seguidores)"],
       survey: ["capture", "pesquisa com a base", { what: "dor principal e o que já tentou" }],
       invite: ["email", "convite para as aulas", { sequence: "convite" }],
-      group: ["whatsapp", "grupo do lançamento", { flow: "aquecimento diário" }],
-      lives: ["custom", "3 aulas ao vivo"],
-      pitch: ["cta", "abertura do carrinho", { text: "quero entrar na turma" }],
+      group: ["group", "grupo do lançamento", { platform: "whatsapp" }],
+      lives: ["webinar", "3 aulas ao vivo", { cta: "quero entrar na turma" }],
       checkout: ["checkout", "checkout", { platform: "Stripe" }],
       support: ["whatsapp", "atendimento de dúvidas", { flow: "quebra de objeção" }],
       thanks: ["thanks", "obrigado"]
     },
-    flow: "base>survey 8, survey>invite 100, invite>group 25, group>lives 45, lives>pitch 60, pitch>checkout 25, pitch>support 15, support>checkout 35, checkout>thanks 65"
+    flow: "base>survey 8, survey>invite 100, invite>group 25, group>lives 45, lives>checkout 15, lives>support 9, support>checkout 35, checkout>thanks 65"
   },
   {
     id: "classic-launch", group: "launch", channel: "",
@@ -212,20 +204,19 @@ export const FUNNEL_TEMPLATES = [
     stages: {
       traffic: ["traffic", "captação paga", { source: "meta", campaign: "lançamento · captação" }],
       ad: ["ad", "criativos de captação"],
-      lp: ["lp", "página de inscrição"],
+      lp: ["lp", "página de inscrição", { cta: "quero participar", ctaTarget: "inscrição" }],
       form: ["capture", "inscrição", { what: "nome, e-mail e whatsapp" }],
-      group: ["whatsapp", "grupo/lista de avisos", { flow: "aquecimento" }],
+      group: ["group", "grupo/lista de avisos", { platform: "whatsapp" }],
       warmup: ["email", "aquecimento pré-evento", { sequence: "aquecimento" }],
-      cpl1: ["custom", "CPL 1 · o problema"],
-      cpl2: ["custom", "CPL 2 · o método"],
-      cpl3: ["custom", "CPL 3 · a transformação"],
-      open: ["cta", "carrinho aberto", { text: "quero minha vaga" }],
+      cpl1: ["webinar", "CPL 1 · o problema"],
+      cpl2: ["webinar", "CPL 2 · o método"],
+      cpl3: ["webinar", "CPL 3 · a transformação", { cta: "quero minha vaga" }],
       checkout: ["checkout", "checkout", { platform: "Stripe" }],
-      remarketing: ["remarketing", "assistiu e não comprou", { window: 7, channel: "meta" }],
       last: ["email", "últimas horas", { sequence: "fechamento" }],
       thanks: ["thanks", "obrigado"]
     },
-    flow: "traffic>ad 100, ad>lp 2.5, lp>form 45, form>group 60, form>warmup 100, warmup>cpl1 35, group>cpl1 55, cpl1>cpl2 65, cpl2>cpl3 70, cpl3>open 60, open>checkout 18, open>remarketing 80, remarketing>checkout 4, open>last 100, last>checkout 6, checkout>thanks 70",
+    flow: "traffic>ad 100, ad>lp 2.5, lp>form 45, form>group 60, form>warmup 100, warmup>cpl1 35, group>cpl1 55, cpl1>cpl2 65, cpl2>cpl3 70, cpl3>checkout 11, cpl3>last 60, last>checkout 6, checkout>thanks 70",
+    automations: [{ name: "remarketing do carrinho", trigger: "assistiu às aulas e não comprou", action: "anúncio até o carrinho fechar", tool: "meta", node: "cpl3" }],
     triggers: [
       { name: "escassez", usage: "vagas e prazo de carrinho" },
       { name: "prova social", usage: "alunos antigos nas três aulas" }
@@ -238,19 +229,18 @@ export const FUNNEL_TEMPLATES = [
     stages: {
       traffic: ["traffic", "tráfego frio", { source: "meta", campaign: "aula gratuita" }],
       ad: ["ad", "criativo da aula"],
-      lp: ["lp", "página da aula gratuita"],
+      lp: ["lp", "página da aula gratuita", { cta: "assistir agora", ctaTarget: "inscrição" }],
       form: ["capture", "inscrição", { what: "nome e e-mail" }],
-      lesson: ["vsl", "aula gravada", { duration: "45 min" }],
-      pitch: ["cta", "oferta no fim da aula", { text: "quero o curso" }],
+      lesson: ["vsl", "aula gravada", { duration: "45 min", cta: "quero o curso" }],
       checkout: ["checkout", "checkout do curso", { platform: "Stripe" }],
-      bump: ["bump", "material de apoio"],
       upsell: ["upsell", "mentoria em grupo"],
       thanks: ["thanks", "obrigado"],
       sequence: ["email", "7 dias de quebra de objeção", { sequence: "objeções" }]
     },
-    flow: "traffic>ad 100, ad>lp 2, lp>form 38, form>lesson 55, lesson>pitch 35, pitch>checkout 25, checkout>bump 20, checkout>upsell 10, checkout>thanks 100, form>sequence 100, sequence>checkout 5",
+    flow: "traffic>ad 100, ad>lp 2, lp>form 38, form>lesson 55, lesson>checkout 9, checkout>upsell 10, checkout>thanks 100, form>sequence 100, sequence>checkout 5",
     offers: [
       { name: "curso", type: "main", node: "checkout" },
+      { name: "material de apoio", type: "bump", node: "checkout" },
       { name: "mentoria", type: "upsell", node: "upsell" }
     ]
   },
@@ -259,32 +249,31 @@ export const FUNNEL_TEMPLATES = [
     name: "turma com lista de espera",
     summary: "a lista enche o ano todo e a turma abre em data marcada",
     stages: {
-      lp: ["lp", "página da lista de espera"],
+      lp: ["lp", "página da lista de espera", { cta: "avisar quando abrir", ctaTarget: "lista" }],
       form: ["capture", "entrar na lista", { what: "e-mail e whatsapp" }],
       nurture: ["email", "nutrição até abrir", { sequence: "espera" }],
       alert: ["whatsapp", "aviso de abertura", { flow: "primeiro lote" }],
-      cta: ["cta", "vaga na turma", { text: "garantir vaga" }],
       checkout: ["checkout", "checkout", { platform: "Stripe" }],
       thanks: ["thanks", "obrigado"]
     },
-    flow: "lp>form 45, form>nurture 100, form>alert 70, nurture>cta 12, alert>cta 30, cta>checkout 28, checkout>thanks 70",
+    flow: "lp>form 45, form>nurture 100, form>alert 70, nurture>checkout 3.5, alert>checkout 8, checkout>thanks 70",
     triggers: [{ name: "escassez", usage: "turma com data e número de vagas" }]
   },
   {
     id: "membership", group: "launch", channel: "",
     name: "clube por assinatura",
-    summary: "vender é a parte fácil; o funil só fecha no mês 2, com onboarding e retenção",
+    summary: "vender é a parte fácil; o funil só fecha no mês 2, com ativação e retenção",
     stages: {
       traffic: ["traffic", "tráfego", { source: "meta", campaign: "clube" }],
       ad: ["ad", "criativo do clube"],
-      lp: ["lp", "página do clube"],
+      lp: ["lp", "página do clube", { cta: "quero entrar", ctaTarget: "checkout" }],
       checkout: ["checkout", "assinatura mensal", { platform: "Stripe" }],
       thanks: ["thanks", "boas-vindas"],
-      onboarding: ["email", "onboarding da primeira semana", { sequence: "onboarding" }],
-      community: ["custom", "comunidade e encontros"],
-      retention: ["email", "retenção do mês 2", { sequence: "retenção" }]
+      onboarding: ["onboarding", "primeira semana", { milestone: "participou de um encontro", window: 7 }],
+      community: ["group", "comunidade", { platform: "circle/whatsapp" }],
+      renewal: ["repurchase", "renovação do mês 2", { window: 30 }]
     },
-    flow: "traffic>ad 100, ad>lp 2.5, lp>checkout 4, checkout>thanks 100, thanks>onboarding 100, onboarding>community 45, community>retention 100"
+    flow: "traffic>ad 100, ad>lp 2.5, lp>checkout 4, checkout>thanks 100, thanks>onboarding 100, onboarding>community 45, community>renewal 78"
   },
 
   /* ---------- serviços e high ticket ---------- */
@@ -295,15 +284,14 @@ export const FUNNEL_TEMPLATES = [
     stages: {
       traffic: ["traffic", "tráfego qualificado", { source: "meta", campaign: "aplicação" }],
       ad: ["ad", "criativo de autoridade"],
-      vsl: ["vsl", "vídeo do método", { duration: "18 min" }],
-      cta: ["cta", "candidatar-se", { text: "quero me candidatar" }],
-      form: ["capture", "formulário de aplicação", { what: "faturamento, contexto e urgência" }],
-      qualify: ["whatsapp", "qualificação e confirmação", { flow: "script de pré-call" }],
-      call: ["custom", "call de diagnóstico"],
-      checkout: ["checkout", "proposta e contrato", { platform: "Stripe" }],
-      thanks: ["thanks", "cliente novo"]
+      vsl: ["vsl", "vídeo do método", { duration: "18 min", cta: "quero me candidatar" }],
+      form: ["quiz", "formulário de aplicação", { criteria: "faturamento e urgência" }],
+      booking: ["booking", "agendamento", { tool: "cal.com", duration: "45 min" }],
+      call: ["call", "call de diagnóstico", { owner: "eu" }],
+      proposal: ["proposal", "proposta"],
+      closing: ["closing", "contrato assinado"]
     },
-    flow: "traffic>ad 100, ad>vsl 1.5, vsl>cta 25, cta>form 45, form>qualify 100, qualify>call 55, call>checkout 30, checkout>thanks 90"
+    flow: "traffic>ad 100, ad>vsl 1.5, vsl>form 11, form>booking 55, booking>call 65, call>proposal 60, proposal>closing 40"
   },
   {
     id: "free-diagnosis", group: "service", channel: "",
@@ -312,15 +300,14 @@ export const FUNNEL_TEMPLATES = [
     stages: {
       traffic: ["traffic", "tráfego", { source: "meta", campaign: "diagnóstico" }],
       ad: ["ad", "criativo de dor específica"],
-      lp: ["lp", "página do diagnóstico"],
-      form: ["capture", "agendamento", { what: "empresa, canal e faturamento" }],
+      lp: ["lp", "página do diagnóstico", { cta: "agendar diagnóstico", ctaTarget: "agenda" }],
+      booking: ["booking", "agendamento", { tool: "cal.com", duration: "30 min" }],
       confirm: ["email", "confirmação e lembrete", { sequence: "agenda" }],
-      meeting: ["custom", "reunião de diagnóstico"],
-      proposal: ["custom", "proposta"],
-      checkout: ["checkout", "contrato assinado", { platform: "Stripe" }],
-      thanks: ["thanks", "cliente novo"]
+      call: ["call", "reunião de diagnóstico", { script: "perguntas de contexto e números" }],
+      proposal: ["proposal", "proposta"],
+      closing: ["closing", "contrato assinado"]
     },
-    flow: "traffic>ad 100, ad>lp 2, lp>form 18, form>confirm 100, confirm>meeting 65, meeting>proposal 70, proposal>checkout 35, checkout>thanks 95"
+    flow: "traffic>ad 100, ad>lp 2, lp>booking 18, booking>confirm 100, confirm>call 65, call>proposal 70, proposal>closing 35"
   },
   {
     id: "local-service", group: "service", channel: "",
@@ -329,14 +316,12 @@ export const FUNNEL_TEMPLATES = [
     stages: {
       traffic: ["traffic", "busca local", { source: "google", campaign: "serviço + cidade" }],
       ad: ["ad", "anúncio de busca"],
-      lp: ["lp", "página do serviço"],
-      cta: ["cta", "chamar no whatsapp", { text: "falar agora" }],
+      lp: ["lp", "página do serviço", { cta: "falar agora", ctaTarget: "whatsapp" }],
       whatsapp: ["whatsapp", "atendimento", { flow: "qualificação e agenda" }],
-      quote: ["custom", "orçamento/visita"],
-      checkout: ["checkout", "pagamento", { platform: "Pix/Stripe" }],
-      thanks: ["thanks", "serviço fechado"]
+      quote: ["proposal", "orçamento", { scope: "visita ou serviço" }],
+      payment: ["payment", "pagamento", { method: "pix" }]
     },
-    flow: "traffic>ad 100, ad>lp 6, lp>cta 20, cta>whatsapp 80, whatsapp>quote 45, quote>checkout 40, checkout>thanks 95"
+    flow: "traffic>ad 100, ad>lp 6, lp>whatsapp 16, whatsapp>quote 45, quote>payment 40"
   },
   {
     id: "b2b-outbound", group: "service", channel: "",
@@ -345,13 +330,13 @@ export const FUNNEL_TEMPLATES = [
     stages: {
       list: ["custom", "lista de empresas-alvo"],
       cold: ["email", "cold mail 1 a 3", { sequence: "outbound" }],
-      followup: ["whatsapp", "follow-up", { flow: "toque humano" }],
-      discovery: ["custom", "call de descoberta"],
-      proposal: ["custom", "proposta"],
-      checkout: ["checkout", "contrato", { platform: "Stripe" }],
-      thanks: ["thanks", "cliente novo"]
+      dm: ["dm", "toque no linkedin", { channel: "linkedin", opener: "contexto do cliente" }],
+      booking: ["booking", "call agendada", { tool: "cal.com", duration: "30 min" }],
+      call: ["call", "call de descoberta", { script: "dor, número e decisor" }],
+      proposal: ["proposal", "proposta"],
+      closing: ["closing", "contrato"]
     },
-    flow: "list>cold 100, cold>followup 60, cold>discovery 3, followup>discovery 8, discovery>proposal 55, proposal>checkout 30, checkout>thanks 95"
+    flow: "list>cold 100, cold>dm 60, cold>booking 3, dm>booking 8, booking>call 70, call>proposal 55, proposal>closing 30"
   },
   {
     id: "saas-trial", group: "service", channel: "",
@@ -360,16 +345,15 @@ export const FUNNEL_TEMPLATES = [
     stages: {
       traffic: ["traffic", "tráfego", { source: "google", campaign: "teste grátis" }],
       ad: ["ad", "criativo de problema"],
-      lp: ["lp", "página do produto"],
+      lp: ["lp", "página do produto", { cta: "testar grátis", ctaTarget: "cadastro" }],
       signup: ["capture", "conta de teste", { what: "e-mail e empresa" }],
-      onboarding: ["email", "onboarding d0, d1 e d3", { sequence: "ativação" }],
-      value: ["custom", "primeiro valor entregue"],
-      cta: ["cta", "assinar", { text: "assinar agora" }],
+      emails: ["email", "onboarding d0, d1 e d3", { sequence: "ativação" }],
+      activation: ["onboarding", "primeiro valor entregue", { milestone: "primeiro relatório criado", window: 7 }],
       checkout: ["checkout", "assinatura", { platform: "Stripe" }],
-      thanks: ["thanks", "assinante"],
-      expired: ["remarketing", "teste expirado sem assinar", { window: 14, channel: "e-mail e meta" }]
+      thanks: ["thanks", "assinante"]
     },
-    flow: "traffic>ad 100, ad>lp 3, lp>signup 8, signup>onboarding 100, onboarding>value 40, value>cta 35, cta>checkout 45, checkout>thanks 95, signup>expired 60, expired>checkout 5"
+    flow: "traffic>ad 100, ad>lp 3, lp>signup 8, signup>emails 100, emails>activation 40, activation>checkout 16, checkout>thanks 95",
+    automations: [{ name: "teste expirando", trigger: "14 dias sem assinar", action: "sequência de recuperação e anúncio", tool: "e-mail e meta", node: "signup" }]
   },
 
   /* ---------- recuperação e recompra ---------- */
@@ -378,17 +362,17 @@ export const FUNNEL_TEMPLATES = [
     name: "carrinho abandonado",
     summary: "três toques em janelas diferentes: e-mail em 1h, whatsapp em 24h, anúncio em 3 dias",
     stages: {
-      cart: ["checkout", "checkout iniciado", { platform: "Stripe" }],
+      cart: ["cart", "carrinho iniciado", { platform: "Shopify/Stripe" }],
       mail: ["email", "e-mail 1 · 1 hora", { sequence: "carrinho" }],
       whatsapp: ["whatsapp", "mensagem · 24 horas", { flow: "dúvida + link" }],
-      ads: ["remarketing", "anúncio de recuperação", { window: 3, channel: "meta" }],
       back: ["checkout", "compra recuperada", { platform: "Stripe" }],
       thanks: ["thanks", "obrigado"]
     },
-    flow: "cart>mail 100, cart>whatsapp 70, cart>ads 85, mail>back 8, whatsapp>back 12, ads>back 3, back>thanks 100",
+    flow: "cart>mail 100, cart>whatsapp 70, mail>back 8, whatsapp>back 12, back>thanks 100",
     automations: [
-      { name: "carrinho abandonado · e-mail", trigger: "checkout iniciado sem pagamento", action: "e-mail em 1 hora", node: "mail" },
-      { name: "carrinho abandonado · whatsapp", trigger: "24h sem pagamento", action: "mensagem com o link do carrinho", node: "whatsapp" }
+      { name: "carrinho abandonado · e-mail", trigger: "carrinho sem pagamento", action: "e-mail em 1 hora", node: "mail" },
+      { name: "carrinho abandonado · whatsapp", trigger: "24h sem pagamento", action: "mensagem com o link do carrinho", node: "whatsapp" },
+      { name: "carrinho abandonado · anúncio", trigger: "3 dias sem pagamento", action: "remarketing por 7 dias", tool: "meta", node: "cart" }
     ]
   },
   {
@@ -399,11 +383,11 @@ export const FUNNEL_TEMPLATES = [
       base: ["custom", "quem não compra há 90 dias"],
       mail: ["email", "sentimos sua falta", { sequence: "reativação" }],
       whatsapp: ["whatsapp", "mensagem pessoal", { flow: "sem cupom, só conversa" }],
-      cta: ["cta", "cupom de retorno", { text: "voltar com desconto" }],
+      offer: ["product", "oferta de retorno", { marketplace: "own", cta: "voltar com desconto" }],
       checkout: ["checkout", "checkout", { platform: "Stripe" }],
       thanks: ["thanks", "obrigado"]
     },
-    flow: "base>mail 100, base>whatsapp 40, mail>cta 6, whatsapp>cta 15, cta>checkout 30, checkout>thanks 90"
+    flow: "base>mail 100, base>whatsapp 40, mail>offer 6, whatsapp>offer 15, offer>checkout 30, checkout>thanks 90"
   },
   {
     id: "post-purchase-upsell", group: "retention", channel: "",
@@ -431,7 +415,7 @@ export const FUNNEL_TEMPLATES = [
     stages: {
       happy: ["custom", "cliente satisfeito"],
       invite: ["email", "convite para indicar", { sequence: "indicação" }],
-      lp: ["lp", "página de indicação"],
+      lp: ["lp", "página de indicação", { cta: "indicar um amigo", ctaTarget: "formulário" }],
       form: ["capture", "quem foi indicado", { what: "nome e whatsapp do indicado" }],
       contact: ["whatsapp", "contato com o indicado", { flow: "benefício dos dois lados" }],
       checkout: ["checkout", "compra do indicado", { platform: "Stripe" }],
@@ -442,16 +426,15 @@ export const FUNNEL_TEMPLATES = [
   {
     id: "replenishment", group: "retention", channel: "",
     name: "recompra programada",
-    summary: "produto que acaba tem data: o lembrete sai antes do cliente lembrar sozinho",
+    summary: "produto que acaba tem data: o lembrete sai antes de o cliente lembrar sozinho",
     stages: {
       first: ["checkout", "primeira compra", { platform: "Stripe" }],
       remind: ["email", "d+20 · está acabando?", { sequence: "recompra" }],
       whatsapp: ["whatsapp", "lembrete com link", { flow: "1 clique para repetir" }],
-      cta: ["cta", "repetir o pedido", { text: "comprar de novo" }],
-      again: ["checkout", "recompra", { platform: "Stripe" }],
+      again: ["repurchase", "recompra", { window: 30 }],
       subscription: ["custom", "assinatura de reposição"]
     },
-    flow: "first>remind 100, first>whatsapp 60, remind>cta 15, whatsapp>cta 22, cta>again 40, again>subscription 12"
+    flow: "first>remind 100, first>whatsapp 60, remind>again 6, whatsapp>again 9, again>subscription 12"
   },
 
   /* ---------- mercado livre ---------- */
@@ -461,8 +444,8 @@ export const FUNNEL_TEMPLATES = [
     summary: "busca e Mercado Ads caem no mesmo anúncio; reputação e avaliação alimentam de volta",
     stages: {
       search: ["traffic", "busca no ML", { source: "organic", campaign: "palavras do produto" }],
-      ads: ["traffic", "Mercado Ads", { source: "marketplace", campaign: "product ads" }],
-      listing: ["lp", "anúncio do produto"],
+      ads: ["ad", "Mercado Ads · product ads", { creative: "foto principal e título" }],
+      listing: ["product", "anúncio do produto", { marketplace: "mercadolivre", cta: "comprar agora" }],
       questions: ["custom", "perguntas respondidas"],
       buy: ["checkout", "compra no ML", { platform: "Mercado Livre" }],
       thanks: ["thanks", "venda concluída"],
@@ -481,10 +464,10 @@ export const FUNNEL_TEMPLATES = [
       whatsapp: ["whatsapp", "pós-venda no whatsapp", { flow: "garantia e manual" }],
       capture: ["capture", "cadastro na base", { what: "nome, e-mail e whatsapp" }],
       nurture: ["email", "nutrição fora do ML", { sequence: "pós-venda" }],
-      cta: ["cta", "cupom da loja própria", { text: "comprar direto" }],
-      site: ["checkout", "compra no site", { platform: "Stripe" }]
+      site: ["product", "produto na loja própria", { marketplace: "own", cta: "comprar direto" }],
+      checkout: ["checkout", "compra no site", { platform: "Stripe" }]
     },
-    flow: "buy>insert 100, insert>whatsapp 18, whatsapp>capture 60, capture>nurture 100, nurture>cta 20, cta>site 25"
+    flow: "buy>insert 100, insert>whatsapp 18, whatsapp>capture 60, capture>nurture 100, nurture>site 20, site>checkout 25"
   },
 
   /* ---------- shopee ---------- */
@@ -494,14 +477,14 @@ export const FUNNEL_TEMPLATES = [
     summary: "preço, frete e cupom decidem a compra; o ads só acelera o que já converte",
     stages: {
       search: ["traffic", "busca na Shopee", { source: "organic", campaign: "palavras do produto" }],
-      ads: ["traffic", "Shopee Ads", { source: "marketplace", campaign: "descoberta e busca" }],
-      page: ["lp", "página do produto"],
-      coupon: ["bump", "cupom da loja"],
+      ads: ["ad", "Shopee Ads", { creative: "descoberta e busca" }],
+      page: ["product", "página do produto", { marketplace: "shopee", cta: "comprar" }],
       buy: ["checkout", "checkout Shopee", { platform: "Shopee" }],
       thanks: ["thanks", "venda concluída"],
       review: ["custom", "avaliação com foto"]
     },
-    flow: "search>page 3, ads>page 5, page>coupon 30, page>buy 6, coupon>buy 20, buy>thanks 100, thanks>review 25, review>page 100"
+    flow: "search>page 3, ads>page 5, page>buy 6, buy>thanks 100, thanks>review 25, review>page 100",
+    offers: [{ name: "cupom da loja", type: "bump", node: "buy" }]
   },
   {
     id: "shopee-live-affiliates", group: "shopee", channel: "shopee",
@@ -510,11 +493,11 @@ export const FUNNEL_TEMPLATES = [
     stages: {
       affiliates: ["custom", "afiliados e creators"],
       social: ["traffic", "audiência do creator", { source: "tiktok", campaign: "divulgação da live" }],
-      live: ["custom", "live de produtos"],
-      page: ["lp", "produto em destaque"],
+      live: ["webinar", "live de produtos", { cta: "pegar o cupom" }],
+      page: ["product", "produto em destaque", { marketplace: "shopee" }],
       buy: ["checkout", "checkout Shopee", { platform: "Shopee" }],
       thanks: ["thanks", "venda concluída"],
-      group: ["whatsapp", "grupo de ofertas", { flow: "avisos da próxima live" }]
+      group: ["group", "grupo de ofertas", { platform: "whatsapp" }]
     },
     flow: "affiliates>social 100, social>live 4, live>page 35, page>buy 12, buy>thanks 100, thanks>group 15, group>live 30"
   },
@@ -528,7 +511,7 @@ export const FUNNEL_TEMPLATES = [
       organic: ["traffic", "tiktok orgânico", { source: "tiktok", campaign: "vídeos de produto" }],
       creator: ["custom", "creator/afiliado"],
       video: ["ad", "vídeo com produto marcado"],
-      shop: ["lp", "vitrine do tiktok shop"],
+      shop: ["product", "vitrine do tiktok shop", { marketplace: "tiktok", cta: "comprar no app" }],
       buy: ["checkout", "checkout tiktok shop", { platform: "TikTok Shop" }],
       thanks: ["thanks", "venda concluída"],
       review: ["custom", "avaliação e recompra"]
@@ -541,14 +524,13 @@ export const FUNNEL_TEMPLATES = [
     summary: "cupom que só vale durante a live, e remarketing depois para quem assistiu",
     stages: {
       ads: ["traffic", "TikTok Ads", { source: "tiktok", campaign: "chamada da live" }],
-      live: ["custom", "live"],
-      cta: ["cta", "cupom da live", { text: "pegar o cupom" }],
-      pinned: ["lp", "produto fixado"],
+      live: ["webinar", "live shopping", { cta: "pegar o cupom" }],
+      pinned: ["product", "produto fixado", { marketplace: "tiktok" }],
       buy: ["checkout", "checkout tiktok shop", { platform: "TikTok Shop" }],
-      thanks: ["thanks", "venda concluída"],
-      remarketing: ["remarketing", "assistiu e não comprou", { window: 3, channel: "tiktok" }]
+      thanks: ["thanks", "venda concluída"]
     },
-    flow: "ads>live 2.5, live>cta 30, cta>pinned 70, pinned>buy 14, buy>thanks 100, live>remarketing 60, remarketing>pinned 6",
+    flow: "ads>live 2.5, live>pinned 21, pinned>buy 14, buy>thanks 100",
+    automations: [{ name: "remarketing da live", trigger: "assistiu e não comprou", action: "anúncio por 3 dias", tool: "tiktok", node: "live" }],
     triggers: [{ name: "urgência", usage: "o cupom morre no fim da transmissão" }]
   },
 
@@ -559,14 +541,14 @@ export const FUNNEL_TEMPLATES = [
     summary: "as primeiras avaliações compram o ranking; o ads paga esse começo",
     stages: {
       search: ["traffic", "busca na Amazon", { source: "organic", campaign: "palavras do ASIN" }],
-      ads: ["traffic", "Amazon Ads", { source: "marketplace", campaign: "sponsored products" }],
-      page: ["lp", "página do ASIN"],
-      coupon: ["bump", "cupom de lançamento"],
+      ads: ["ad", "Amazon Ads · sponsored products"],
+      page: ["product", "página do ASIN", { marketplace: "amazon", cta: "comprar agora" }],
       buy: ["checkout", "buy box", { platform: "Amazon" }],
       thanks: ["thanks", "venda concluída"],
       review: ["custom", "solicitação de review"]
     },
-    flow: "search>page 2, ads>page 4, page>coupon 25, page>buy 9, coupon>buy 18, buy>thanks 100, thanks>review 12, review>page 100"
+    flow: "search>page 2, ads>page 4, page>buy 9, buy>thanks 100, thanks>review 12, review>page 100",
+    offers: [{ name: "cupom de lançamento", type: "bump", node: "buy" }]
   },
   {
     id: "amazon-repeat", group: "amazon", channel: "amazon",
@@ -575,9 +557,9 @@ export const FUNNEL_TEMPLATES = [
     stages: {
       first: ["checkout", "primeira compra", { platform: "Amazon" }],
       insert: ["custom", "inserto na embalagem"],
-      brand: ["lp", "brand store"],
+      brand: ["product", "brand store", { marketplace: "amazon", cta: "ver a marca" }],
       follow: ["email", "seguir a marca / novidades", { sequence: "marca" }],
-      again: ["checkout", "recompra ou assine e poupe", { platform: "Amazon" }]
+      again: ["repurchase", "recompra ou assine e poupe", { window: 60 }]
     },
     flow: "first>insert 100, insert>brand 8, brand>follow 20, follow>again 15, brand>again 10"
   },
@@ -586,33 +568,34 @@ export const FUNNEL_TEMPLATES = [
   {
     id: "site-cold-traffic", group: "site", channel: "site",
     name: "site · tráfego frio para produto",
-    summary: "o clássico do e-commerce: anúncio, página de produto, bump de frete e remarketing",
+    summary: "o clássico do e-commerce, com a queda entre carrinho, checkout e pagamento à vista",
     stages: {
       traffic: ["traffic", "tráfego frio", { source: "meta", campaign: "produto" }],
       ad: ["ad", "criativo de produto"],
-      page: ["lp", "página do produto"],
-      bump: ["bump", "frete grátis acima de X"],
+      page: ["product", "página do produto", { marketplace: "own", cta: "comprar agora" }],
+      cart: ["cart", "carrinho", { platform: "Shopify" }],
       checkout: ["checkout", "checkout", { platform: "Stripe" }],
+      payment: ["payment", "pagamento aprovado", { method: "mixed" }],
       thanks: ["thanks", "obrigado"],
-      post: ["email", "pós-compra", { sequence: "pós-compra" }],
-      remarketing: ["remarketing", "visitou e não comprou", { window: 7, channel: "meta" }]
+      post: ["email", "pós-compra", { sequence: "pós-compra" }]
     },
-    flow: "traffic>ad 100, ad>page 1.8, page>bump 22, page>checkout 4, bump>checkout 60, checkout>thanks 55, thanks>post 100, page>remarketing 90, remarketing>page 8"
+    flow: "traffic>ad 100, ad>page 1.8, page>cart 7, cart>checkout 55, checkout>payment 82, payment>thanks 100, thanks>post 100",
+    offers: [{ name: "frete grátis acima de X", type: "bump", node: "cart" }],
+    automations: [{ name: "remarketing de visitante", trigger: "visitou e não comprou", action: "anúncio por 7 dias", tool: "meta", node: "page" }]
   },
   {
     id: "site-seo-content", group: "site", channel: "site",
     name: "site · conteúdo e SEO para venda",
-    summary: "o artigo responde a dúvida, o produto aparece dentro dela e o cupom pega quem não compra hoje",
+    summary: "o artigo responde à dúvida, o produto aparece dentro dela e o cupom pega quem não compra hoje",
     stages: {
       search: ["traffic", "busca orgânica", { source: "organic", campaign: "guias e comparativos" }],
-      article: ["lp", "artigo/guia"],
-      cta: ["cta", "ver o produto", { text: "conhecer o produto" }],
-      product: ["lp", "página do produto"],
+      article: ["lp", "artigo/guia", { cta: "conhecer o produto", ctaTarget: "página do produto" }],
+      product: ["product", "página do produto", { marketplace: "own", cta: "comprar agora" }],
       capture: ["capture", "cupom em troca do e-mail", { what: "e-mail" }],
       checkout: ["checkout", "checkout", { platform: "Stripe" }],
       thanks: ["thanks", "obrigado"]
     },
-    flow: "search>article 100, article>cta 12, cta>product 70, article>capture 4, capture>product 25, product>checkout 3.5, checkout>thanks 60"
+    flow: "search>article 100, article>product 8, article>capture 4, capture>product 25, product>checkout 3.5, checkout>thanks 60"
   },
 
   /* ---------- instagram ---------- */
@@ -623,13 +606,12 @@ export const FUNNEL_TEMPLATES = [
     stages: {
       organic: ["traffic", "alcance orgânico", { source: "organic", campaign: "reels e carrosséis" }],
       content: ["custom", "reels/carrossel"],
-      cta: ["cta", "comente a palavra-chave", { text: "comenta EU QUERO" }],
-      dm: ["whatsapp", "DM automática", { flow: "entrega + pergunta" }],
-      talk: ["custom", "conversa humana"],
+      dm: ["dm", "direct automático", { channel: "instagram", opener: "comenta EU QUERO" }],
+      talk: ["whatsapp", "conversa humana", { flow: "qualificação e oferta" }],
       checkout: ["checkout", "link de pagamento", { platform: "Stripe" }],
       thanks: ["thanks", "obrigado"]
     },
-    flow: "organic>content 100, content>cta 4, cta>dm 85, dm>talk 30, talk>checkout 20, checkout>thanks 90"
+    flow: "organic>content 100, content>dm 3.4, dm>talk 30, talk>checkout 20, checkout>thanks 90"
   },
   {
     id: "ig-ads-whatsapp", group: "instagram", channel: "instagram",
@@ -638,14 +620,13 @@ export const FUNNEL_TEMPLATES = [
     stages: {
       ads: ["traffic", "Meta Ads", { source: "meta", campaign: "clique para whatsapp" }],
       ad: ["ad", "criativo de oferta"],
-      lp: ["lp", "página curta"],
-      cta: ["cta", "chamar no whatsapp", { text: "falar agora" }],
+      lp: ["lp", "página curta", { cta: "falar agora", ctaTarget: "whatsapp" }],
       whatsapp: ["whatsapp", "atendimento com script", { flow: "qualificação, oferta, fechamento" }],
       checkout: ["checkout", "link de pagamento", { platform: "Stripe" }],
-      thanks: ["thanks", "obrigado"],
-      remarketing: ["remarketing", "conversou e não fechou", { window: 5, channel: "meta" }]
+      thanks: ["thanks", "obrigado"]
     },
-    flow: "ads>ad 100, ad>lp 2, lp>cta 25, cta>whatsapp 75, whatsapp>checkout 18, checkout>thanks 90, whatsapp>remarketing 60, remarketing>whatsapp 10"
+    flow: "ads>ad 100, ad>lp 2, lp>whatsapp 19, whatsapp>checkout 18, checkout>thanks 90",
+    automations: [{ name: "remarketing de conversa parada", trigger: "conversou e não fechou", action: "anúncio e follow-up por 5 dias", tool: "meta", node: "whatsapp" }]
   },
 
   /* ---------- google ---------- */
@@ -656,13 +637,12 @@ export const FUNNEL_TEMPLATES = [
     stages: {
       ads: ["traffic", "Google Ads · busca", { source: "google", campaign: "termos de compra" }],
       ad: ["ad", "anúncio de texto"],
-      lp: ["lp", "landing do termo"],
-      cta: ["cta", "chamada principal", { text: "comprar agora" }],
+      lp: ["lp", "landing do termo", { cta: "comprar agora", ctaTarget: "checkout" }],
       checkout: ["checkout", "checkout", { platform: "Stripe" }],
-      thanks: ["thanks", "obrigado"],
-      remarketing: ["remarketing", "visitou a landing", { window: 14, channel: "google display" }]
+      thanks: ["thanks", "obrigado"]
     },
-    flow: "ads>ad 100, ad>lp 5, lp>cta 30, cta>checkout 35, checkout>thanks 60, lp>remarketing 85, remarketing>lp 5"
+    flow: "ads>ad 100, ad>lp 5, lp>checkout 10, checkout>thanks 60",
+    automations: [{ name: "remarketing de visitante", trigger: "visitou a landing e não comprou", action: "display por 14 dias", tool: "google", node: "lp" }]
   },
   {
     id: "google-shopping", group: "google", channel: "google",
@@ -670,14 +650,15 @@ export const FUNNEL_TEMPLATES = [
     summary: "o catálogo é o criativo: feed limpo, página de produto rápida e recuperação de carrinho",
     stages: {
       pmax: ["traffic", "Google Ads · PMax/Shopping", { source: "google", campaign: "feed do catálogo" }],
-      product: ["lp", "página do produto"],
-      bump: ["bump", "frete ou kit"],
+      product: ["product", "página do produto", { marketplace: "own", cta: "comprar agora" }],
+      cart: ["cart", "carrinho", { platform: "Shopify" }],
       checkout: ["checkout", "checkout", { platform: "Stripe" }],
-      thanks: ["thanks", "obrigado"],
-      post: ["email", "pós-compra", { sequence: "pós-compra" }],
-      cart: ["remarketing", "carrinho abandonado", { window: 3, channel: "google e e-mail" }]
+      payment: ["payment", "pagamento aprovado", { method: "mixed" }],
+      post: ["email", "pós-compra", { sequence: "pós-compra" }]
     },
-    flow: "pmax>product 100, product>bump 20, product>checkout 3, bump>checkout 55, checkout>thanks 55, thanks>post 100, checkout>cart 45, cart>checkout 8"
+    flow: "pmax>product 100, product>cart 6, cart>checkout 55, checkout>payment 82, payment>post 100",
+    offers: [{ name: "frete ou kit", type: "bump", node: "cart" }],
+    automations: [{ name: "carrinho abandonado", trigger: "carrinho sem pagamento", action: "e-mail e display por 3 dias", tool: "google e e-mail", node: "cart" }]
   },
 
   /* ---------- whatsapp ---------- */
@@ -688,12 +669,11 @@ export const FUNNEL_TEMPLATES = [
     stages: {
       base: ["custom", "base segmentada"],
       message: ["whatsapp", "mensagem de oferta", { flow: "1 oferta por disparo" }],
-      cta: ["cta", "link com cupom", { text: "ver a oferta" }],
-      lp: ["lp", "página da oferta"],
+      lp: ["lp", "página da oferta", { cta: "ver a oferta", ctaTarget: "checkout" }],
       checkout: ["checkout", "checkout", { platform: "Stripe" }],
       thanks: ["thanks", "obrigado"]
     },
-    flow: "base>message 100, message>cta 18, cta>lp 90, lp>checkout 8, checkout>thanks 85"
+    flow: "base>message 100, message>lp 16, lp>checkout 8, checkout>thanks 85"
   },
   {
     id: "wa-group", group: "whatsapp", channel: "whatsapp",
@@ -701,15 +681,14 @@ export const FUNNEL_TEMPLATES = [
     summary: "o grupo vira audiência recorrente: entra uma vez, recebe oferta toda semana",
     stages: {
       traffic: ["traffic", "bio e anúncios", { source: "meta", campaign: "entrada do grupo" }],
-      lp: ["lp", "convite do grupo"],
+      lp: ["lp", "convite do grupo", { cta: "entrar no grupo", ctaTarget: "whatsapp" }],
       join: ["capture", "entrada no grupo", { what: "número de whatsapp" }],
-      group: ["whatsapp", "comunidade", { flow: "conteúdo + oferta" }],
+      group: ["group", "comunidade", { platform: "whatsapp" }],
       routine: ["custom", "rotina semanal de ofertas"],
-      cta: ["cta", "oferta da semana", { text: "aproveitar" }],
       checkout: ["checkout", "checkout", { platform: "Stripe" }],
       thanks: ["thanks", "obrigado"]
     },
-    flow: "traffic>lp 3, lp>join 45, join>group 100, group>routine 100, routine>cta 20, cta>checkout 25, checkout>thanks 85"
+    flow: "traffic>lp 3, lp>join 45, join>group 100, group>routine 100, routine>checkout 5, checkout>thanks 85"
   },
 
   /* ---------- e-mail ---------- */
@@ -723,11 +702,10 @@ export const FUNNEL_TEMPLATES = [
       d1: ["email", "d1 · a história", { sequence: "nutrição" }],
       d3: ["email", "d3 · prova e método", { sequence: "nutrição" }],
       d5: ["email", "d5 · a oferta", { sequence: "nutrição" }],
-      cta: ["cta", "chamada da oferta", { text: "quero começar" }],
       checkout: ["checkout", "checkout", { platform: "Stripe" }],
       thanks: ["thanks", "obrigado"]
     },
-    flow: "lead>d0 100, d0>d1 55, d1>d3 45, d3>d5 40, d5>cta 18, cta>checkout 30, checkout>thanks 80"
+    flow: "lead>d0 100, d0>d1 55, d1>d3 45, d3>d5 40, d5>checkout 5.4, checkout>thanks 80"
   },
   {
     id: "email-reengagement", group: "email", channel: "email",
