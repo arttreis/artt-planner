@@ -296,13 +296,7 @@ r = await call("POST", "/merlin", { task: "funnel", context: { name: "f", stages
 check("merlin repassa a recusa", r.status === 422);
 env.ANTHROPIC_API_KEY = "";
 
-/* ---- 14. faxina ---- */
-db.codes.push({ hash: "velho", email: "x@x.com", expires_at: Date.now() - 7200e3, attempts: 0, used: 0 });
-const beforeCleanup = db.codes.length;
-await worker.scheduled({}, env);
-check("faxina remove codigo expirado", db.codes.length < beforeCleanup);
-
-/* ---- 15. o site sai do mesmo worker que a api ---- */
+/* ---- 14. o site sai do mesmo worker que a api ---- */
 const raw = (path) => worker.fetch(new Request("https://x.com" + path), env);
 r = await raw("/");
 check("a raiz serve o site", r.status === 200 && (await r.text()).includes("merlin"));

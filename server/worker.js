@@ -669,10 +669,5 @@ export default {
       console.error(e && e.stack || e);
       return fail("deu errado aqui do meu lado", 500);
     }
-  },
-
-  /* faxina: codigo velho nao serve pra nada e so cresce */
-  async scheduled(event, env) {
-    await env.DB.prepare("DELETE FROM codes WHERE expires_at < ?").bind(Date.now() - 3600e3).run();
   }
 };

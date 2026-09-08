@@ -12,6 +12,9 @@ CREATE TABLE IF NOT EXISTS people (
 
 -- o codigo que chega por e-mail. guardamos o HASH, nunca o codigo:
 -- quem ler o banco nao consegue entrar na conta de ninguem.
+-- nada apaga a linha vencida, e esta certo assim: entrar confere o
+-- expires_at na hora, e o limite por e-mail so conta as nao vencidas.
+-- num sistema de duas pessoas a tabela cresce algumas dezenas por ano.
 CREATE TABLE IF NOT EXISTS codes (
   hash        TEXT PRIMARY KEY,          -- sha-256 de (codigo + email)
   email       TEXT NOT NULL,

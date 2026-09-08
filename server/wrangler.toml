@@ -43,10 +43,6 @@ SENDER_EMAIL = "merlin@arttreis.com.br"
 # para desenvolvimento local.
 OWNER_EMAILS = "midia@guessless.com.br,arthurcastilhos@gmail.com"
 
-# faxina dos codigos expirados, toda madrugada
-[triggers]
-crons = ["17 4 * * *"]
-
 # segredos NAO ficam aqui. sao tres, e vao por linha de comando:
 #   npx wrangler secret put RESEND_API_KEY
 #   npx wrangler secret put SESSION_SECRET
