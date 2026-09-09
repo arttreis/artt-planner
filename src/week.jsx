@@ -4,44 +4,16 @@
 import "./shared/base.css";
 import "./week.css";
 import {
-  initPage, newId, today, isDay, notify, sendToDay, api,
+  initPage, newId, today, notify, sendToDay, api, WEEKEND, weekCards,
   parseMentions, formatMin, parseDuration, mondayOf, addDays, dateLabel, dateOf, clientName
 } from "./shared/core.js";
 import { useState, useEffect, useRef } from "react";
 import {
-  mount, useCollection, useClients, useKeydown, isTyping,
+  mount, useSyncedCollection, useClients, useKeydown, isTyping,
   useFields, Form, Field, Dialog, Markdown, ClientBadge, clientOptionList, icon
 } from "./shared/ui.jsx";
 
 initPage("week");
-
-/* o cartao da semana: day e 'YYYY-MM-DD' (seg-sex) ou 'weekend:YYYY-MM-DD'
-   (a segunda daquela semana), para o fim de semana caber numa coluna so. */
-const WEEKEND = "weekend:";
-const isValidDay = (v) => isDay(v) || (typeof v === "string" && v.startsWith(WEEKEND) && isDay(v.slice(WEEKEND.length)));
-function normalize(d) {
-  return {
-    id: d.id,
-    title: String(d.title || "").slice(0, 200),
-    day: isValidDay(d.day) ? d.day : today(),
-    client: d.client || "",
-    min: Math.max(0, Math.round(+d.min || 0)),
-    done: !!d.done,
-    recurring: !!d.recurring,
-    order: Number.isFinite(+d.order) ? +d.order : 0,
-    createdAt: +d.createdAt || Date.now(),
-    updatedAt: +d.updatedAt || +d.createdAt || Date.now(),
-    /* id do cartao original, so nas copias que a recorrencia gera — impede
-       uma copia de virar, ela mesma, uma nova origem que se copia sozinha */
-    recurringSource: d.recurringSource || "",
-    /* quem escreve isto e o dia: e o id da tarefa que ele criou a partir
-       deste cartao. aqui so lemos — nunca gravamos este campo. */
-    inDay: d.inDay || "",
-    /* de onde o cartao veio (um objetivo dos planos, por exemplo). so passa
-       adiante: quem le e a pagina de origem. */
-    origin: d.origin && typeof d.origin === "object" ? { type: String(d.origin.type || ""), id: String(d.origin.id || "") } : null
-  };
-}
 
 /* icone que nao mora no core por ser exclusivo deste quadro */
 const RecurringIcon = () => (
@@ -166,7 +138,7 @@ function spawnRecurring(week, monday) {
    merlin, qual titulo esta em edicao e qual coluna esta sob o arrasto. nada
    disso e documento — some ao recarregar, como deve. */
 function Week() {
-  const week = useCollection("week", { normalize });
+  const week = useSyncedCollection(weekCards());
   useClients();
   const [monday, setMonday] = useState(() => mondayOf(today()));
   const [form, setForm] = useState(null);         // { id, day } | null

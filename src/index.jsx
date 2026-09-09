@@ -4,12 +4,12 @@
 import "./shared/shell.css";
 import "./index.css";
 import {
-  initPage, newId, today, isDay, mondayOf, api, cloud,
+  initPage, newId, today, isDay, mondayOf, api, cloud, weekCards, columnKeyFor,
   readInbox, writeInbox, parseMentions, clientName
 } from "./shared/core.js";
 import { useState, useEffect, useLayoutEffect, useRef } from "react";
 import {
-  mount, useCollection, useClients, useKeydown, isTyping,
+  mount, useCollection, useSyncedCollection, useClients, useKeydown, isTyping,
   useDelegate, DelegateDialog, ClientBadge, icon
 } from "./shared/ui.jsx";
 
@@ -295,13 +295,10 @@ const liveIdeas = (col) => col.all()
   .sort((a, b) => (b.updatedAt || b.createdAt || 0) - (a.updatedAt || a.createdAt || 0))
   .slice(0, MAX_IDEAS);
 
-/* ---------- os cartoes de hoje, da semana ---------- */
-const WEEKEND = "weekend:";
-function todayKey() {
-  const t = today();
-  const dow = new Date().getDay();
-  return (dow === 0 || dow === 6) ? WEEKEND + mondayOf(t) : t;
-}
+/* ---------- os cartoes de hoje, da semana ----------
+   a coluna a que hoje pertence. a conta mora no core, junto do modelo do
+   cartao, para o dia e a semana nunca discordarem sobre onde e "hoje". */
+const todayKey = () => columnKeyFor(today());
 
 /* icones que nao moram no core por serem exclusivos desta tela */
 const LogoIcon = () => (
@@ -330,7 +327,7 @@ const UNDO_DEPTH = 12;
 function Day() {
   const [doc, setDoc] = useState(load);
   const docRef = useRef(doc);
-  const week = useCollection("week");
+  const week = useSyncedCollection(weekCards());
   const ideasCol = useCollection("ideas", { normalize: normalizeIdea });
   useClients();
   const delegate = useDelegate();               /* "da pra fazer com Claude?" */
@@ -429,8 +426,33 @@ function Day() {
     const r = withTask(docRef.current, spec);
     if (!r) return false;
     commit(r.doc);
+    /* a tarefa que nasce aqui vira cartao na coluna de hoje. sem isto a semana
+       so enxergava o que ela mesma criou, e o que o arthur digitou no dia
+       ficava fora do quadro — que e justamente o painel de "quanto ainda cabe".
+       o que veio da semana nao volta: ja tem cartao, e duplicaria. */
+    if (!spec.origin || spec.origin.type !== "week") mirrorToWeek(r.id, spec);
     return r.id;
   };
+
+  /* o espelho do dia na semana: um cartao ja vinculado (`inDay`), para o dia
+     nao puxar de volta o que ele mesmo acabou de mandar. reserva nao sobe —
+     almoco e bloco fixo ocupam a janela, nao sao trabalho a planejar. */
+  const mirrorToWeek = (taskId, spec) => {
+    if (spec.reserved) return;
+    const title = String(spec.title || "").replace(/\s+/g, " ").trim();
+    if (!title) return;
+    const now = Date.now();
+    week.save({
+      id: newId(), title: title.slice(0, 200), day: todayKey(),
+      client: spec.client || "", min: +spec.min || 0, done: false,
+      recurring: false, order: now, createdAt: now, updatedAt: now,
+      inDay: taskId, origin: { type: "day", id: taskId }
+    });
+  };
+
+  /* o cartao que espelha uma tarefa do dia, se existir */
+  const cardOfTask = (taskId) =>
+    week.all().find((c) => c.origin && c.origin.type === "day" && c.origin.id === taskId) || null;
 
   const complete = (id) => {
     const i = findIndex(id);
@@ -447,6 +469,7 @@ function Day() {
          reabre o cartao — e um registro, nao um espelho, e reabrir na semana
          e um clique. */
       if (done.origin && done.origin.type === "week") markWeek(done.origin.id);
+      else closeMirror(id);
       const tasks = d.tasks.slice();
       tasks.splice(j, 1);
       tasks.push(done);
@@ -479,6 +502,7 @@ function Day() {
     const [t] = tasks.splice(i, 1);
     tasks.unshift({ ...t, done: false });
     commit({ ...d, tasks });
+    reopenMirror(id);
   };
 
   const remove = (id) => {
@@ -490,6 +514,7 @@ function Day() {
       if (!d.tasks.some((t) => t.id === id)) return;
       commit({ ...d, tasks: d.tasks.filter((t) => t.id !== id) });
       if (origin && origin.type === "week") unlinkWeek(origin.id, id);
+      else removeMirror(id);
     });
   };
 
@@ -501,6 +526,7 @@ function Day() {
     if (!clean) { remove(id); return; }
     if (clean === t.title) return;
     commit({ ...d, tasks: d.tasks.map((x) => (x.id === id ? { ...x, title: clean.slice(0, 300) } : x)) });
+    renameMirror(id, clean);
   };
 
   const reorder = (fromId, toId) => {
@@ -736,6 +762,28 @@ function Day() {
      a poder ser puxado. quem escreveu `inDay` foi o dia, e e o dia quem apaga
      — sem isto o cartao fica para sempre com o selo "no dia" apontando para
      uma tarefa que nao existe mais, e o gesto de puxar nunca mais aparece. */
+  /* ---------- o espelho, do outro lado ----------
+     o cartao que o dia criou acompanha a tarefa: fecha quando ela e concluida,
+     reabre quando ela volta, muda de titulo junto e some quando ela e apagada.
+     e so nos cartoes com origin "day" — o que a semana criou nao e espelho de
+     nada, e mexer nele daqui seria o dia mandando no quadro. */
+  const closeMirror = (taskId) => {
+    const c = cardOfTask(taskId);
+    if (c && !c.done) week.save({ ...c, done: true, updatedAt: Date.now() });
+  };
+  const reopenMirror = (taskId) => {
+    const c = cardOfTask(taskId);
+    if (c && c.done) week.save({ ...c, done: false, updatedAt: Date.now() });
+  };
+  const renameMirror = (taskId, title) => {
+    const c = cardOfTask(taskId);
+    if (c) week.save({ ...c, title: title.slice(0, 200), updatedAt: Date.now() });
+  };
+  const removeMirror = (taskId) => {
+    const c = cardOfTask(taskId);
+    if (c) week.remove(c.id);
+  };
+
   const unlinkWeek = (cardId, taskId) => {
     const c = week.get(cardId);
     if (!c || c.inDay !== taskId) return;

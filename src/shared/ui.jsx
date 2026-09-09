@@ -55,6 +55,14 @@ export function useCollection(type, options) {
   return c;
 }
 
+/* a mesma coisa, para quem ja recebeu a colecao pronta do core (a semana, que
+   o dia tambem grava). assim os dois lados usam a mesma instancia e o mesmo
+   modelo, em vez de cada pagina abrir a sua com um normalizador diferente. */
+export function useSyncedCollection(c) {
+  useSubscription(c);
+  return c;
+}
+
 /* os clientes vivos, redesenhando quando mudam */
 export function useClients() {
   const c = useMemo(() => clients(), []);

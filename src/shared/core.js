@@ -569,6 +569,44 @@ export function purgeFronts() {
   try { localStorage.setItem(FRONTS_PURGED, String(Date.now())); } catch (e) {}
 }
 
+/* ---------- o cartao da semana ----------
+   mora aqui, e nao em week.jsx, porque o dia tambem grava nesta colecao
+   (marcar feito, desvincular, receber os cartoes de hoje). a colecao e uma so
+   por tipo: quem a abrir primeiro sem normalizador deixa todo cartao gravado
+   depois passar cru, e um cartao cru — sem `day` valido — nao cai em nenhuma
+   coluna e some do quadro. um modelo, os dois lados. */
+export const WEEKEND = "weekend:";
+export const isValidDay = (v) => isDay(v) || (typeof v === "string" && v.startsWith(WEEKEND) && isDay(v.slice(WEEKEND.length)));
+
+export function normalizeCard(d) {
+  d = d || {};
+  return {
+    id: d.id,
+    title: String(d.title || "").slice(0, 200),
+    day: isValidDay(d.day) ? d.day : today(),
+    client: String(d.client || "").slice(0, 64),
+    min: Math.max(0, Math.round(+d.min || 0)),
+    done: !!d.done,
+    recurring: !!d.recurring,
+    order: Number.isFinite(+d.order) ? +d.order : 0,
+    createdAt: +d.createdAt || Date.now(),
+    updatedAt: +d.updatedAt || +d.createdAt || Date.now(),
+    recurringSource: d.recurringSource || "",
+    inDay: d.inDay || "",
+    origin: d.origin && typeof d.origin === "object" ? { type: String(d.origin.type || ""), id: String(d.origin.id || "") } : null
+  };
+}
+
+/* a colecao da semana, sempre com o modelo junto */
+export const weekCards = () => collection("week", { normalize: normalizeCard });
+
+/* a coluna a que uma data pertence: o proprio dia de segunda a sexta, a
+   coluna unica do fim de semana no sabado e no domingo */
+export function columnKeyFor(day) {
+  const dow = dateOf(day).getDay();
+  return (dow === 0 || dow === 6) ? WEEKEND + mondayOf(day) : day;
+}
+
 /* clientes: o indice leve que os outros modulos usam para selo e escolha.
    a colecao inteira mora em clientes.html; aqui so o que e comum. */
 export const clients = () => collection("clients");
